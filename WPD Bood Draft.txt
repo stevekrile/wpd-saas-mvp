@@ -1,0 +1,689 @@
+Whole Process Design
+A Practical Method for Fixing Systems You Don’t Fully Control
+ 
+
+Introduction — Who This Is for and What This Book Does
+
+In every business that is or ever was, there are people that take responsibility for delivering value. These people often manage other people, control major aspects of the business, and ensure quality service to their customers. These people are identified by many job titles, professions, backgrounds, and aspirations. But for our purposes, we will call them all by the much-maligned moniker: Middle Management.
+This group is expected to implement new information systems, adopt company policies, motivate their workers, meet operational deadlines, deliver high quality, and return value for the shareholders. How many of us have been told we are using some new software without proper training or alignment to how work really gets done. How often have we been handed a new KPI and wondered “what genius thought this up? Good luck making this number.” And don’t get me started on the new policy handed down from on-high that reflects a distinct misunderstanding of reality.
+I love middle management. If you spend any time with any number of organizations, you realize that unlike our shared vision of success that culminates in occupying the corner office where all your dreams come true – the world is run by middle management. 
+Whether it feels like it or not, two things are always true: systems matter, and you are responsible for the system. 
+You may not hold the keys (or the budget) to build the system of your dreams. It doesn’t matter. Perfect doesn’t exist. It never has. It never will. Waiting for someone else to fix it is how broken systems persist. 
+This book will teach you how to turn that uneasy feeling that something or someone is failing and turn it into precise diagnosis with a bias toward practical action. We will look at real-world examples that illustrate the most common weaknesses in business systems, a framework focusing on core aspects, and most importantly, practical guidance to move you toward solutions.
+In Part I, we identify why systems fail and start sharing language that can hone your thinking about the world you work in and where the most obvious weaknesses. We will look at the various types of failure from obvious mistakes to the more insidious system drift that sneak up on you often in times of most critical execution.
+Part II will lay out a framework that helps you put the problems you experience in the workplace into digestible chunks – separating out various signals you process every day into actionable categories. We will look at examples of how this framework expresses itself in the real world and work toward a model that can be used for every business process.
+Part III is when we roll our sleeves up and get to work. Spotting and naming the problem are good skills to have and worthy of focus, but now it’s time to move past flaws and conceive of a brighter future. We will look at techniques to break apart the systems you are looking to approve and determine which need attention, which are OK the way they are, which need to be completely reimagined.
+Part IV might be my favorite – this is when analysis and theory pay off. We will walk through the logic of designing a system that works. This is where the real power of a middle manager is exposed. You are confronted with so many overlapping aspects of any business, you hold the necessary insights to make the right decision about good system design – you just need the language to back up your instincts.
+Part V is where the rubber meets the road – execution. And here again is where Middle Management really shines. We are expected to build the plane while it’s flying – some might consider that crazy. We consider that just another Tuesday. We will discuss how to take the necessary steps to move from design to implementation. This involves consideration for sequencing, managing conflict, looking for signs of distress, and identifying the limits before it’s too late.
+When you are done with this book you will have the tools you need to make demonstrable changes in your organization. To the outsider, it will look like some kind of magic. People will wonder why your office always gets their work done on time, why your reports are reliable and accurate, why customer engagement scores are always the highest for your department, and why you have the lowest turnover in the company. With Whole Process Design in your pocket, you are limited by your imagination. There will always be constraints – time, money, people. Don’t let those constraints stand in your way.
+About the Author
+Steve Krile, CPE is a Certified Professional Ergonomist who has been working in the Health, Safety, and Environment fields for his entire career. He has consulted with the largest companies in the world focused on systemic risk management strategies. He lives in Ann Arbor, Michigan and is currently the Head of HSE for a tier-one automotive parts manufacturing company.
+ 
+PART I — RECONGNIZING THE PROBLEM
+In every emergency room, there is a moment when a patient arrives and a flood of information follows—symptoms, vitals, fragments of history. Someone must make sense of it, what matters, what doesn’t, and what to do next.
+Knowing what to do starts with a clear diagnosis.
+Before we get into the mechanics of Whole Process Design, we need to learn how to diagnose the signals of system distress.
+You see those signals every day. Some are minor annoyances you tolerate because you understand the intent behind them. Others are persistent failures that make you wonder how anything gets done at all. And perhaps the one that hurts the most is the failing system you built.
+You know the difference. You feel it - the friction, the rework, the missed handoffs, the inconsistent results.
+What you don’t have—yet—is a consistent way to interpret those signals and decide what to do about them. Before we get to the details of our Whole Process Design, let’s consider some very common patterns to be on the lookout for. 
+1. Success despite ourselves
+Large companies make money despite poor systems. Poor systems do not stop you from making a profit, they stop you from making more profit and retaining the talent to accelerate beyond that. Never mistake profitability or market success for good systems. 
+Most businesses are cyclical and can experience highs and lows from factors beyond their control. With Whole Process Design you will be working to capitalize on the good times by investing in rational systems and weather the bad times by eliminating waste and inefficiencies.
+2. Nothing ever changes
+It is a rare company that isn’t trying to continuously improve. Initiatives for efficiency, quality, and profitability are an ever-present instinct. But some organizations find themselves captured by ideas that were good 20 years ago but are too ingrained to replace. 
+If you find yourself in this type of organization, it can be a self-fulfilling prophecy to think that change is not possible. Rather than focusing on the things about monolithic structures that cannot be changed, find improvements at the margins. Building success from small beginnings is a time-tested approach to breakthrough performance. And, if we are being honest with each other, building successful processes in any capacity is great for your resume. Whole Process Design is a muscle that will serve you well regardless of who you work for.
+3. System drift
+Have you ever completed a travel request form and wondered why you must answer four questions about citizenship every time? Did you know those questions were added to the system seven years ago when there was a proposed government regulation requiring proof of citizenship for all travel foreign or domestic? Did you know that rule never came in to being, and the person who proposed it be added no longer works for your company? If this sounds familiar, then you are already aware of system drift. 
+Systems are not static. There must be a balance between operational stability and continuous improvement. When we consider Whole Process Design, we will take careful consideration to line up the four System Lenses, but our work is not one-and-done. Good processes contain a built-in cadence for verification and self-improvement.
+4. Expert systems and the novice user
+I am not an auto body expert. I don’t know how to repair a vehicle that has been in an accident nor do I know what aspects of auto repair are most important to identify when requesting a quote. But my insurance company does! They need me to tell them very specific technical things, but they cannot count on me understanding the information they need. So – they need to find a way to get that technical detail from me without requesting it by name. 
+How do they do that? They built an app that asks me to walk around my car (something I’ve been doing for years), film the car from every angle (something I know how to do and have the technology to accomplish), and answer simple questions about the color, make, and model of my car (something I can do by looking at the name plate on the bumper). 
+Many systems we encounter in our day-to-day work involve good intentions by experts in their fields but are overly prescriptive or rely on a deeper understanding of a topic for which the target actor is unable to deliver. You know you are working in this type of system when every field you interact with has a 20-page manual describing what that field means. Expansive help is often a signal of a system that was not designed for the person who needs to use it.
+5. Ghost in the machine
+A few years ago, a brilliant mind moved through our company inventing and imposing wonderful conceptual frameworks. They aligned each function to a shared purpose using consistent philosophy and expecting rational outcomes. We all knew what to do, and when we had questions, we got them answered immediately by this brilliant mind. That brilliant mind doesn’t work here anymore.
+Now when we have questions, we are left to our own intuition to decide what’s right. Ownership over the frameworks has now been pieced out to three different functions, and none of them can agree on even simple principles. That brilliant mind is now a ghost in our machine – haunting execution and providing more drag than grease. 
+When you premise the design of your process on the talent of one exceptional individual, you are investing in future process debt should that person no longer be around. With Whole Process Design, we will be establishing processes that are reinforced by the alignment of shared principles across disciplines and embedded into the fabric of your organization – not revolutionary brilliance that can only be maintained by force of will.
+6. The river and the rock
+Imagine you are a large rock sitting in the middle of a river. Which statement is truer; “The river is changed by me”, or “I am changed by the river”. Of course, both are true during different conditions. When the water is rapid, the chance that you will be smooth and shaped increase, and when the water becomes more tranquil, you will stay the same while the water flows around you. 
+Every process we design and participate in is necessarily shaped by the organization we work in – and simultaneously our organization is influenced by the processes we design. Without falling too far into navel-gazing, it’s worth noting that cause and effect for Whole Process Design flows in multiple directions.
+
+ 
+PART II — SEEING SYSTEMS AS A WHOLE
+7. A Different Way to See Systems
+There are a lot of ways to enjoy music. For most people, music is a source of entertainment that can pick you up when feeling down, motivate you when you need a boost, challenge you when confronted with something new, or let you ease into a social situation with a shared familiarity. 
+Have you ever watched a “reaction video” on YouTube? This genre of content involves an expert watching or listening to some other content and giving their opinion. 
+One type of reaction video involves someone with deep theoretical music knowledge listening to a style of music they have little or no exposure to and making objective observations about what they are experiencing. What can be quite jarring is having a song you’ve known and loved your entire life be described as a 4/4 I-IV-V in D minor with a little break in the middle. How is it possible that the entirety of our emotional connection can be distilled into its constituent parts?
+The expert isn’t replacing your experience – they are revealing the structure that makes the experience possible. Music is an overlapping collection of simultaneous systems that need to work together to produce art. 
+Just as a musical expert is thinking about time signature, key, chord progression, and dynamics, we will focus on the simultaneous systems that are present in your everyday work. You will learn what those systems are, how they function independently, and most importantly, how they work together.
+We are moving from staring at a spreadsheet and cursing our bad luck that this is the system you are stuck with for monthly reporting and helping you see the bigger pattern of disfunction. When you encounter inefficiencies, misunderstandings, misalignment, and failed deliverables you will learn how to unpack all the possible causes to deliver a precise diagnosis. 
+Finally, we will cover an example that is well established in industry and show how the four elements must work together to provide a Whole Process Design. 
+ 
+8. The Four System Lenses
+At the heart of Whole Process Design are the following four system types. These systems act as a lens for us to consider when evaluating any system. In theory, we should be able to establish a business system, invest in logical information systems, align our people to execute efficiently, and fulfill the needs of our organization. 
+But reality is much more complicated. We don’t always have the means or opportunity to change all four systems when making improvements. The key is to recognize that they are always working together—even when we are constrained in what we can influence.
+Our mantra going forward is continuous improvement. We won’t always be able to fix everything, but we can fix something. The difference is that we will do so with awareness. By using these four lenses, we can make targeted changes that strengthen alignment rather than unintentionally creating new problems elsewhere.
+ 
+Figure 1. Four System Lenses
+Business Systems
+Business Systems refer to all the rules that describe how the business is to be run. Business Systems come in all shapes and sizes, offer varied structure and naming schemes, are governed by various management principles, and experience a wide array of adoption from company to company. 
+To get a better understanding of what a business system is and how it can be identified, we will consider a few levels of maturity. Most organizations will live in some combination of these levels. Try to see where you fit with these levels – it will have a strong influence on what you will do about it once we move to Design.
+Level I Business Systems – Personality
+There is a surprisingly large number of companies with no formal business system whatsoever. They rely on personalities throughout the leadership chain to identify patterns, make decisions, and hold each other accountable. Level I business systems are naturally chaotic and subject to whim. They result in either dramatic shifts in requirements or static working conditions incapable of adapting to new signals. These businesses can be successful, but they are brittle.
+Level II Business Systems – Documents
+Moving one step up the maturity ladder, this level of business has documents that describe fundamental elements of how they expect the business to be run. From a Whole Process Design perspective, this is better than nothing. However, at this level of maturity, these documents are often fragmented across functions, contain inconsistent structure and intent, and are used more for protection and enforcement than for alignment.
+At this level of maturity, you may find documents in folders that are rarely read, don’t reflect operational reality, or describe an ideal that was supported by a management team that is no longer at the company. Companies at this level often know they should do something, but lack the operational discipline required to effectively implement the system.
+Level III Business Systems – Management Systems
+Management System organizations have recognized the complexity of their business functions and the need to integrate the way they are all designed into a singular structure. These companies require everyone to share each function’s business rules in a consistent structure, format, and with shared governance. 
+Organizations using this approach often overlay external management frameworks to ensure they are considering best practices for their work. The framework most used in large organizations is the ISO standards. These standards, segmented by the function they support, list a common management system structure to which companies must define their approach through documentation. 
+Where these systems tend to stop is at the level of scope for the business. Typical corporate management systems at this level will have clearly defined divisions between documents through the perspective of function and organizational scope but very little distinction of the purpose of each document. These management systems will have clear distinction between “Global”, “Regional”, and “Site” documents, but at each of those levels you will find a large clump of documents describing various business practices.
+Level IV Business Systems – Operating Systems
+At the highest level of sophistication, you will find organizations that have adopted a structured documentation approach for their management systems including a tighter framework where the documents themselves serve specific operational purposes. These types of systems have documents that are classified by their role in managing work. Documents like Process Maps, Procedures, Standards, and Work Instructions are distinguished by what layer of execution they are defined. By focusing more on lines of value rather than structural organization, Operating Systems serve to provide the cross-functional alignment needed to execute sophisticated lines of business value. 
+ 
+Information Systems
+Information Systems are the pieces of technology that are used to manage the capture, flow, accuracy and patterns associated with a modern operation. Just as with Business Systems, you could consider Information systems based on a maturity curve from unstructured emails and spreadsheets to middle-tier systems that organize disorganized data, to fully enterprise-grade built-for-purpose systems. But the mistake made by most is thinking about information systems from the inside out. 
+For instance, if you wanted to modernize your travel booking process, you might consider commercial digital travel technology. There are plenty to choose from and they all have their strengths and weaknesses. But if you make that selection without a clear and documented process you wished to optimize with technology, you could quickly find your project to implement getting bogged down in details (sometimes sold as features) you hadn’t considered and are unprepared to manage.
+“Would you like our system to integrate with your HR system.?”
+“How do you want to manage expenses generated from travel booked?”
+“What is your process flow for travel approvals?”
+Each of these questions is perfectly reasonable, but if you didn’t have them as a key consideration when first evaluating a more-modern travel booking technology, you may begin to believe that Information Systems are more trouble than they are worth. The issue wasn’t Information Systems – the issue was expecting software to solve too many problems out of context of the Whole Process you are trying to design. 
+In this section we will look at the four pillars of any information system. Having this framing will allow you to decouple the marketing literature and grand promises of the tech industry and focus on what problem you are trying to solve and how information systems can be an ally in that journey.
+
+Model
+Every information, however simple (email server) or complex (enterprise software) has a data model as its core value proposition. When considering Information Systems in a Whole Process Design, you will want a firm understanding of the conceptually smallest piece of data you need to capture from the business and how that data needs to be stored to optimize retrieval, transformation, reporting, and analysis. 
+There are many philosophies about how to organize data for business systems, and you are not expected to understand that theory. But it is important to be ready for the types of questions that matter. When working with your information system partners, you will get questions about terminology, units of measure, dimensions of time and place, frequency of capture to name a few. 
+People who take on the task of building their own software often underestimate the difficulty of this endeavor. In fact, a large benefit of buying off-the-shelf software is that the makers have already considered that level of analysis and come to you with a pre-built data model. Your job will be to validate their model against your expectations. Validating a design is much simpler than generating the design yourself.
+Acquisition and Transformation
+Models are great – but how does the data get in there? If you leave people to figure it out on their own – they will! But you may not get the results you need. For any information system, you need to consider who enters what data at what frequency. And on top of that consideration, can we use computers to assist in the transformation of that data to further reduce human burden. 
+When working with Information Systems, interface matters. Humans often are the only source of some types of information. That means we must consider how they are going to translate those experiences into our data model. Will they come to a system to provide information? Will they be prompted by a system to update data? Will the interface used to translate their data into our data model make sense to all users? 
+And there is another interface we will consider – machine to machine. How much information in one data model exists in part in another information system? How do we get those two systems to synchronize their data, so people do not have to perform redundant work? One natural outcome of a Whole Process Design is the clarification of a “source of truth” for information which can also lead to step-change optimization for data acquisition burden.
+Validation
+Well structured data that is easy to enter has no value if it is incorrect. Information systems must have a defined pattern for ensuring the data added is valid and worthy of making business decisions. Data validation can happen at many levels of a system.
+•	Point of Entry – field-level validation of expected input
+•	Record-based – does the total amount of information in a record make sense and comply with our business rules?
+•	Record-set -based – does the set of information make sense and comply to our expected business outcomes?
+•	Time-based – does the comparison of data over time make sense and validate our observations of the business.
+In all these conditions, determining “correct” requires you have a firm understanding of the underlying principles governing the data itself. This implies a preference for business rules as a precurser to considering your Acquisition or Validation strategy. If you are forced to choose, think rules before tools.
+In practice, you will confront questions about validation at the form-field level (“what number is the user allowed to enter into this box”), record-level (“is the user allowed to submit this form in it’s current state”), record-set (“does another person agree this record is acceptable”), and time-based (“do the charts from this business unit confirm what we’ve observed?”).
+ 
+Analysis and Intelligence
+Collapsing the data of your business model into a cohesive information system makes analysis and intelligence possible. Hopefully you can now see that taking a structured approach to data modelling, acquisition, transformation, and validation can leave you with a set of data from which you can glean reliable signals of system health and operational trends.
+Anyone who undertakes an Information System project has dreams of dashboards that reveal heretofore untold mysteries of the underlying structure of reality. Hopefully now you see that getting the confidence to make those leaps of insight for better decisions requires a strong reliable foundation. 
+In fact, you could argue that the expression of your business rules is not truly manifested until presented through analysis tools. Some simple signals to look for when evaluating your analysis and intelligence align directly to our Information System considerations.
+•	If you struggle to produce meaningful or expected insights from your data, you likely don’t have a good model yet. Well-designed data models should deliver clear and predictable analytic data without much massaging.
+•	If you have trouble getting data in a timely fashion, or the time to prepare your data is too large, you could be constrained by an Acquisition and Transformation problem.
+•	If you find unexpected variance in your data over time or between segments of the business, you likely have a Validation issue.
+Do not underestimate the time and care needed to properly design your output metrics. Often the intelligence you want is not fulfilled simply by a good information system. You will need to consider the context in which your data lives, the process that gives you that data, and the impact of that information as compared to all the priorities of your business.
+ 
+Human Systems
+The role of humans in any business system is more critical than ever. As we look for ways to augment human effort, we are ironically elevating the importance of human decision-making. Put another way, the more we rely on automation to carry out the work of an organization, the more we amplify the importance of every human decision. Whole Process Design takes the role of humans as a cornerstone feature that must be considered for the system to be successful. 
+Clear and logical business rules along with rational information systems are a strong foundation for a whole process design but if you cannot engage with the people of your business, your design becomes theoretical rather than practical. Aligning people in your organization to adopt your process is what we will focus on now.
+In this section we will examine three aspects of Human Systems: Training, Change, and Incentives.
+Training
+When considering what type of training and who should be trained, we will consider four main elements: 
+•	Capability – what does the person need to know and be able to do?
+•	Cost – what is the relative cost of delivering the training?
+•	Scale – how easy are the training requirements to deploy?
+•	Dependency – how much dependency does the training impose on the stability of our system? 
+Awareness
+Capability
+Recognition	Cost
+$
+Scale
+Highly	Dependency
+Low
+At the base level, most people in a business will likely only need some level of awareness of your business process. Awareness implies the person will have very little responsibility if any in executing the business process. However, they need to understand the principles.
+Awareness can be delivered through communications, simple training, self-paced learning, e-mail, or other informal channels. When considering whether people need more awareness, ask yourself this question: will I need the people I communicate with to remember to do something? If the answer to that question is “no” then awareness is an appropriate level. 
+Note the subtle difference between a process actor who is prompted for simple information like clicking a “this is a phishing attempt” button. This person does not need to remember to do something – there is reinforcement delivered to them through a suspicious email. True, they need to remember to do something by clicking the button, but the action is trivial and doesn’t require much prompting. In this type of scenario, you will be designing feedback mechanisms for your awareness actors to help them feel they’ve responded correctly in the moment and are free to forget the interaction and get back to work.
+Knowledge
+Capability
+Retained Knowledge	Cost
+$$
+Scale
+Moderate	Dependency
+Moderate
+As we move up levels, we are confronted with a group of process actors that will need to understand the principles of your business system in a way that will be remembered and can result in predictable behavior. Aligning the knowledge of our people is something that often can't be done in 10-minute self-paced training or e-mail communication. At this level, you should expect to spend a few hours with a person to ensure they understand the business rules, information systems, and expected business outcomes for the process you're designing.
+One other consideration for this level of alignment is the requirement that a person needing knowledge should be able to demonstrate the persistence of that knowledge over time. To appreciate the difference between Awareness and Knowledge, let’s consider our Phishing Scam example. For every email user in the company, you want them to be aware of the reporting mechanism and have a basic idea of how to activate that signal in your process. However, your IT technicians need more than awareness as they will likely triage your reported signals from your users. This group will need to reliably act on the reports they get and will need a deeper understanding of the principles of threat detection and mitigation.
+Skills
+Capability
+Reliable Execution	Cost
+$$$
+Scale
+Barrier	Dependency
+Elevated
+At the next level of human requirement, we encounter a more intensive alignment requirement. If our people have a complex set of rules they must follow to properly execute in our process, we are now considering a set of skills rather than knowledge or awareness. Skills transfer or validation is decidedly harder to execute and will require more resources to properly establish. Another way to think about a process that requires skills alignment is as a governor to scale. The more skills a person is required to properly execute your process, the harder it will be to scale your process across your business.
+Here is where we run into a conflict between systems that are simple to use but require high skill to use properly. All too often, a business invests in software that has the implication of highly skilled users, without the investment in those users. One example would be an event management system that includes root cause analysis capabilities. You cannot assume just because a certain software’s root cause analysis features are easy to use a person can supply the correct information. This is where we cross over from awareness of a business need (knowledge) to being able to provide good root cause analysis (skills). 
+ 
+Expert
+Capability
+Contextual Judgement	Cost
+$$$$
+Scale
+Constraint	Dependency
+Existential
+At the highest level of sophistication for humans in your systems, consider the expert. An expert can take the topic and theoretical foundation of the system you're trying to build and express a point of view within the context of your business. The combination of a good process design and an expert user is the fundamental differentiator between struggling businesses and high performing companies.
+Companies often make the mistake of buying expert systems but expecting awareness- or knowledge-level users to leverage the software capability. They sometimes make the faulty assumption that people with an understanding of the problem they're trying to solve can use expert systems as a proxy to expertise. This is not true. Worse, this is a trap.
+If you determine that an expert level of knowledge is required for your system to work properly, you are making a choice about the resources required to run your system. Specifically, you are choosing the need to hire experts to properly execute your work versus training your existing workforce with awareness, knowledge, and skills. This is an acceptable choice of course, but it's a choice you should make explicitly.
+One great example of this from the world of Environmental management is managing regulatory permitting. On its face, this seems like a simple exercise wherein your company applies for and receives an operating permit based on the expected impact of your operations on the environment. In steady-state, you could make the case that a knowledge- or skills-level user could be reminded to perform a sampling task, but the contextual complexity for this topic begs for expertise-level involvement.
+In practice, the more complex your Whole Process Design, the more likely you will need multiple layers of training. Being explicit about who needs to know what and to what level will be a game-changing differentiator when we get to design and execution.
+Change
+It is easy to conflate training with change management, but this is a mistake you need to avoid. Of course, training is a critical part of change management and is often the most visible part. However, change management has a broader context to consider when helping your people align to your business process.
+New Process
+The dynamics of a new process within a business offer their own challenges. Often you need to do multiple layers of training from awareness- through skills-based training along with coordinated communications, rollout schedules, and other techniques to ensure alignment. For new process change management, you will be relying both on information about the process as well as the timing of that information to ensure a logical transition to the new way of doing things.
+Changed Process
+Alternately, if you are changing a process that has existed for a while in business you have a different set of problems to consider. The largest barrier during a change process will be in realigning the expectations of your existing people. Anyone who has executed the process in the old way will now need to understand not only what is expected of them but why. When implementing a changed process, you should be ready to establish a framework of communication that allows for challenges from the people involved in the process to the changes that are being introduced. 
+We will be advocating taking an iterative approach to establishing these changes so you don't move too far in a direction that cannot be supported by business based on things you didn't understand before implementing. This means that once we have our plan for the process, business rules and information systems, we will be testing the design as we go rather than waiting until we think we have a perfect solution. We will go into much more detail on this topic in Part V – Starting the Change.
+Incentives
+Every person that needs to operate within the systems we're designing must have a reason to engage in that system. Obviously, some of those reasons will be related to receiving a paycheck or executing core job duties. But we should also consider and be explicit about “what’s in it for me?”. 
+Many of the tensions you are trying to resolve through Whole Process Design are focused on making things easier for people. You cannot hope that they see that difference, you must explicitly tell them why this is better. Here then is exactly where we can take this idea of incentives to change management and training and use it as a test for whether our systems are being properly designed.
+•	Are the business rules consistent with the culture of our company or will they be hard to explain and get everyone aligned? It is OK if that's true but acknowledging the introduction of a new concept or principle also forces us to think carefully about how important it is if there is friction to adoption.
+•	Is our information system designed to logically flow from the intent of our process through the requirements of our people? It will not be lost on your people if you promise high levels of efficiency only to burden them with tasks that are not intuitive with no obvious benefit to them. Here is another place where we can reflect on the imposition on our business compared to the relative value of the process.
+•	Will the people required to interact with this process feel the measurement of the outcomes to be a fair representation of the quality of their work? This is the last piece of the puzzle. If we ask people to participate in a process that is misaligned with their sense of propriety, ethical standards, moral framework, or career goals, we are almost ensuring failure in design.
+
+ 
+Organizational Systems
+The fourth element of our Four System Lenses is Organizational Systems. While the other three elements have aspects of direct control for our Middle Manager class, Organizational Systems can feel out of reach and simply facts that cannot be changed. Indeed, many of the challenges you face with efficiency and logic are often set in motion by strategic decisions made by influences you have no direct control over. However, that does not mean we need to surrender to “that’s just the way things are” thinking.
+In this section we will look at how to think about the organization you find yourself working in, the best way to consider purpose, and how to contextualize performance indicators in a way that leverages the Whole Process Designs you wish to enact. While you likely are not the decision-maker for reporting structure or company-wide initiatives, you can take responsibility for your little corner of the world and considering how to shape your organization’s design and goals around your desired outcomes will pay dividends.
+Structure
+Our first consideration for Organizational Systems is to think about the structure of the function you are in. Reporting lines are a key insight into how your company thinks about the value they expect you and to a greater degree your department to deliver. In the Health, Safety, and Environment world, there are a few structural models that repeat throughout industry. Here are three common hierarchical models.
+1.	HR Centric: CEO -> CHRO -> VP HSE
+2.	Legal Centric: CEO -> CLO -> VP HSE
+3.	Operations Centric: CEO -> COO -> VP HSE
+Think about how the structure influences the types of systems that are developed, the goals that will be expected, and most importantly what constraints and opportunities they provide. While you may have no direct control over this structure, it is worth thinking about how your structure impacts your ability to optimize your work.
+In the HR Centric model, HSE is seen as a support mechanism for protecting employees. The Legal Centric model prioritizes legal compliance and governance. Finally, the Operations Centric model carries a philosophical tilt toward empowering operations to execute as efficiently as possible. 
+The best of each of these models delivers strong value; protect employees, comply with rules, and operating efficiency. But just as valid are the constraints these models introduce: employee-centric control, minimum compliance, cost control. In a perfect world, you would work with leadership to understand the inherent strengths and weaknesses of their structure and negotiate the best of all outcomes. However, it’s best to understand what the default sense of value will be for your organization’s structure.
+Each of these approaches will measure success in distinct ways. The HR model will count how many employees are impacted by the control HSE provides and use that as a proxy for how well HSE is executing. The Legal model will want to assure that everyone is following every rule all the time and will need assurance and audit metrics. The Operations model will focus on discrete tasks, timing, and prevention of recurrence with a bias toward goals that are measured in the language of efficiency and cost savings or cost avoidance.
+Putting it all together, imagine you were going to focus on designing a new process for injury reporting and recordkeeping (an example we will spend more time on later in this chapter). The choices you make about what a good model looks like in a perfect world will be independent of the structure of your organization – right is right. But your job will be to find the natural synergies with your organizational reality and exploit them while actively managing the tensions your design might introduce. 
+Have an HR Centric model? Sell process optimization on employee satisfaction and talent attraction but watch out for an employee-only strategy that ignores the influence of engineering, design, purchasing, and operations on negative impacts to HSE.
+Have a Legal Centric model? Highlight alignment to legal frameworks as non-negotiable elements in your process but watch out for lowest-common-denominator thinking that prevents you from implementing world-class approaches that exceed the letter of the law.
+Have an Operations Centric model? Lean into crisp execution flows that are well defined and easy to use but be wary of objections to “new” work being imposed on operational resources.
+Again, none of these models are inherently better or worse than others. Working with the strengths and mitigating the weaknesses of your structural reality is something you must actively consider.
+Value
+Every business that invests in people, departments, and capabilities expects certain value from that investment. Consider this hypothetical conversation:
+CEO :“Our Legal department is not executing.” 
+Whole Process Designer: “What type of legal support do you need?”
+CEO: “We have a huge acquisition and need to navigate the legal complexities of the purchase agreement.”
+Whole Process Designer: “Is this a one-time scenario, or do you plan to have this work continue over years?”
+CEO: “Acquisition is a cornerstone of our growth strategy. Oh, and we need to execute several dozen commercial contracts every quarter.”
+What does this CEO need from a Legal department? What processes should the CLO focus on to turn the CEO’s mission into a reality? What other functions does the Legal Department need to work with where interaction will be critical to efficiency and quality?
+Organizations that grow organically over time often find themselves in this type of quandary. They take steps to shore up the talent and structure needed to execute the name of a function without thinking about how that function needs to execute value across all the functions of the business. This can lead to hiring talented individuals and hoping for the best. 
+When considering value, it’s best to take an intentional approach. While there are many methods you could use for this organizational design exercise, in most cases you will need to make fine-tuning adjustments rather than whole-cloth changes. As you invest your time and energy into Whole Process Design for your function you can stay aligned with your organization’s value expectations by ensuring you align to these principles:
+•	Expectations: The design I’m working on will execute a line of value the business expects my function to deliver.
+•	Talent: My function has the proper talent provisioned to reliably deliver this line of value.
+•	Cross-Functional Alignment: The other functions we are reliant on are available to participate in this process and will have organizational support to deliver their required value.
+•	Boundaries: The value we deliver will be properly segmented from expectations of other functions in the business.
+Each of these principles nudge your design choices toward a practical reality. If you find that other functions are not properly incentivized to “do their part” in your bold new vision of a brighter future – you cannot be successful. If you are building a process that your business discounts as unnecessary or someone else’s responsibility, you will constantly struggle for resources. If you are doing work that another function believes is theirs to execute, you haven’t defined the work well enough. 
+Keeping your process design choices aligned to your organizational principles isn’t a last-minute exercise. Organizational Alignment is make or break for the success of your design.
+
+Outcomes
+Every mature business wants Key Performance Indicators that narrow the focus of analysis to determine whether the lines of value they expect are being delivered. However, as we all know, KPIs often become the only measure of value delivery and are fragile under scrutiny. The incentives to report “good numbers” and shave “bad numbers” become a hamster-wheel of obfuscation and gamesmanship rather than a true indication of the relative health of your systems.
+Rather than focusing on output metrics, we will prefer Key Process Indicators. Sometimes called Key Activity Indicators (KAI), this idea shifts from context-dependent outputs like profitability or sales volume, and focuses on the system performance needed to achieve those outcomes. KAIs would include things like time to complete tasks, or quality of completed tasks to measure whether the systems in place to deliver value are doing so reliably.
+As we develop our Whole Process Design, we will intentionally design KAIs rooted in the sunny-day version of our process. Take our Incident Reporting and Recordkeeping example from above. The KPI for that would be total number of incidents – but that KPI doesn’t tell you whether you are investigating the issues properly. Better would be a KAI measuring whether the first-pass investigation was validated by an HSE professional. That KAI tells you more about the design of your process, the people tasked with the work, and the cadence of completion.
+Organizations often measure outcomes they cannot control (KPIs) while ignoring system performance they can (KAI). We will all be held to outcome metrics. But we cannot make the mistake of driving our boat by watching the wake. Instead, we will re-frame our purpose for Whole Process Design to establish expected lines of value, aligned to our organizational principles, and executed in a predictable way.
+
+ 
+PART III — BREAKING DOWN REAL WORK
+9. What Are You Actually Designing?
+Now that we’ve established the Whole Process Design system lenses, it’s time to start thinking about how best to apply those lenses to the real world. If you asked anyone how they would solve world poverty, you would rightly get broad and vague answers that focused on areas of expertise and conveniently skirted parts of the solution the person knows nothing about. As we move through this chapter, we will take careful consideration of the limits of our own knowledge and if you leave this book with no other lesson, remember this: 
+Systems run by a team of people must be built by a team of people.
+As we move through our example in this chapter, we will constantly be asking questions about what currently exists, desired future state, what problem needs to be solved, and what will be the impact of any change. As you become more comfortable with the Whole Process Design you will begin to align certain Units of Analysis as a matter of course – but for our purposes here we will be explicit about whether we are talking about process definition that needs to be established in a business system, enabling technology in our information systems, skills and learning as a part of our human systems, or performance motivation through our organizational system.
+At the core of this chapter is a topic that seems simple: Event Management. As we will see though, that simplicity is derived from what we understand, not the reality of the requirements. Put another way, if you’ve never had to make lasagna from scratch, you may not appreciate just how much expertise is required. So, to establish some common language and orient you to the problem consider this basic scenario.
+A company has 50,000 employees across 10 countries who mostly work in a manufacturing setting with machines, powered industrial trucks, and industrial processes. In that work setting, if someone is impacted by a loss of process control, we need to identify who, what, when, how, and most importantly why so we can put countermeasures in place to ensure something like that doesn’t happen to anyone else. For convenience, we collapse all that business value into one title: Event Reporting.
+10. Decomposing Event Management
+In the real world, there is no enforced progress of using our Four System Lenses. You can jump in the river anywhere along the shore and choose to focus on information systems or incentive structures if you like. But, while the instinct to act can be strong – we will be applying a linear constraint to our decomposition starting with this conceptual flow:
+
+Business Systems -> Information Systems -> Human Systems -> Organizational Systems
+At the core of this choice is the universally true concept that organic systems that need Whole Process Design are rarely understood – and rather than try to fiddle with one of an uncountable number of knobs, we will choose to pull out a blank sheet of paper and start from a rock-solid philosophical center.
+Lastly, for our purposes we will be assuming you have something like a Level III or Level IV business system available to you. This means that there is some place for you to publish business rules that everyone agrees are authoritative. If that is not the case in your organization, you are likely facing a day-zero problem and have a fantastic opportunity to shape the future direction of your company in a fundamental way.
+Event Management and Business Systems
+Remembering that “systems run by a team must be built by a team” we should start decomposing Event Management by having conversations by the natural stakeholders in our organization. This means asking questions like “who is responsible for capturing events?”, “how do you ensure the information is correct?”, where is our information stored?”, “how do we measure impacts of events on our business?”, “what risks are we managing with event management?”. Put another way, the questions you ask are the value you bring to this stage of Whole Process Design. Discovering big performance gaps in Event Reporting is the simple observation – discovering that no one in the business has a shared definition of Event is the type of clarity only you can bring to the conversation.
+Once we’ve done our basic fact-finding interviews, we can start to sketch our future state business systems by considering each layer of our Level IV operating system. Here are the layers and how we can start to frame our future state Event Management system.
+Policy
+Remember a Policy is a statement defining the mission of a function (in our case Health, Safety, and Environment), what risks and opportunities the function manages, and the methods they rely on to ensure that management. Written correctly, we almost certainly have operational authority to pursue better Event Management practices given by this policy. Good news! There is nothing to do here if the Policy is written correctly.
+As a practical matter, you will want your policy document to be no more than three pages, and in most cases narrowed to two. Imposing this constraint requires you to think about the right level of description to apply to meet the conceptual aim of a Policy document.
+Process Map
+Process Mapping forces us to establish a theory about how we want Event Management to flow through our organization. Do not underestimate the power of this consideration. If taken seriously, everything we will end up building will come from this exercise.  And this works both ways: everything we build flows from this exercise, and we will avoid building things that are not represented on this map. While we will spend a lot of time talking about what we are doing, it is not trivial to acknowledge the things you will NOT do.
+Building a Process Map should not be done in isolation. Best practice would be bringing together a group of likely stakeholders in the process and having a free-flowing workshop to discuss the logic you are attempting to build. For Event Management that would be people from operations, HSE experts, information system representatives (we are going digital with this project right!?!), engineering, maintenance, and leadership. 
+We will be accomplishing two different things by having this type of workshop. On one layer we bring together multiple perspectives on a shared chain of value which can only lead to better outcomes. But we are also starting the long journey of consensus for the organization. The new Event Management process we are establishing is not an HSE project, it’s a business project. By engaging multiple stakeholders in design, you signal your intent to build a system that is valuable to everyone and not just fulfilling a single function’s desire. Finding common goals and values for process design is at the heart of how you build a brighter future. Alignment starts from day 1 – if you are looking to gain buy-in the night before you go live, you will have a steep hill to climb.
+When holding a Process Mapping session, it’s best to start by deciding what words you will use to represent the functions needed on the map. Because we’ve invited Operations, HSE, Engineering, Maintenance, and Leadership to the table for design, it follows that those would be reasonable buckets for our swim lanes. 
+Once you have a reasonable list of functions, you can start talking through how the future state process might flow through time from left to right. Here you will want to manage the expectations of the team. You are not designing fully-functioning business rules with decision trees and logic loops, but rather a visual representation of the nodes of value that need to be produced, and which function will be responsible for that value. 
+Illustrated below is a sample outcome from such an exercise. Note that the concepts are theoretical – or high-level. We didn’t get burdened by deciding what would happen if the original event record submitted was inaccurate or incomplete. 
+ 
+Figure ## - Event Management Process Map
+Of course, there are many methodologies you could adopt to achieve this type of value discovery. Indeed, the biggest companies in the world have whole teams that focus on business value delivery who are specially trained in how best to conduct this type of workshop, and if you have those resources leverage them. But you are not constrained by that requirement. The chart you see above was created by a team of stakeholders who had never performed this exercise before.
+Agreeing on swim lanes for the chart took us a few minutes, but it also created a bit of debate about who is responsible for Event Management. At the start of the activity, if asked blindly, we would have unearthed conceptual misalignment before we put a single sticky note on the board. But stating clearly “Operations” is responsible for Event Management set us on a path radically different than any we had travelled before. 
+Stepping through the sequence of values from left-to-right is a good way to keep everyone on track and staying at the proper conceptual level to complete the mapping exercise. Using time as a filter for transition from one process state to the next gives the group an intuitive sense of process step divisions. In the case of this process map, Event Management was framed as this sequence of value:
+1.	Event – something happens
+2.	Mitigation – we make sure everyone and everything is stable
+3.	Identification – we record that something happened
+4.	Investigation – we determine why the event occurred
+5.	Action – we take steps to ensure the event won’t occur again.
+6.	Case Management – we make sure our people and equipment are returned to a healthy state
+7.	Lessons Learned – we share what we learned with the organization.
+Notable in this sequence is what we chose NOT to focus on. There were no discussions about how to count events, timing requirements for execution, methods of data collection and validation, or operational KPIs for event metrics. While running a Process Mapping workshop, it’s critical that you keep your team out of those weeds. There will be plenty of time for those types of conversations once you further deconstruct your process into Procedures, Standards, and Guidelines.
+It is hard to over-sell just how valuable this map becomes. The number of times the team came back to this map after moving on to the other aspects of the Whole Process Design is too many to count. Why? Because complex systems are difficult to understand, even when you design them. Alignment isn’t a one-and-done exercise. Having a process map at the start of a Whole Process Design keeps you out of trouble like over-designing on aspect or conflating multiple process steps. Look at the map again. Notice that Investigation and Case Management are two different stages in time. Notice that Action is separate and prior to Lessons Learned. This is our sequence. This is what we are committing to. We will build the rest of our system using this as a guide to how we believe this value for the business is best executed. We might have gotten it wrong – fair enough, we’ll adjust the map. But we now have direction and intent which, if you strip away the rest of the content of this book, you may realize it is more than you’ve ever started with before.
+Process Maps should be single-page visualizations of your end-to-end vision of how the process is run in your business. If you find yourself tempted to multiple pages with hundreds of columns you are likely confusing Process Maps with Procedures.
+Procedures
+Now that we have a process map to consider, we will likely want to start framing out the who, how, and when deliverables in this process. And here we should take a moment to square philosophy with operational reality. There is no practical way for you to write a procedure for every sticky note on your board. In fact, it’s likely you may only implement one or two procedures per year following the Whole Process Design. You should not judge the success of your designs by the number of outputs, but rather by the quality, durability, predictability, and adoption of those designs.
+A good Procedure will turn up the magnification of your process from Functions to Actors. If you imagine our process map for Event Management, but rather than functions in the swim lanes we put in actors, we are forced to be more specific about the actions over time (columns). In fact, the complexity ramps up because we are not forced to consider steps of a procedure where multiple actors are expected to perform work to get to the next step. For this reason, a good Procedure will include a flow diagram and a RACI. Below is an example from a Procedure written to fulfill one aspect of the process map.
+ 
+Figure ## – Sample RACI for Event Reporting
+Notice the tightness of this line of value. The nodes or steps are much more discrete: Report, Document, Quality Review, Investigate, Leadership Review. Of course, the full Procedure will have robust definition for each of those steps. Also note that this procedure represents the details of more than one column from our Process Map. That is fine – procedures don’t have to be built one-for-one to nodes on your process map.
+Procedures should be somewhere between 5 and 10 pages long. Anything shorter, and you might want to think about packing that into another adjoining procedure on your process map. Anything longer, and you might want to consider breaking the procedure apart into smaller chunks of business value. Also, longer procedures might also contain too much if/then/else logic rather than focusing on sunny-day execution. This is a common trap when you are re-designing because you are aware of all the problems, it’s hard to consider what would happen if those problems went away with Whole Process Design.
+Standards
+Now we are really starting to go down the rabbit trail. We have a conceptual pathway of value for Event Management in our process map and have built a procedure that defines one section of that map. Why do we need a Standard? Can’t we just write the details “thou shalt” rules in our Procedure? In practice, you will be putting declarative elements in procedures, but Standards are necessary because the rules we need to follow often require foundations that are independent of any one line of executable work. 
+What is the correct shade of red in a traffic light? What is the correct shape of a stop sign? These truths are foundational to establishing predictable results from drivers, urban planners, and road equipment manufacturing. Standards set principles shared across process and procedure. The value of this approach is compartmentalizing the logic of your Whole Process Design that needs to be reused or referenced in multiple procedures. This allows you to maintain your documents with references to one another rather than trying to build a monolithic structure all in one unreadable document.
+For Event Management, we may find we need to write a Standard for how certain events are coded like severity, outcomes, impacts, etc. That same standard could be used to establish the logic for how events are counted for the purposes of workflows, reporting, and targets. The more of this type of logic you try to pack into a procedure, the more complicated and fragile procedures become. 
+Standards have a more flexible length consideration. For Policies, Process Maps, and Procedures we can say definitively how much detail to expect, but Standards often have logical boundaries that lend them to being longer. Still, if you are writing a 50-page standard, you probably haven’t segmented the business rules enough. The time you think you will save by “putting all the stuff in one document” is offset by the cold reality that no one will ever read your document.
+ 
+Event Management and information Systems
+Once you have the shape of a process, outlines of procedures, and ideas for standards, it is not too early to begin thinking through the critical elements of your Information System. Just as with Business Systems, it is easy to get lost in the details and what-ifs associated with information systems – and maybe more so because vendors selling you software will tout the biggest anticipated pain points you might be experiencing and how their solution will solve all your problems with one simple investment.
+Whether you are considering a home-grown approach or commercial software, the Information System considerations in Whole Process Design do not change. You will need to have good answers for each of the four elements prior to designing or purchasing software to execute your business system. And if you already have poorly functioning software that you hope to either optimize or replace, this step is even more critical. The cost of rework in the digital space can be 10X the original investment, so let’s make sure we are making the correct choices.
+Model
+It is very likely that you do not have extensive experience building large relational data models. Good news, you don’t need to know the guts of these decisions to participate or even author a good data model plan. The key concept to consider when thinking through your preferred data model is to think about the information you are working with as an object you can hold in your hand. You can spin it around, look at it from various angles, open it up and look inside, and zoom in and out to see it from various distances. Putting a finer point on this analogy, imagine you are holding a bottle of nail polish. How could you define that bottle?
+•	Nail Polish Bottle
+o	Cap
+	Size
+	Dimension
+	Material
+o	Bottle 
+	Material
+	Shape
+	Dimensions
+	Thickness
+o	Labels
+	Content
+	Language
+o	Total Dimensions
+	Size
+	Weight
+	Fluid volume capacity
+o	Contents
+	Color
+	Chemical Composition
+	Physical Properties
+Be honest with yourself, before looking over these bullets, you hadn’t really considered just how much complexity could live in the world of nail polish bottles. This is the quicksand most people find themselves sinking into when they try to build a data model before considering their business process. This list of attributes for nail polish is not equally important to everyone. Customers will need to know the color and general properties along with the brand while nail salons will need to know the brand but also the chemical constituents, volume, and sales SKU. Same bottle, same product, different priorities.
+To approach data model design for something like Event Management we need to take a hard look at the process we are trying to design through business rules and make choices about what is important to model, and what would be nice-to-know in some theoretical exercise but might introduce too much complexity for your desired outcome. This is the first trap that stops progress for many people. When you ask a Subject Matter Expert what information they need to capture and they share with you their simple 14-tab spreadsheet with 375 data points, your instinct might be to figure out how to model that data one for one. Resist!
+A practical approach to overcoming this dynamic is to use your desired process as your guide. If you expect a person with little or no training to tell you something important about your data model to kick off the process, the type of information you collect from them must be obvious to them, not your expert. Using this as a filter, you can build a data model that flowers from first principles. Can the data model still be complex? Certainly, you are now making decisions not just about the data model but how that data model must be expressed in the various hands of the people that must engage with it. 
+This is exactly the scenario we find ourselves in with Event Management. We want someone close to an event to be the first to tell us what happened. Our data model must allow someone with little to no training to give us an actionable amount of data to advance the event management process. Do not misunderstand – the data model for Event Management is complex and rich when done properly. But the way you think about the model should come from the perspective of the people who need to provide it, not the expert that wants to consume it. The rest of this exercise must be done in collaboration with a information systems specialist who can distill your ideas and priorities into robust and durable data models.
+For our purposes then we will skip to the answer-key in the back of the book. Below is a reasonable data model for a first report in our Event Management process.
+•	Event
+o	Time
+	Reported
+	Occurred
+o	Location
+	Physical
+	Organizational
+o	People
+	Reported By
+	Reported To
+	Reviewed By
+o	Description
+o	Classifications
+	Function
+	Severity
+Acquisition and Transformation
+Hopefully by now you can see that what needs to be captured is unavoidably constrained by who needs to perform the capture. In the business process we are designing, we are prioritizing novice actors for early reporting. This means that our acquisition strategy needs to favor simplicity over completeness. If we glance over the data model above and think about how we can ensure we get reasonable quality, what one data point is the most important? The practical answer is the Description. Nothing else really matters if there is incomplete information for the Description. Taking that as a priority, is there any way to reduce the friction felt by a user to provide all the other data? Your base principle should be to provide as much information for the user as possible. 
+Let’s review the model again, but this time, let’s think about whether the user needs to tell us this information, or can we use software to assist in completing the data.
+Data Element	Acquisition Method	Help Provided
+Event Title	Hidden	System will generate a title automatically once a description is provided. Down-stream users can change the title if needed.
+Reported Date	Hidden	System will generate the date based on the moment the user clicks “Submit”
+Occurrence Date	Date Control	Automatically populated with the current date and time when the form is initiated.
+Physical Location	Map	Automatically selected based on the GPS of the device used to submit the report.
+Organizational Location	Lookup Control	Automatically select the organization of the person adding the record.
+Reported By	People Picker	Short-list of direct reports associated with the person completing the form.
+Reported To	People Picker	Automatically select the person adding the record.
+Reviewed By	Hidden	Automatically selected based on the Organizational Location
+Description	Text Input / File Upload	Single text box or file upload that allows for scanning/picture of hand-written first report.
+Classifications	Hidden	AI-assisted selections that can be adjusted by the Reviewer.
+
+Every highlighted row you see above can be completed fully automatically or with heavy assistance from computers. This means the only real cognitive load we present to our user is telling us who reported the incident and what happened. As an acquisition strategy, this is strong! If the business process will be relying on novice users to provide this data, this is the only approach that will work consistently. But don’t mistake simplicity of use for simplicity of design. It is an age-old Human Factors Design principle that “easy to use is hard to design”.
+Consider all the other pieces of your data model that need to be established for this acquisition strategy to work. You need a platform that your users log in to. You need an inventory of users aligned to their organizational role and structure (e.g., job title, department, location). You need a super-set of people associated with your business that may not have network accounts but need to be identified in People Picker. You need an AI execution layer that can be taught what is being described so the Classifications can be set reliably. And don’t forget about your non-English users. You know, the other 35,000 people that will need to interact with your acquisition strategy.
+We list all this complexity not to scare you off the project and freeze you into paralysis by analysis, but to impress upon you how important it is to start small. Even simple-sounding data acquisition projects can uncover deep structural weaknesses in your organization’s digital footprint. There are too many examples to count where a project is held hostage by an undiscovered gap in source data. Imagine in our example if there was no central and reliable list of employees at our company. The impact on our process design would be sneaky, but noticeable.
+One last note about Description and Classification on the table above. You might have noticed we snuck AI into the conversation. One superpower of AI is the ability to transform data from one state to another. Of course, this can also be accomplished by carefully crafted code. In either case, the idea is to leverage what computers can do well and provide that as a service invisible to the person adding the information but a value driver to the person who needs to consume that data. Data transformations, placed between collection and storage, must not be ignored. Your challenge will be ensuring the data model provides perfect context for your transformation technology so the promise of automation can be realized.
+Validation
+Once you have started your new process and begun to feed your data model with information, you will inevitably want to make sure the information provided is accurate, complete, and appropriate. A common pattern includes presenting a Subject Matter Expert with a summarized view of a complete data model and having them scan the information to ensure this threshold is met. However, this type of validation scheme introduces a bottleneck and unnecessary refinement loops that bog down a process and propagates the perception that what you’ve designed is less of a digital transformation, and more of a make-work project that is a hassle for everyone involved. 
+Our guiding principle for Validation follows a mantra adopted in the manufacturing world because of a modern quality management practice: everyone inspects their own work. Instead of building a complete car, then asking an inspector at the end of line to ensure it runs properly, have every person at every stage of assembly verify what they have done was done correctly. With our information system we want to ensure data provided meets our quality expectations at every stage of the process.
+There are plenty of books and experts who can offer you User Interface and User Experience expertise while you build out your Information System. We do not expect you to have that expertise to be sure, but it will be worthwhile to think about assuring the quality of your data at the field level, form level, and data set level. Each of these levels will use different approaches for assurance.
+•	Field: real-time validation, server lookups, error handling, help text
+•	Form: blocking rules, submission guidance, pre-submit assistants
+•	Set: lifecycle monitoring, comparative aggregates, size and consistency
+If you take the time to think through how you will be assuring quality at each of those layers you will move more confidently into our last consideration for Information Systems.
+ Analysis and Intelligence
+Far too many process redesigns use Analysis as a starting point – “I want an easy way to produce this line chart we rely on for our monthly meetings to make business decisions.”. It is very important here to remember that if we do not understand the core assumptions about our business logic, trust the way in which the data is acquired, and have no way to validate the information is correct, there is no value in the analysis we provide. 
+Transforming a spreadsheet of data into an information system is not Whole Process Design. That will be one aspect to be sure, but to get reliably business intelligence and analytical power, you will need to know what you know. This is harder than it sounds. One signal that you are doing Whole Process Design properly is if you find yourself having conversations that include questions like “What is an Event?”, or “What is the difference between Reported Date and Recorded Date?”. 
+The point is analysis and intelligence starts with a rock-solid theoretical agreement about what you are accomplishing and that must be established first in your Business Systems. However, once you’ve built the layers analysis and intelligence is an outcome of its own focus in your Whole Process Design. Here again we run into a potential barrier involving our own knowledge of data analytic platforms like Power BI. Do not be discouraged. Once you trust the data that is flowing through your process, you find you can build endless charts that demonstrate business conditions. The big difference will be the confidence with which you will draw conclusions from that data.
+The exact shape of analysis and intelligence will look different in every organization. A manufacturing site may need trend lines tied to production and quality. A hospital may need operational signals tied to patient care and staffing. A service organization may care most about cycle time and customer experience. Whole Process Design does not prescribe the chart or dashboard you should build. It gives you a disciplined way to trust what those charts are telling you.
+When analysis is built on shaky definitions or inconsistent data, the discussion quickly becomes about defending the numbers. When the underlying system is sound, analysis becomes what it should be: a shared view of reality that helps people make decisions with speed and confidence. Formats may change. Metrics may evolve. The value remains the same. You can see what is happening in your system clearly enough to decide what to do next.
+
+Event Management and Human Systems
+As we move through our design considerations, things are taking shape. We have set down some clear business rules, we’re thinking through our information system requirements at a fundamental level, it is not too early to begin to think about how we need to align the people who will run this system.
+In a way, the people of your organization have been with us during the earlier stages of consideration, coloring our perception of what definitions needed to be clearly spelled out in our reporting Standard or pushing us to think about the best data acquisition strategy for our first report of injury. 
+Consideration for the people in your process cannot start when you design your training and change management materials, but in this section, we will take specific care thinking through what types of communication will be required to ensure our Event Management process works as expected.
+Awareness
+Recall Awareness is focused on ensuring a large group of people in your organization have been exposed to a specific concept. In many cases, they will never use the concept past the awareness session, but the thing about awareness, which is especially true in Event Management, we cannot predict who will need to know the information or when. Also, there will be performance metrics and timing expectations set by our Event Management process that will rely on timely and compliant communications. 
+Lastly, we need to keep in mind that Awareness training should not be expected to stick in the brains of our participants. We will be relying on reinforcement communication, consistent terminology, and persistent standards to remind everyone of the awareness they received at one moment in time. “Ah, yes, I remember someone told me I should report to my supervisor if I have an injury.” It is OK if they forget the details of the technical definition and distinction between an Event, Incident, Accident, or Injury. The critical part of Awareness is to lay the foundation for a predictable response to certain situations.
+For Event Management there are many different layers of Awareness we could pursue. Below is a break-down of the possible channels we could pursue. This is not a complete list, and different process designs will have a different inventory of concepts, but this exercise is a great way to start considering what is required for proper awareness across your organization.
+Audience	Principle Concept	Expected Outcome
+All Employees	How to report an incident	When a situation is encountered that should trigger a First Report, the employee knows how to initiate the process.
+Operations Leaders	Logic and Organizational Expectation	Align leaders to new or changed philosophy regarding Event Management and how that change will be measured for performance along with expected resource demands.
+Executives	Risks and Benefits	Explain the “why” behind the process design reinforcing quality outcomes through efficient effort.
+
+Notice that in the Expected Outcome above there is no expectation that the Audience will remember much of what you told them. More importantly - we need them to remember that you told them something. 
+As we fine-tune our process, the pathway to successful execution will include self-reinforcing and real-time assistance to ensure any actor required to deliver value in the process are supported in that requirement. As we adopt new reporting systems, we will reinforce the timing and execution measures for our Operations Leaders. And as we perfect our outcome metrics, we will remind executives of what we are measuring and what the numbers mean in the context of the new process.
+Knowledge
+The next cohort we can consider will be required not just to know about our process but be expected to internalize what is meant by the core concepts and recall that information reliably over time. For Event Management this group is difficult to isolate. 
+What group will need to have a lasting understanding of the nuance differentiating an Event (failure to control risk), Incident (Event with a real-world impact), Injury (Impact that involves at least one diagnosable human impact), Outcome (most serious result of an impact)? 
+Ironically, for Knowledge training the target audience might be people with the highest level of expertise. For Event Management this will include Health, Safety, and Environment experts that have been in the field for many years and have implemented various flavors of the Event Management process we are trying to implement. For them, Knowledge training will be more about alignment than education.  
+One life lesson worth highlighting here is the assumption that “everyone” understands what you mean when you present a slightly technical term. Knowledge training then can be thought of as a reinforcement tool to ensure everyone agrees on the same definitions, but it can also be a great way to uncover weaknesses or gaps in your process design when you trip over a participant’s confusion only to discover that there is an edge case in your process you hadn’t considered. 
+Lastly, when thinking about Knowledge training, you may introduce certain data systems the participant is expected to use. While this may feel like a pivot to skills training, someone with Knowledge-level understanding will be given highly controlled and prescriptive tasks to accomplish in our digital systems. In most cases, a knowledge-level actor in an information system will be pulled into the system through workflows and links, deliver discrete value like answering simple or help-supported questions, then leave with confirmation they executed the work correctly. This closed-loop interaction is perfectly acceptable to introduce during Knowledge training.
+Skill
+As we think about what skills we need to ensure our Event Management process runs smoothly, we get much more focused on the tools we’ve developed. At this point, resist the urge to obsess over your User Interface design in your software. Skills training is not about whether someone has been shown the correct way to enter a record in a digital system. Skills training is a combination of Awareness, Knowledge, and the skills to fulfill a given aspect of your process.
+Skills training then is often the difference between successful and failed Whole Process Design. Skills are the join between a theoretical practice and one that has been implemented with an empowered group of actors. Awareness training is typically easy to build and deploy. Knowledge training can be built with sufficient depth of knowledge for the topic but carries with it the implication of defense of the choices made. Skills training has all that and requires that you confirm your participants can reliably execute at a level of quality sufficient to the expected value.
+To narrow the focus a bit, we will consider the Skills required to properly capture and investigate an Event. Let us further consider that we have decided to assign that responsibility to our production supervisors. That choice, made in our ivory tower while designing the swim lanes of our process, takes on real weight when you are confronted with how to ensure every supervisor knows not only how to capture events, but how to think through what might have caused it in a predictable and effective way.
+Here is a sample agenda for Skills training for our supervisors.
+1.	Introduction – What is an Event and Event Management
+2.	Caring for People First
+3.	Event Management module
+4.	Investigation techniques
+5.	Actions and Lessons Learned
+With this agenda, it is easy to imagine a classroom setting led by an expert where the participants are taken through some theoretical grounding, get experience with the digital tools, practice various root cause analysis techniques, and think through the realities of effective actions. This type of training is not best done remotely or independently. Interaction and real-time validation will be required to ensure the practices have been properly understood.
+Skills training should not be considered one-and-done. Spending a day in a room with your teammates talking through these important concepts can be a rewarding experience, but if you are never asked again to exercise those skills, the capabilities will fade. The best practice for Skills training is to schedule reinforcing exercises that demonstrate each person retained the capabilities. 
+An astute reader might recognize at this point that hoping for an injury to ensure you know how to record and investigate the injury might be a bit problematic, but remember you are not teaching people how to execute a standard program. You are teaching them what each step of that program is, how to execute it, and what they should be thinking at each step. You can test their adoption of those skills in many ways. For instance, you could make them a reviewer of a peer’s work. You could share finished work for their awareness. You could include them as an Action Item assignee in other investigations. For our Skills recipients, we are looking to build a consistent source of value delivery, regardless of their role in any one Event.
+Expert
+Reaching the Expert level of our Human Systems, we start to think about how to build in the capacity to execute Awareness, Knowledge, and Skill level training in the organization. One shorthand for this idea is “Training the Training” (TTT) training. This level of capability cannot be placed on just any person. TTT training necessarily implies the person being trained comes with expertise and passion for the topic.
+While Awareness and Knowledge training can be self-contained, self-paced learning, it can be an effective approach to empower localized experts with the materials and agendas to support training at their layer of the organization.
+Conceptually what you accomplish with TTT training is a scaling multiplier. If we consider Event Management and the burden of proper Investigation methodology, TTT becomes a critical part to ensuring the practice can be executed consistently across the organization. This also drives responsibility for skills validation to the appropriate layer of the organization. Who better to determine whether a supervisor’s root cause investigation and corrective action plan is appropriate than the site-level expert who has a firm understanding of the operational constraints?
+Be sure to think about Expert Level training as a stand-alone delivery that lives a layer above the training materials they will be delivering. For some topics this might include a simple hand-off of clear awareness slides and tools with confirmation of their knowledge of the topic. 
+But for something more nuanced and context-dependent like Root Cause Analysis, it is often beneficial to be explicit about delivering both the Skills training and how to teach the skills training. In practice, this can be done in the same session with a bit of extra room to navigate discussion about different types of learners and motivation considerations.
+Experts will be the recipients and providers of each layer of your training, but more importantly they will be the key to unlocking the scalability of your process.
+
+Change
+Whether you are designing an Event Management process from the ground up to introduce to a business that has never formally executed that work or introducing substantive updates to the business and information systems, managing the change must be intentional. You can’t assume that the clarity of your business rules and simplicity of your information systems will be enough to ensure adoption. 
+There are three moments that make the most sense to engage change management techniques. The techniques are what you would expect – draft samples, feedback opportunities, small meetings, pilot projects, etc. Let’s consider the timing of these types of activities within the scope of a launched Event Management Project.
+Prior to Design
+It may not have occurred to you before but asking your peers and stakeholders prior to deciding to build a new process is in fact change management. What you are probing the organization for is consensus around tensions in delivery. The more people you have these types of informal conversations with, the more your confidence grows that the appetite for change will be available when you need it. 
+When you are engaging your organization on the precipice of a design project, you will be looking for signals that line up nicely to our four lenses.
+•	Do people clearly know what is expected of them and understand the work they are expected to provide (Business Systems)?
+•	Is the method used to execute the work well-designed and optimized for efficiency and consistent outcomes (Information Systems)?
+•	Are there enough awareness, knowledge, and skill in the people required to do the work to meet our expected value (Human Systems)?
+•	Does the business value the work that is required enough to ensure proper resourcing and reasonable KPIs to drive consistent execution (Organizational Systems)?
+As you do this fact-finding, you are getting a head start on important aspects of your design choices. You are also building a roster of engaged stakeholders that know you are looking out for their best interest because you listened to their concerns and are working for a better future. 
+For your Event Management process, our Prior to Design work could include:
+•	Calls and meetings with operations leaders who are measured on their event management metrics to understand where they think the gaps are in the organization. 
+•	Questionnaires to people currently required to manage events at their location. We could ask an array of questions that tell us something about clarity of requirements, ease of execution, and consistency of outcome.
+•	What-if scenario voting to test the limits of expectation. One example could be a simple meeting poll around the topic of Event Management where you gauge sensitivity to weaknesses in your current Event Management process (e.g. If you could change one thing about our current Event Management process what would it be: The Forms, The Investigation, The Reporting). In truth you will likely be touching each of these elements, but as we’ll see once we get to design and implementation, these little “weights” will help tune our sense of priority.
+During Design
+Here again is another opportunity often overlooked by people trying to make process change. While you are working on new business rules or information systems, we strongly suggest you do so in the light. Radical transparency. Show people what you are working toward and get their feedback early and often. As a philosophical choice, this idea is perhaps the most important for Change Management. However, it is important how and who you do this with.
+When taking transparency to the people you do need to carefully consider the people you engage. The number of people matters as well. Finally, how you bring them into the design is a third factor to consider.
+Who	How	Expectations
+Direct Peers (~3)	Constant informal updates and action plans. Real-time feedback, open-ended conversations. 	The trick with Peers is to stay vulnerable. You are looking for the right answer together – not through fiat.
+Direct impacted (~3)	Scheduled progress updates, decisions on critical philosophy shift (e.g. Investigations will be completed by Supervisors instead of HSE professionals), rapid UI/UX trials, quick polls.	It will not be possible to get everyone’s votes for your progress in most cases, but you can still test your theories on people outside your direct circle.
+Leadership (~3)	Use a more sales-based approach where you speak about the current gaps in performance and the value you are trying to achieve with the changes.	For Event Management we will be requiring resources to be reallocated to a different layer of the business, and we will need early buy-in from the leadership needed to fund those adjustments.
+
+Admittedly, this element of change management is more art than science and the number of people you choose to work with will change depending on the circumstances, but the aim is the same: if you wait until launch to build consensus and test the validity of your approach, it’s too late.
+Launch Design
+The closer you get to launching your design your change management begins to resemble training more than communications. But even here, you can find ways to bring bigger groups of people on board with the process. The instinct for a big-bang launch, sometimes referred to as a Waterfall project, is tempting but robs you of the opportunity to truth-test your assumptions while there is time and budget to address them. 
+Here are some techniques you can use to take a more progressive approach to launch.
+•	Live Pilots – you can bring your technology and business rules on-line with a limited group of people. The difference between Live Pilots and what we did during design is we will assume the information added to your systems is “real” and begin to feel what that is like compared to our more-tightly-controlled pilots. There is something magical about “this is for real” that shifts perspective in a way that sometimes delivers unexpected insights.
+
+For Event Management, once we have re-written our business rules and embedded them into our investment in technology, we will bring on a few locations with willing participants to be early adopters. This gives them recognition as forward-thinking team players and gives us the truer test of system stability.
+
+•	Targeted Training – you can pick a cohort of people who had not heard much about your project ahead of time and run them through the training and enablement. The idea is to ensure the training lands as expected, and the needed behaviors can be modeled and repeated. 
+
+One critical gap in our Event Management process that we have been concerned about from the start is the addition of Root Cause Analysis capability with a broader group of non-experts (Supervisors). For that reason, running targeted RCA training for supervisors in several locations will be fundamental test of whether our organization can handle that resource commitment and are providing enough information to get the desired results from that layer of our organization.
+
+•	Sponsorship – As you go live, the voices you choose to amplify must be more than yours. Find a leader that has taken an interest in your project and give them a slide to present at the next town hall that speaks to the value of the new process.
+
+Having an executive share the efforts to enhance reporting efficiency and cause analysis quality sends a signal through the business about expected behaviors and priorities. This type of indirect mandate is the tone we are going for in Whole Process Design. When the new way is obviously better than the old way, our friction for adoption melts away.
+
+•	Feedback – make feedback easy to give and targeted to the aspects of your process. This can be done informally through direct communication, at-will through feedback mechanisms in your information system, or programmatically through polls and questionnaires sent out during and after launch.
+
+One way we will ensure our information system is designed for purpose is to include a Feedback button directly in the app that allows people to express praise or concern for the system they are now required to use. 
+
+•	Continuous Improvement Sprints – perfect projects don’t exist. You need to plan for immediate corrective actions once you have launched your process. Taking this approach may feel chaotic if your preference is to launch and leave, but if you consider the value of early course corrections after go-live, you will see the pattern may be a bit messy in early days, but the quantity and severity of Continuous Improvements will decrease over time.
+
+For our Event Management process we will focus on fine-tuning pieces of our business rules that were either ambiguous or missing from our design. And obviously we will want to set up early success metrics for technology adoption, timing measures for completion rates, and quality analysis signals to ensure the business rules, information systems, and training are all yielding the expected value.
+
+Whole Process Designs carry the weight of simplification of concepts and data systems, but with Humans we are afforded the opportunity to lean into the complexity and potential of the people we will be relying on. This is not a weakness of any system – it is the implied value of people that give the process designs their impact on any organization. By arming our people with the correct level of training and alignment, we are freeing them of the burden of inefficiencies and empowering them to share their talents.
+
+Event Management and Organizational Systems
+You may be thinking that our Event Management example is starting to get a bit too specific to be of any use to you conceptually. You are not wrong. But stick with us for one more aspect of Whole Process Design. The power of taking a wholistic approach to design is considering a more complete context and using those observations to establish a pattern of value delivery that everyone involved agrees upon.
+As we work Event Management through the lens of Structure, Value, and Outcomes we will learn that sometimes the best approach to choosing which process is a good target for optimization can be reverse engineered from the shared values of our leadership. The sneaky up-side to this thought process is in adoption. If we target a process that is extremely annoying for us to complete but does not affect any other part of the business or carry any obvious value to the leadership of our company, we might feel better about the outcome but shouldn’t expect the rest of the organization to care.
+However, if we use the aspirations of our leadership and deliver a process that affords them a new story about progress toward strategic ends, we often find resources and support we didn’t think possible.
+Structure
+The easiest way to start analysis of your operating structure is to pull out an organizational chart and consider the job titles in the hierarchy. Even if your organization is modest in size (~1000 employees) you will see the value choices of your leadership on that page. 
+See a messy line of organic structure with pockets of reporting lines that look more like a map of water tables than explicit organizational design? Your leadership might prefer agility and personality to structure and predictability. This could mean that your organization values the contributions of people over process. Be careful with how much structure you try to enforce in this type of organization. It’s not that you need to avoid structure, but the resting pulse of this type of organization is “getting things done”.
+See a text-book tree that looks to have been generated by an AI with an MBA? Your leadership might prefer authority and predictability over autonomy and agility. This will likely mean that your more impactful designs will be impeded by multiple layers of controls that will need to be removed or re-written. Again, this shouldn’t keep you from acting but might decrease the scope of the change you want to make while increasing the amount of convincing you will need to do to be successful.
+In the real world, however, it is rarely one or the other but a blend of these structures you will need to navigate. It could be possible that your reporting lines are crystal clear, but when we need to engage with another function, the wheels come off. And it is this idea that we will explore for Event Management. The structure we need to understand isn’t for the HSE function by itself, but for the HSE function in relation to every other stakeholder function in our desired process that needs to be considered.
+The practical implication of this thinking applies directly to the procedures we want to build with Whole Process Design. We cannot assume every actor will be equally supported by their reporting structure to execute as we desire.
+Consider this summary of the stakeholders in our proposed Event Reporting process, each stakeholder organization, and how we think about that structure. We will use the RACI from our procedure as a starting point for this analysis.
+Actor	Structure	Implications
+Reporter	None – or All if you’d rather. Remember, anyone can report an incident.	Building a system that empowers any employee to report an incident needs to leverage the language of Shared Values rather than any one function’s business purpose. Think about this for a moment – this is not a trivial point to consider. Allowing anyone in the business to engage in our process is an exercise in culture, incentives, trust, and ease of execution.
+Supervisor	Operations: COO -> Regional Leadership -> Site Leadership -> Operational Leadership	Requiring a supervisor to execute work on behalf of the HSE function will require our operations leadership to buy-in to the value of this approach. We may need to lean into principles that highlight “efficiency” and “quality” while gently reminding operations that they are owners of the outcomes of their own process.
+EHS SME	CHRO -> VP HSE -> Regional HSE	For our example we will assume authority for the correct approach to event recordkeeping is rooted in Human Resources. From this we can assume our subject matter expert will be empowered to insist on quality outcomes, but we cannot ignore that what they are providing is a service to operations. That service must be seen as a value – not overhead.
+Investigation Team Member	Operations: COO -> Regional Leadership -> Site Leadership -> Operational Leadership	This group is also open-ended from the perspective of the structure of our business. We might have someone from our quality group, an engineer, production line workers, etc. Put another way, we are asking operations for resources to assist in delivering the best quality investigation.
+Location Management	Operations: COO -> Regional Leadership	As we complete a successful Event Report and Investigation, our location leadership must feel like the product they receive is useful in guiding their decisions. Being a part of the Operations stack means they will want justification for any action required by the output of the analysis. This doesn’t mean they have no heart or disregard their moral duty of care for the people under their leadership, but they are confronted with many tough choices with limited resources. We should be building a process that consistently delivers reasonable and actionable outcomes to continuously improve their business.
+
+Aligning the actors of your future-state process to the organizational realities of their day-to-day is an exercise that doesn’t take much time or imagination but delivers a powerful punch. What we gain from this consideration is the ability to see around corners. 
+Often the tensions discovered in this exercise could go unnoticed in pilots and early designs simply because early adopters are interested in the improvement and are willing to sacrifice or even oppose their function’s structural reality to work on something new and interesting. It can be months or years down the line, when you are working on scale that Structure tensions can raise up and bite back.
+Value
+Every organization that reflects on their place in the market or the world should be able to express what they value and how they plan to express that value. At these lofty heights, the statements feel like aspirations rather than motivations. That’s OK – nothing wrong with setting your sites on a distant destination. But for Whole Process Design we will need to tighten that perspective by several orders of magnitude.
+We will be faced with people who don’t report to us being asked to perform work they didn’t define. This, by itself, shouldn’t scare you. We do this sort of thing all the time in every aspect of our life. Remember when fully automated checkout lines were introduced at grocery stores? How you felt about that change had more to do with your sense of value than with the store’s desire to manage costs while delivering acceptable customer experience. 
+This is the same frame we want to put around Value consideration for the actors in our process.
+Expectations
+Starting with expectations, we can consider how each actor confronted with our new process will react to what we are introducing. While building your process, put yourself in each actor’s shoes and think about which motivations you want to amplify.
+•	Reporter – It should be easy to report. I should feel comfortable and safe reporting my concerns. I do not expect to have my report be used against me. When I report an issue, I expect something will be done to prevent it from happening again. I expect to have my perspective respected when sharing my opinion. If I feel to blame for the circumstance, I expect I will not be held unfairly accountable for the conditions that precipitated the event.
+•	Supervisor – It should be easy to capture a report. I should feel well-supported, even guided when entering my report to help provide sufficient information. My leadership agrees that this activity is a priority accepting this time spent as core to my job. This process allows me to be objective about the circumstance while being compassionate for the person who was affected. Using this process will give me access to resources that can help make the area I’m responsible for run better, safer, and attract the best workers available to me.
+•	EHS SME – When I receive a report for the first time, it will contain enough information for me to understand quickly whether more resources are needed to support the scenario. The Reporter and the Supervisor will know how to execute the process without any external guidance. Once completed, the report will contain actionable insights that improve our operations. Reading across event reports will empower me to gain insights to structure weaknesses worthy of improvement. The quality of this product will serve my operational leadership customers at my site and across the organization.
+•	Investigation Team Member – Beyond root cause training, I will not need to prepare to participate and add value to an investigation. My time during an investigation will allow me to share my experience and contribute to the improvement of my workplace. After my involvement in an investigation, I expect to see changes in the workplace aligned to our findings. I want to be seen as an asset to problem-solving.
+•	Location Management – I am informed of events in my operations in a timely and sufficiently detailed way. When I have questions about a scenario, I know who to contact. If asked by leaders in my structure, I can easily summarize a scenario and talk about steps being taken to mitigate and improve. The quality of investigations and resulting proposed actions allow me to make informed decisions about investments. I can justify investments based on clear understanding of root causes. I can scale improvements identified in one area across all affected areas. I can track trends toward increasing control over my operations.
+Each of these “I” statements can come through your experience working with each of these roles. Or you could interview representatives of your perspective actors and draw from them these insights. In either case, considering the value expectations of each of your actors will be informative for what parts of your process demand focus and attention to detail.
+Talent
+Considering whether you have the proper talent to execute your process is another piece of the puzzle. Because anyone can report events, we just need to ensure that everyone knows they are encouraged to report and in general who is responsible for taking that report.
+Things get a bit more complicated when we look at the next actor in our process. Supervisors will be required to collect report data, mitigate the complexities of an injured colleague, stay objective to the facts while respecting the perspectives of the person reporting, think through the implications of a person being removed from their operations, and be accountable for the accuracy of the report. That is a lot of expected value!
+Given all the parameters we have heaped on to Supervisors, we now need to think through how we expect to ensure the talent in our organization is enabled to deliver this value. This cannot be done simply by “hiring good people”. We will need to add Event Reporting and Investigation as a named skill expectation for all supervisors with all the associated payload of training and support material.
+The same idea applies to anyone we expect to be a positive contributor to investigations. While we can assume Supervisors will get this training, we will need to provide structured analysis techniques and supporting training material to our engineers, quality, production, and support functions.
+Looking at our EHS SME’s, we are starting to transition from provider to steward for our process. SME’s will be expected to see many reports which implies they cannot be expected to author them – they are going to be expected to act as a quality check and provide feedback to the supervisors and investigation teams. They will need to be able to line up the content of a report with the governing framework of reported events, KPI ramification, trend analysis, and a hundred other considerations. Importantly, we will need to invest in talent for SME actors that can use event report data not simply generate it.
+The talent profile of our operations leadership is something much harder for us to control. We will rarely have any direct influence on the operational customers of our event reporting process. For these people we will need to build a reliable value chain, confirm they are getting the service they expect, and perhaps most importantly validate whether they are supporting change consistent with the outcomes of the investigations. While this does not speak directly to leadership selection, it does create a feedback mechanism to your organization that can be used to highlight leaders who “get it” versus leaders who consistently ignore signals of distress.
+Cross-Functional Alignment
+When we think about the expected value proposition of our new Event Reporting procedure, we can easily imagine a world where the joins between Operations and Safety are filled with gaps and failure potential. Helping each actor understand in what ways they are acting as a service provider can help crystalize and prioritize focus. 
+The reporter is providing the service of an honest accounting of the circumstance that led to the incident. The supervisor is providing the service of a coded report and investigation. The investigation team member is providing the service leveraging their experience and aligned to the principles of root cause analysis. The SME is providing quality assurance, analysis, and compliance across time. Operational Leadership will be expected to provide the service of resource provisioning to support action plans. Ensuring each actor knows the value they provide can go a long way to reducing the friction between functions during our process flow.
+Boundaries
+Equally important when defining service expectations is respecting boundaries for that value delivery. An EHS SME who runs around to everyone who reported an incident and re-writes the content is doing a disservice to your organization. This type of work may result in higher quality individual reports, but it is a drag on scalability. If every report is written by one person, you will never be able to report all the incidents in your business.
+Similarly, if an Operations Leader insists on questioning the premise of every root cause analysis as an excuse to avoid investments in corrective actions, they demotivate those who have been empowered to discover opportunities for continuous improvement. How many volunteers will you get for your next Root Cause Analysis brainstorm when word gets out that it’s just a conference-room exercise, and nothing ever gets done?
+You have a choice in style when it comes to boundaries. One approach is to be explicit about the behaviors you expect from each actor. Another approach is to delineate the behaviors you expect to be avoided. In either case, you will be implying the value you expect by letting each actor know their boundaries to their role and within the context of the process.
+Predictable value delivery requires more than just consideration of the number of fields on your form. Ensuring each of your actors have clear expectations, the talent to execute, work well with their partners in the process, and understand the boundaries of their expected behaviors will be foundational to stable and scalable systems.
+
+Outcomes
+And now we come to it – the central tension in our Event Reporting process. There isn’t an organization on this planet that wants more reportable events. We cannot accept that year-over-year our incident rate should increase. By any logic that should feel like failure. But this of course is the paradox we can predictably encounter when operationalizing event reporting.
+Imagine a world where our event reporting process was slow, manual, disconnected from organizational priorities, and used as a bonus-worthy outcome KPI for operations. Guess what happens in that environment? If you said “people are incentivized NOT to report” you guessed correctly. Here is the paradox then – if we get good at Event Reporting and align incentives to ensure this is done correctly in all circumstances, our Event Report KPIs will go up!
+How we navigate this mine field could be the difference between success and failure. There are several techniques we could use:
+•	Recontextualize the meaning of the prior KPI to our new, tighter definitional structure. We used to count this type of event, now we are counting this clearer type of event therefore our old KPIs do not compare to our new KPIs.
+•	Change the window of analysis. If in the past you counted events as they happened and used that as a judgement of good versus bad, we could expand the timeframe emphasizing trend rather than individual points of failure.
+•	Change what is counted. Many organizations use the outcome of an event as a proxy for how serious the circumstance was. This in turn is a proxy for the criticality of the failure. However, as experienced safety practitioners will tell you, it’s not the outcome but the risk that matters. Instead of counting outcomes, count how many risks you failed to control.
+Adopting a Whole Process Design mentality will reliably result in deeper understanding of the information you are prioritizing which naturally leads to reconsideration for your process outcomes (KPIs). But changing how leadership interprets KPIs is only half the battle.
+How do we make sure that the process we put in place is running as we need it to? We need to walk our organization to the logic that flows from first principles:
+•	I want less injuries, 
+•	so I need a better event management process, 
+•	which means I expect root causes and corrective actions to be implemented in a predictable way.
+This is where Key Activity Indicators start to shine. One step during our Event Reporting design we could take is to propose KAIs. Doing this moves us past the potentially explosive conclusion that our event count will be going up and toward a philosophy of “yes, that will be OK provided we know we are taking a good path to ensuring every event is properly managed.”
+Let’s consider event reporting procedure and think about Key Activity Indicators.
+Measure	Desired Behavior	Potential Conflict	Difficulty to Implement
+Time to complete a valid report	Complete work on time within the defined parameters of the process	People race to meet time expectations sacrificing quality	Easy – information system timers are trivial to build.
+Time for First Report of Incident	Incentivize reporting as close to the time of the event as possible to ensure conditions are available for discovery	People may sacrifice stabilizing activity to report. Early reports may have insufficient quality or quantity. Timing may be obscured by reporters to ensure compliance.	Easy – information system comparison of Reported Date vs. Event Date are trivial.
+Corrections required for Report Validation	Each actor delivers their expected value in sequence making the validation efficient.	Actors may delay their step in the process trying to avoid feedback from the validator until they believe it is “perfect”	Medium – how to count back-and-forth validation conversations
+On-time complementation of Corrective and Preventative Actions	Each action assignee accepts their responsibility and completes the required work within the established timeline. Operations materially improve at a predictable pace.	Assignees may avoid accepting responsibility or manipulate due dates based on financial or resource constraints.	Easy – information systems can track overdue status easily.
+
+ All these measures could be used to consider how well the process is being implemented throughout the organization. The point however is to impose a broader sense of ownership in the organization to executing reliably. Where we see gaps or underperformance for these KAIs we should consider that a signal of distress for our process design.
+Organizational Systems are as rich, varied, complex, and directional as any aspect of the Whole Process Design framework. We have covered some points of consideration, but in truth, we are only scratching the surface of organizational theory. Importantly, you do not need all the theory to leverage some of it.
+ 
+11. Quick Examples
+We have been hovering over the world of Health and Safety for a while now. Let’s take a step back and review some quick examples using our Four System Lens approach. In this section we will be presented with a work scenario that could be considered for a Whole Process Design. We will describe the scenario then use our Pre-Design Questionnaire to evaluate what elements of the process could be improved and how. 
+While the Event Management scenario walked us through an end-to-end design exercise, you are much more likely to be focusing on pieces and parts of a process. We should be focusing on improving something and not worry about being unable to improve everything.
+To help us gain an appreciation for the viability of the Whole Process Design methodology we will consider several examples from various industries and working contexts. These stories highlight the various possible combinations of conditions and how to think through applying this toolset.
+For each example there is an Opportunity and Risk score. Opportunity is gauging how likely we will be to influence that system lens, and Risk considers ramifications for our actions.
+Example 1: School Principal and Report Cards
+Imagine you are a school principal with 50 teachers in an elementary public school. Three times every year, every teacher needs to complete report cards for all your students. You personally read every comment and are accountable to the community for the outcomes of each student as well as the professionalism of your staff in describing their progress.
+Business Systems
+Being a public education entity, the values, rules, protocols, timing, and expected outcomes are tightly controlled by your local and state governments. You do not have any flexibility to impose timelines on completion as these are negotiated elements of the unions of your employees. You work in a district that governs all protocols of how your school is managed. In short, you will not be able to write foundational concepts into a business system. What you may be able to do is establish a set of localized business systems that define expected pacing, visible signs of progress, individual awards for quality content, and other motivating structures.
+
+Opportunity	Low	Structural changes to foundational education paths are tightly constrained.
+Risk	High	Attempts to influence structural rules at this level could have outsized implications.
+ 
+Information Systems
+The district mandates which information system is used to capture student progress and report card data. Every teacher is trained by the district on the system and there are resources allocated to ensure proper use and troubleshooting guidance is available. But the software is far from perfect and many of your teachers have identified room for improvement in its design that could streamline their required activities. While you cannot directly change the design of the source information system you could consider whether there could be adjoining systems that would assist your teachers, or work with your teachers to build structured feedback about the software to deliver to the stakeholders at the district responsible for the implementation.
+
+Opportunity	Mid	You can empower continuous improvement and advocate for your teachers’ time by formally requesting features.
+Risk	Low	Offering continuous improvement advice usually carries good will
+ 
+Human Systems
+As principal for your building, the number of stakeholders with a vested interest in quality and delivery of report cards includes teachers, students, parents, and administration. Each of these stakeholders have a different relationship with report cards and therefore need different support. Teachers need efficient collection methods, automated pacing reminders and quality review, clear understanding of district-wide rules for completion, and a community of teachers available to them to ensure consistency. Students, depending on their age, need to understand their responsibilities in relation to the report card outcomes and how to think about these scores on the page versus their lived experience of learning the material. Parents need to understand the potential and constraints of the grading process and what is a realistic expectation from their educators. The district administration needs consistent delivery of high-quality, on-time evaluations for all students to reinforce the value they return to the taxpayers of the community. In all cases, there are many opportunities for Awareness, Knowledge, Skills, and even Expert training that could lead to better outcomes. What’s more – this is something you could directly control, develop, and deliver.
+
+Opportunity	High	You can manage meeting agendas, messaging, and other training / education opportunities that serve to contextualize the service of Report Cards.
+Risk	Mid	You will need to carefully navigate between directing work and respecting authority boundaries established by unions, communicating intent and being accountable for outcomes, and hearing the concerns of parents while reinforcing the capabilities of your staff.
+ 
+Organizational Systems
+A report card process improvement only gets support if leadership and the community understand how it contributes to trust, consistency, and confidence in educational progress. Just like counting injuries doesn’t tell you whether you are managing safety risk, presenting average reading-comprehension scores for a grade level does not tell the whole story of a child’s educational progress. 
+
+As a representative in the community for your school, you will need to emphasize how your school will be serving their customers (the parents) while satisfying the beneficiaries (the students) with consistent, structured, predictable, and protocol-based feedback on progress. 
+
+Finally, the non-trivial investment in information systems used by parents, students, staff, and administration alike needs to be validated and continuously improved to ensure good stewardship of the community’s investment.
+
+Opportunity	Low	You are accountable to the stakeholders in your district, community, and direct-report employees.
+Risk	High	The politics of our position are real. The number of stakeholders, values and expected outcomes we must navigate is complex.
+ 
+Lesson
+When formal rules, software, and external expectations are constrained or out of your control, Human Systems may be the most practical place to improve.
+
+ 
+Example 2: Remote Employee Onboarding
+Imagine you are given the responsibility of implementing more reliable employee onboarding experience for your 100-person technology consulting company. You have been given a budget, timing expectations, and authority to implement what you think will work best. The priority is to lower the time to value for new hires while ensuring basic principles and company culture are reinforced.
+Business Systems
+As your business has grown and new opportunities have led to the need for more people, little attention has been paid to the structures needed to handle the scale of work that needs to be accomplished. Your company is at Level 1 Business Systems. You may be tempted to dive directly into Level IV systems and plan out an entire Operating System. A better approach would be to walk your organization up through the levels to gain familiarity with the approach. Teaching a company how to organize itself needs to be done formally and intentionally. 
+
+Opportunity	High	Organic growth favored profits and opportunity over formalized business systems. You have an opportunity to lead your organization into this approach.
+Risk	Mid	Establishing new business systems can be very gratifying, but not everyone will love the clarity. Be ready for the politics of rulemaking.
+
+
+Information Systems
+Your business has all the talent needed to conceive of any software offering. But this can-do attitude needs to be tempered with “what problem are you trying to solve”. Technologists get excited about new projects and love dreaming up features and functions. Your role will be to narrow the focus of consideration to make sure the information system you invest in optimizes the process you define in your new business system. In practice, this means that you should gain clarity on Process Maps and Procedures before even considering what digital tools you will develop.
+
+Opportunity	High	Building and executing logical flows of business value is what your company does.
+Risk	Low	In a small action-oriented company there will be much more tolerance for an iterative approach meaning you should feel empowered to take risks to provide value.
+
+
+Human Systems
+New management systems, information systems, business processes, and features and functions will be a lot of changes for your organization. Training managers in the new Onboarding process and validating that design with new employees will be exciting work. However, remember you may spend as much time explaining the systems supporting onboarding as you do the topic itself. For the new employee, there are a lot of alignment materials that will need to be authored, delivered, and reinforced over the timeline of the exercise.
+
+Opportunity	High	Create manager enablement materials first, and onboarding material second. Teach your entire organization about your new business system.
+Risk	Mid	It’s one thing to dream up new rules and systems, it’s another to get buy-in from everyone who will be required to use them.
+
+ 
+Organizational Systems
+Given that your company is small with limited layers of management, there is a bias toward autonomy and fast decision making. While this favors rapid innovation, it is also a recipe for inconsistent outcomes. Specifically, there has been an informal understanding of a manager’s responsibility when it comes to onboarding. You will need to establish some role ownership and outcome expectations. This will likely expose weaknesses in other parts of the organization that haven’t been considered, like who is selected to be a manager and whether they are qualified to execute the things we need supervisors to do.
+
+Opportunity	High	Establishing a practice of onboarding that focuses on the manager as the key delivery resource drives accountability to the correct place in the organization.
+Risk	High	Establishing this practice is as much a political choice as an operational choice meaning you will be identifying some career-altering patterns in the business.
+
+
+Lesson
+When unconstrained and funded, you can make significant progress across all four lenses, but make sure you choose a line of value rather than trying to solve every problem.
+
+ 
+Example 3: Company Car Benefit Program Administration
+Let’s examine the role of an HR manager that works for a billion-dollar multinational. In this corporate role, we have been asked to optimize various streams of benefits for the company. One practice that has traditionally caused a lot of confusion and mistakes is managing the Car program which is a benefit given to certain employees through a monthly stipend. 
+Business Systems
+At the center of a benefit framework should sit a collection of policies (or Standards in our Level IV Business System) that clearly define the benefit and the major processes of that benefit. As a manager for this company, we should make ourselves familiar in detail with the policies, standards, procedures, and guidelines. We should take steps to coordinate with the authors or owners of these documents and create a channel where friction between execution and policy could be revised through updated documentation.
+
+Opportunity	Mid	As a manager, we may not have direct authoring rights to business system documents, but we could offer our help in highlighting the tensions the documents create and suggest improvements.
+Risk	Low	We can influence business systems but likely won’t be authoring those changes.
+
+ 
+Information Systems
+There are plenty of data elements we could consider in our Model and much of that data will need to be Acquired through people who will have little reason to use our information system regularly. This means that if we are going to ask people to provide us with data, we will want to make sure we’ve thought through our data model clearly, create a clean no-training-required acquisition strategy all while assuring the information is properly protected. We will likely need to partner with our organization’s Information Systems team to find a good balance of predictability and security.
+
+Opportunity	Low	Normalizing operating data like Car inventory, drivers, credentials, payment amounts, and onboarding/offboarding business flows requires a good deal of careful consideration and reliance on expertise beyond our scope.
+Risk	Mid	Having a central information system is generally better than having no information system, but an over- or under-designed system could disrupt process adoption.
+
+
+Human Systems
+The primary participant in this Whole Process Design will be people who expect a benefit and your design will need to feel like an extension of a positive value rather than an exercise in frustration and delay. This means we will need to lean heavily on the user story going from hire or promotion to receiving their benefits details, to providing required paperwork, to seeing the money flow into their accounts. These people will often be in positions of influence in the organization and the margins for mistakes will likely be thin.  
+
+Opportunity	High	Even if your Business Systems are out of your control and your Information Systems are rudimentary, you can put a shine on the success of your project by ensuring your primary actor’s experience illustrates the care and consideration a Whole Process Design ensures.
+Risk	High	Understanding, efficiency, satisfaction, and governance will be highly scrutinized for this type of benefit program.
+
+
+Organizational Systems
+Because we are working in the scope of a larger multinational, we should expect a great deal of organizational complexity. On top of that, there will be geographic complexity as different countries will enforce different rules where compensation is concerned. Your project will be seen as successful if it drives the value of talent attraction and delivers on the promise of that value to every person who uses it.
+
+Opportunity	Mid	Prioritizing clear execution, we can reinforce HR as a partner in value delivery to the organization. 
+Risk	High	Our design choices will be evaluated by every functional leader in the company.
+
+
+Lesson
+This example is a true middle manager puzzle. Balancing opportunity and risk will be the priority and iterative implementation will be critical to establishing a stable future state.
+
+
+PART IV — STARTING THE CHANGE
+(Step 5: Transformation Launch Plan)
+27. Why Implementation Fails
+•	Partial redesign 
+•	Over-focus on one dimension 
+•	Lack of ownership 
+28. Where to Start
+•	Selecting: 
+o	first unit 
+o	first intervention 
+•	Criteria for prioritization 
+29. Roles in System Transformation
+•	Who owns: 
+o	design 
+o	execution 
+o	validation 
+•	Working across boundaries without authority 
+30. Sequencing the Work
+•	Dependencies 
+•	Parallel vs. sequential work 
+•	Managing complexity 
+31. Early Signals and Feedback Loops
+•	What to measure early 
+•	Detecting failure quickly 
+32. The Transformation Launch Plan
+•	Introduction to final artifact: 
+o	scope 
+o	roles 
+o	sequencing 
+o	signals 
+33. Starting Without Perfect Clarity
+•	Acting under constraint 
+•	Iterating while implementing 
+
+Conclusion — From One System to Many
+•	Event Management as a model, not a limit 
+•	Applying the method to: 
+o	Quality 
+o	HR 
+o	Engineering 
+o	Operations 
+•	What remains consistent: 
+o	the four-system model 
+o	the decomposition pattern 
+o	the need for alignment 
+•	What changes: 
+o	domain specifics 
+o	terminology 
+o	constraints 
+•	Where to go next: 
+o	deeper system design 
+o	broader system integration 
+________________________________________
+Appendix
+A. Artifact Templates (Lightweight)
+•	System Tension Map 
+•	Whole System Model 
+•	Design Decomposition 
+•	System Blueprint 
+•	Transformation Launch Plan 
+B. Quick Reference: The 5-Step Method
+•	One-page summary for practical use
+

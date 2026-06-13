@@ -1,0 +1,46 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+[Dd]ebug/
+[Rr]elease/
+x64/
+x64/
+[Bb]in/
+[Oo]bj/
+*.dll
+*.exe
+*.pdb
+*.cache
+
+# React/Node
+wpd-client/node_modules/
+wpd-client/dist/
+wpd-client/.vite/
+wpd-client/.env.local
+wpd-client/.env.development.local
+wpd-client/.env.test.local
+wpd-client/.env.production.local
+
+# VS/VSCode
+.vs/
+.vscode/
+*.code-workspace
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db

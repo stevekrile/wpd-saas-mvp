@@ -1,0 +1,1077 @@
+# Whole Process Design SaaS MVP — Agent Project Plan
+
+## 1. Product Objective
+
+Build the first usable version of a Whole Process Design SaaS application using:
+
+* Backend: ASP.NET Core Web API
+* Data store: SQL Server
+* ORM: Entity Framework Core
+* Frontend: React.js using Vite
+* Development environment: Visual Studio
+* Authentication: ASP.NET Core Identity or equivalent JWT-based authentication
+* Initial deployment target: Azure App Service or equivalent cloud host, with SQL database
+
+The MVP should create a public-facing methodology site and a low-friction free-tier diagnostic workspace. The application must be architected so later paid individual and enterprise tiers can be added without redesigning the database or authentication model.
+
+The SaaS product should feel like an extension of the Whole Process Design methodology without exposing the full intellectual property of the book. The product should guide users into structured thinking, not reproduce the book or expose the complete internal methodology.
+
+---
+
+## 2. Core Product Strategy
+
+### Public Tier
+
+Purpose: Explain the methodology and create account conversion.
+
+Capabilities:
+
+* Public landing page
+* High-level explanation of Whole Process Design
+* Public overview of the four system lenses
+* Examples of system distress signals
+* Call-to-action to create a free account
+* No access to full diagnostic logic
+* No downloadable proprietary templates
+
+### Free Member Tier
+
+Purpose: Give users a useful “aha” moment.
+
+Capabilities:
+
+* Account creation
+* Create one active process
+* Complete a guided four-lens diagnostic
+* Receive a basic diagnostic summary
+* See simple lens scoring
+* View a basic System Tension Map
+* Save progress
+* Limited export or no export
+* Upgrade prompts for deeper artifact support
+
+### Pro Individual Tier
+
+Purpose: Support the user who wants to use WPD as a private workbench.
+
+Planned future capabilities:
+
+* Multiple active processes
+* Full saved diagnostic history
+* Artifact builders
+* More detailed recommendations
+* Export to PDF or Word
+* Private notes
+* Version history
+* Personal process library
+
+### Enterprise Tier
+
+Purpose: Support organizational adoption.
+
+Planned future capabilities:
+
+* Organization workspaces
+* Multiple users
+* Role-based access
+* Shared process library
+* Admin dashboard
+* SSO/SAML support
+* Audit logs
+* Enterprise reporting
+* Configurable templates
+* Enterprise license management
+
+For MVP, build only Public and Free Member tiers, but design the schema to support Pro and Enterprise later.
+
+---
+
+## 3. MVP Scope
+
+### In Scope
+
+Build the following:
+
+1. Public marketing site
+2. User registration and login
+3. Free-tier process workspace
+4. Create/edit one process
+5. Guided four-lens diagnostic questionnaire
+6. Diagnostic scoring engine
+7. Basic System Tension Map output
+8. User dashboard
+9. Tier-aware authorization foundation
+10. SQL database with EF Core migrations
+11. API documentation using Swagger/OpenAPI
+12. Basic admin seed data for diagnostic questions and scoring rules
+
+### Out of Scope for MVP
+
+Do not build yet:
+
+* Payment processing
+* Enterprise SSO
+* Collaboration
+* Shared workspaces
+* Full artifact library
+* AI-generated transformation plans
+* Complex process mapping canvas
+* Workflow automation
+* Document export
+* PowerPoint generation
+* Enterprise analytics
+* Full book content library
+
+---
+
+## 4. Primary User Stories
+
+### Public Visitor
+
+As a public visitor, I want to understand what Whole Process Design is so I can decide whether to create an account.
+
+Acceptance criteria:
+
+* Visitor can access landing page without login.
+* Visitor sees a high-level explanation of WPD.
+* Visitor sees four lens names and brief descriptions.
+* Visitor does not receive proprietary diagnostic logic.
+* Visitor has clear path to create a free account.
+
+### Free Member
+
+As a free member, I want to create a process and diagnose it through the four lenses so I can identify where my system may be weak.
+
+Acceptance criteria:
+
+* User can register and log in.
+* User can create one active process.
+* User can enter process name, description, context, and problem statement.
+* User can answer diagnostic questions grouped by lens.
+* User can save incomplete diagnostic progress.
+* User can submit diagnostic when required questions are complete.
+* User receives a simple lens summary and tension map.
+* User is prompted to upgrade when attempting to create a second active process or access deeper artifacts.
+
+### Future Pro User
+
+As a future paid individual user, I want multiple private workspaces and deeper artifacts so I can use WPD repeatedly across my work.
+
+MVP requirement:
+
+* Database must support subscription tier and process limits.
+* Authorization should check tier capabilities through a service, not hardcoded UI-only logic.
+
+### Future Enterprise Admin
+
+As a future enterprise admin, I want organization-level workspaces, user roles, and shared process libraries.
+
+MVP requirement:
+
+* Database must include organization-ready structure even if enterprise UI is not built.
+* Users should optionally belong to an organization.
+* Roles should be designed with future enterprise access in mind.
+
+---
+
+## 5. Suggested Solution Architecture
+
+Use a clean layered architecture.
+
+### Backend Projects
+
+Create a Visual Studio solution with these projects:
+
+* `Wpd.Api`
+* `Wpd.Application`
+* `Wpd.Domain`
+* `Wpd.Infrastructure`
+* `Wpd.Tests`
+
+### Project Responsibilities
+
+#### Wpd.Api
+
+Responsibilities:
+
+* HTTP endpoints
+* Controllers or minimal APIs
+* Authentication setup
+* Authorization policies
+* Swagger/OpenAPI
+* Request/response DTOs
+* Global exception handling
+
+#### Wpd.Application
+
+Responsibilities:
+
+* Use cases
+* Business logic
+* Diagnostic scoring
+* Tier enforcement
+* Service interfaces
+* Command/query handlers if using MediatR
+
+#### Wpd.Domain
+
+Responsibilities:
+
+* Core domain entities
+* Enums
+* Domain rules
+* Lens concepts
+* Subscription tier definitions
+* Process and diagnostic aggregate definitions
+
+#### Wpd.Infrastructure
+
+Responsibilities:
+
+* EF Core DbContext
+* SQL Server configuration
+* Identity persistence
+* Repository implementations if used
+* Seed data
+* Migrations
+* External service integrations later
+
+#### Wpd.Tests
+
+Responsibilities:
+
+* Unit tests for scoring logic
+* Tier rule tests
+* API integration tests
+* Validation tests
+
+---
+
+## 6. Frontend Structure
+
+Create React app with Vite.
+
+Suggested structure:
+
+```text
+wpd-client/
+  src/
+    api/
+      apiClient.ts
+      authApi.ts
+      processApi.ts
+      diagnosticApi.ts
+    components/
+      layout/
+      forms/
+      lens/
+      dashboard/
+      public/
+    features/
+      auth/
+      processes/
+      diagnostics/
+      tensionMap/
+      billing/
+    pages/
+      public/
+      app/
+    routes/
+    styles/
+    types/
+    utils/
+```
+
+### UI Principles
+
+The UI should feel structured, calm, and professional.
+
+Design principles:
+
+* Do not overwhelm the user with methodology language.
+* Guide the user step-by-step.
+* Show progress through the diagnostic.
+* Keep free-tier outputs useful but not exhaustive.
+* Use upgrade prompts only where they are contextually relevant.
+* Avoid making the site feel like a generic survey tool.
+
+---
+
+## 7. Initial Data Model
+
+Create SQL tables using EF Core migrations.
+
+### Core Entities
+
+#### User
+
+Use ASP.NET Core Identity user as the base.
+
+Additional fields:
+
+* DisplayName
+* CreatedAt
+* LastLoginAt
+* DefaultWorkspaceId
+* SubscriptionTierId
+* OrganizationId nullable
+
+#### SubscriptionTier
+
+Fields:
+
+* Id
+* Name
+* Code
+* MaxActiveProcesses
+* AllowsExports
+* AllowsArtifacts
+* AllowsAiAssistance
+* AllowsTeamWorkspaces
+* AllowsEnterpriseAdmin
+* CreatedAt
+
+Seed values:
+
+* Public
+* Free
+* Pro
+* Enterprise
+
+#### Organization
+
+Fields:
+
+* Id
+* Name
+* Slug
+* CreatedAt
+* IsActive
+
+MVP note: Enterprise UI is not required, but table should exist.
+
+#### Workspace
+
+Fields:
+
+* Id
+* Name
+* OwnerUserId
+* OrganizationId nullable
+* WorkspaceType: Personal, Organization
+* CreatedAt
+* IsActive
+
+#### Process
+
+Fields:
+
+* Id
+* WorkspaceId
+* OwnerUserId
+* Name
+* Description
+* ProblemStatement
+* Context
+* Status: Draft, Active, Archived
+* CreatedAt
+* UpdatedAt
+
+#### Lens
+
+Fields:
+
+* Id
+* Name
+* Code
+* DisplayOrder
+* PublicDescription
+* InternalDescription
+
+Seed values:
+
+* Business Systems
+* Information Systems
+* Human Systems
+* Organizational Systems
+
+#### DiagnosticQuestion
+
+Fields:
+
+* Id
+* LensId
+* QuestionText
+* HelpText
+* DisplayOrder
+* IsRequired
+* IsActive
+* FreeTierVisible
+* Weight
+
+#### Diagnostic
+
+Fields:
+
+* Id
+* ProcessId
+* UserId
+* Status: Draft, Submitted
+* CreatedAt
+* SubmittedAt
+* OverallSummary
+* PrimaryLensId nullable
+
+#### DiagnosticResponse
+
+Fields:
+
+* Id
+* DiagnosticId
+* DiagnosticQuestionId
+* NumericResponse
+* TextResponse
+* CreatedAt
+* UpdatedAt
+
+#### LensScore
+
+Fields:
+
+* Id
+* DiagnosticId
+* LensId
+* RawScore
+* NormalizedScore
+* ScoreBand: Low, Moderate, High
+* SummaryText
+
+#### SystemTension
+
+Fields:
+
+* Id
+* DiagnosticId
+* LensId
+* Title
+* Description
+* Severity
+* SortOrder
+
+#### UpgradeEvent
+
+Fields:
+
+* Id
+* UserId
+* EventType
+* SourceFeature
+* CreatedAt
+
+Purpose: Track where free-tier limits create interest in paid access.
+
+---
+
+## 8. API Endpoints
+
+Use REST endpoints first. Do not overcomplicate with GraphQL.
+
+### Public
+
+```text
+GET /api/public/lenses
+GET /api/public/content/landing
+```
+
+### Auth
+
+```text
+POST /api/auth/register
+POST /api/auth/login
+POST /api/auth/logout
+GET /api/auth/me
+```
+
+### Workspaces
+
+```text
+GET /api/workspaces
+GET /api/workspaces/{id}
+```
+
+### Processes
+
+```text
+GET /api/processes
+POST /api/processes
+GET /api/processes/{id}
+PUT /api/processes/{id}
+DELETE /api/processes/{id}
+```
+
+Tier rule:
+
+* Free users may create only one active process.
+* If the limit is exceeded, return a structured error that the frontend can render as an upgrade prompt.
+
+### Diagnostics
+
+```text
+POST /api/processes/{processId}/diagnostics
+GET /api/diagnostics/{diagnosticId}
+GET /api/diagnostics/{diagnosticId}/questions
+PUT /api/diagnostics/{diagnosticId}/responses
+POST /api/diagnostics/{diagnosticId}/submit
+GET /api/diagnostics/{diagnosticId}/results
+```
+
+### Tension Map
+
+```text
+GET /api/diagnostics/{diagnosticId}/tension-map
+```
+
+### Subscription / Tier
+
+```text
+GET /api/subscription/current
+GET /api/subscription/features
+```
+
+MVP note: Payment not required. These endpoints should return the current seeded tier and feature limits.
+
+---
+
+## 9. Diagnostic Scoring Logic
+
+Build a simple scoring service in the Application layer.
+
+### Inputs
+
+* Diagnostic responses
+* Question weights
+* Lens grouping
+
+### Outputs
+
+* Score per lens
+* Normalized score per lens
+* Score band per lens
+* Primary tension lens
+* Basic summary
+* Basic tension map records
+
+### Scoring Rules for MVP
+
+Use simple numeric questions rated 1–5.
+
+Example scoring concept:
+
+* 1 = Strong disagreement / high weakness
+* 3 = Mixed or unclear
+* 5 = Strong agreement / low weakness
+
+Invert the scoring into a “tension score” if needed:
+
+* Higher tension score = more likely weakness
+* Lower tension score = less likely weakness
+
+Keep the scoring logic in one service:
+
+```text
+IDiagnosticScoringService
+```
+
+Do not scatter scoring logic across controllers or React components.
+
+---
+
+## 10. IP Protection Requirements
+
+The application must not expose the full book methodology.
+
+### Public Site
+
+Allowed:
+
+* High-level lens descriptions
+* Simple examples
+* General system distress language
+* CTA to try diagnostic
+
+Not allowed:
+
+* Full method sequence
+* Full artifact templates
+* Complete scoring rubric
+* Full transformation launch logic
+* Full enterprise adoption playbook
+
+### Free Tier
+
+Allowed:
+
+* Basic lens diagnosis
+* Basic tension summary
+* Simple next-step category
+
+Not allowed:
+
+* Full artifact completion
+* Detailed implementation plan
+* Advanced recommendations
+* Complete template download
+
+### Backend
+
+Important:
+
+* Do not store proprietary scoring rules in frontend code.
+* Do not calculate diagnostic result entirely in React.
+* Keep scoring and recommendation logic server-side.
+* Return only the calculated result needed for display.
+
+---
+
+## 11. MVP Pages
+
+### Public Pages
+
+1. Home
+2. What is Whole Process Design?
+3. Four System Lenses
+4. Pricing / Access Tiers
+5. Login
+6. Register
+
+### App Pages
+
+1. Dashboard
+2. Create Process
+3. Process Detail
+4. Diagnostic Wizard
+5. Diagnostic Results
+6. System Tension Map
+7. Account / Subscription
+
+---
+
+## 12. Frontend Diagnostic Wizard
+
+The diagnostic wizard should use a step-by-step flow.
+
+### Steps
+
+1. Process Setup
+2. Business Systems Questions
+3. Information Systems Questions
+4. Human Systems Questions
+5. Organizational Systems Questions
+6. Review
+7. Results
+
+### Requirements
+
+* Save progress after each step.
+* Allow user to return to prior step.
+* Show completion progress.
+* Use clean language.
+* Avoid exposing weighted scoring logic.
+* Submit to backend for scoring.
+
+---
+
+## 13. System Tension Map MVP
+
+The free-tier tension map should be simple.
+
+### Display
+
+Show four cards:
+
+* Business Systems
+* Information Systems
+* Human Systems
+* Organizational Systems
+
+Each card should show:
+
+* Score band
+* Short summary
+* 1–3 likely tensions
+* Upgrade prompt for deeper artifact support
+
+### Do Not Build Yet
+
+* Drag/drop canvas
+* Swim lanes
+* Process mapping
+* RACI builder
+* Transformation sequencing engine
+
+---
+
+## 14. Authorization and Tier Enforcement
+
+Create a backend service:
+
+```text
+IFeatureAccessService
+```
+
+Responsibilities:
+
+* Check current user tier
+* Check whether user can create another process
+* Check whether user can access artifact builders
+* Check whether user can export
+* Check whether user can use enterprise features
+
+Do not rely only on frontend hiding. Enforce tier limits on the API.
+
+---
+
+## 15. Development Phases
+
+## Phase 1 — Repository and Environment Setup
+
+Deliverables:
+
+* Git repository initialized
+* Visual Studio solution created
+* ASP.NET Core API project running
+* React Vite project running
+* SQL Server local development configured
+* EF Core installed
+* Initial migration working
+* Swagger enabled
+* README with local setup instructions
+
+Acceptance criteria:
+
+* Developer can clone repository and run API locally.
+* Developer can run React frontend locally.
+* API connects to local SQL database.
+* Initial migration creates database.
+
+---
+
+## Phase 2 — Authentication and User Foundation
+
+Deliverables:
+
+* User registration
+* Login
+* JWT or cookie authentication
+* Current user endpoint
+* Protected API routes
+* Basic frontend auth flow
+* User dashboard shell
+
+Acceptance criteria:
+
+* New user can register.
+* User can log in.
+* Authenticated user can access dashboard.
+* Unauthenticated user cannot access protected routes.
+* User is assigned Free tier by default.
+* Personal workspace is created automatically.
+
+---
+
+## Phase 3 — Public Methodology Site
+
+Deliverables:
+
+* Landing page
+* Four lens overview page
+* Pricing/access tier page
+* Call-to-action into registration
+* Basic responsive layout
+
+Acceptance criteria:
+
+* Public user can understand product purpose.
+* Public user can create free account.
+* Public content does not expose proprietary artifact logic.
+
+---
+
+## Phase 4 — Process Workspace
+
+Deliverables:
+
+* Process create form
+* Process list
+* Process detail page
+* Free-tier limit enforcement
+* Backend process CRUD
+
+Acceptance criteria:
+
+* Free user can create one active process.
+* Free user cannot create a second active process.
+* API returns structured limit message.
+* Frontend displays upgrade prompt.
+
+---
+
+## Phase 5 — Diagnostic Questionnaire
+
+Deliverables:
+
+* Seed diagnostic questions by lens
+* API to fetch questions
+* Diagnostic creation
+* Save responses
+* Wizard UI
+* Resume incomplete diagnostic
+
+Acceptance criteria:
+
+* User can start a diagnostic for a process.
+* User can answer questions by lens.
+* Responses are saved to SQL.
+* User can leave and resume.
+* Required questions are enforced before submit.
+
+---
+
+## Phase 6 — Scoring and Results
+
+Deliverables:
+
+* Diagnostic scoring service
+* Lens score records
+* Basic summary generation
+* Primary tension identification
+* Results page
+
+Acceptance criteria:
+
+* Submitted diagnostic produces scores by lens.
+* Results are stored in SQL.
+* User can view results after submit.
+* Scoring logic is server-side.
+* Frontend receives only result data, not scoring rules.
+
+---
+
+## Phase 7 — System Tension Map
+
+Deliverables:
+
+* Tension map API
+* Tension map UI
+* Lens cards
+* Score bands
+* Summary text
+* Upgrade prompt for deeper artifacts
+
+Acceptance criteria:
+
+* User sees four-lens result view.
+* Each lens displays score band and summary.
+* Primary tension is visually identifiable.
+* User sees what deeper support is available in paid tiers.
+
+---
+
+## Phase 8 — Testing, Hardening, and Documentation
+
+Deliverables:
+
+* Unit tests for scoring service
+* API tests for tier enforcement
+* Form validation
+* Error handling
+* Loading states
+* Empty states
+* README updates
+* Seed data documentation
+
+Acceptance criteria:
+
+* Scoring service tests pass.
+* Free-tier process limit test passes.
+* Diagnostic submission validation works.
+* Application has no major broken flows.
+* New developer or agent can understand project structure.
+
+---
+
+## 16. Seed Data Requirements
+
+Create initial seed data for:
+
+* Subscription tiers
+* Four lenses
+* Diagnostic questions
+* Basic scoring bands
+
+### Example Diagnostic Question Categories
+
+Business Systems:
+
+* Clarity of business rules
+* Documentation maturity
+* Ownership of process rules
+* Consistency of expectations
+
+Information Systems:
+
+* Data capture
+* Data model clarity
+* Validation
+* Reporting reliability
+
+Human Systems:
+
+* Awareness
+* Knowledge
+* Skills
+* Change readiness
+
+Organizational Systems:
+
+* Structural alignment
+* Value clarity
+* Cross-functional support
+* Outcome measurement
+
+Do not overbuild the questionnaire. Start with 4–6 questions per lens.
+
+---
+
+## 17. Recommended Technical Decisions
+
+### Backend
+
+* Use ASP.NET Core Web API.
+* Use Entity Framework Core.
+* Use SQL Server.
+* Use DTOs rather than exposing EF entities directly.
+* Use FluentValidation or equivalent for request validation.
+* Use Swagger/OpenAPI.
+* Use centralized error handling middleware.
+* Use dependency injection for all services.
+
+### Frontend
+
+* Use React with Vite.
+* Use TypeScript.
+* Use React Router.
+* Use a query library such as TanStack Query or a simple API service layer.
+* Use component-level form validation.
+* Keep business scoring logic out of the frontend.
+* Use environment variables for API URL.
+
+### Database
+
+* Use EF Core migrations.
+* Seed reference data.
+* Use GUID or integer IDs consistently.
+* Include CreatedAt and UpdatedAt fields on major entities.
+* Avoid premature multi-tenant complexity, but include Organization and Workspace from the beginning.
+
+---
+
+## 18. Nonfunctional Requirements
+
+### Security
+
+* Passwords must be managed through Identity or a secure authentication provider.
+* Do not store secrets in source control.
+* Protect all app API routes.
+* Validate user ownership before returning process or diagnostic data.
+* Enforce tier limits server-side.
+
+### Performance
+
+* MVP does not need advanced caching.
+* Use pagination for future list endpoints.
+* Avoid loading all diagnostic history unnecessarily.
+
+### Maintainability
+
+* Keep domain logic out of controllers.
+* Keep scoring logic in a dedicated service.
+* Use migrations for schema changes.
+* Keep frontend API calls centralized.
+* Use clear naming consistent with WPD concepts.
+
+### Privacy
+
+* Treat process descriptions as potentially sensitive business information.
+* Do not use user-entered process data for public examples.
+* Add placeholder privacy language on the site until formal legal text is drafted.
+
+---
+
+## 19. Initial Definition of Done
+
+The MVP is complete when:
+
+1. A public visitor can understand the product and create a free account.
+2. A free user can create one process.
+3. A free user can complete a four-lens diagnostic.
+4. The backend calculates lens scores.
+5. The user can view a basic System Tension Map.
+6. The free-tier process limit is enforced by the API.
+7. The database supports future Pro and Enterprise tiers.
+8. The scoring logic is server-side.
+9. The app can be run locally from Visual Studio and npm scripts.
+10. The repository includes setup documentation.
+
+---
+
+## 20. First Agent Task List
+
+Start with these tasks in order:
+
+1. Create repository structure.
+2. Create Visual Studio solution with API, Application, Domain, Infrastructure, and Tests projects.
+3. Create React Vite TypeScript frontend.
+4. Configure SQL Server local connection.
+5. Add EF Core DbContext.
+6. Add Identity user model.
+7. Create initial domain entities.
+8. Create first migration.
+9. Seed subscription tiers and four lenses.
+10. Build register/login endpoints.
+11. Build frontend auth pages.
+12. Build public landing page.
+13. Build process CRUD API.
+14. Build process dashboard UI.
+15. Enforce one-process free-tier limit.
+16. Build diagnostic question seed data.
+17. Build diagnostic wizard API.
+18. Build diagnostic wizard UI.
+19. Build scoring service.
+20. Build results and tension map UI.
+21. Add tests for scoring and tier enforcement.
+22. Update README.
+
+---
+
+## 21. Critical Guardrails for the Agent
+
+Do not build beyond MVP unless explicitly requested.
+
+Do not expose proprietary scoring rules in React.
+
+Do not turn the site into a book-content repository.
+
+Do not build enterprise features yet.
+
+Do not add payment processing yet.
+
+Do not add AI features yet.
+
+Do not create a complex process mapping canvas yet.
+
+Prioritize a clean working vertical slice over feature breadth.
+
+The first successful product experience is this:
+
+A user creates an account, names one messy process, answers guided questions, and sees a useful four-lens diagnosis that makes them feel clearer about what is wrong.
