@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Information Systems icon">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#edf8fc"/>
+      <stop offset="100%" stop-color="#d5edf5"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="120" height="120" rx="24" fill="url(#bg)" stroke="#93c5d3"/>
+  <ellipse cx="64" cy="30" rx="26" ry="10" fill="#ffffff" stroke="#247093" stroke-width="3"/>
+  <path d="M38 30v30c0 6 12 10 26 10s26-4 26-10V30" fill="#ffffff" stroke="#247093" stroke-width="3"/>
+  <ellipse cx="64" cy="60" rx="26" ry="10" fill="#eaf7fb" stroke="#247093" stroke-width="3"/>
+  <circle cx="26" cy="86" r="9" fill="#012151"/>
+  <circle cx="64" cy="98" r="9" fill="#027197"/>
+  <circle cx="102" cy="82" r="9" fill="#012151"/>
+  <path d="M35 89l20 7M73 95l20-10M64 70v19" fill="none" stroke="#1f5a8b" stroke-width="3.5" stroke-linecap="round"/>
+</svg>

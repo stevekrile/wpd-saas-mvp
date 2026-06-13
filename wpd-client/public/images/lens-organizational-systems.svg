@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Organizational Systems icon">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f1f7fd"/>
+      <stop offset="100%" stop-color="#dbe9f7"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="120" height="120" rx="24" fill="url(#bg)" stroke="#9fbad6"/>
+  <rect x="48" y="16" width="32" height="18" rx="5" fill="#012151"/>
+  <rect x="16" y="54" width="28" height="18" rx="5" fill="#027197"/>
+  <rect x="50" y="54" width="28" height="18" rx="5" fill="#027197"/>
+  <rect x="84" y="54" width="28" height="18" rx="5" fill="#027197"/>
+  <path d="M64 34v10M30 44h68M30 44v10M64 44v10M98 44v10" fill="none" stroke="#1f5a8b" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="64" cy="94" r="18" fill="#ffffff" stroke="#1f5a8b" stroke-width="3"/>
+  <circle cx="64" cy="94" r="8" fill="#f4a524"/>
+</svg>

@@ -1,4 +1,4 @@
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../features/auth/AuthContext';
 
 export default function AppLayout() {
@@ -15,13 +15,21 @@ export default function AppLayout() {
       <header className="app-header">
         <div className="container">
           <div className="header-content">
-            <div>
-              <h1 className="logo">WPD</h1>
-              <p className="user-info">{user?.email}</p>
+            <div className="app-brand">
+              <Link to="/" className="brand-link" aria-label="Home">
+                <img
+                  src="/images/wpd-logo-wordmark-lockup.png"
+                  alt="Whole Process Design"
+                  className="brand-wordmark"
+                />
+              </Link>
             </div>
-            <button onClick={handleLogout} className="btn-text">
-              Log Out
-            </button>
+            <div className="app-user-controls">
+              <p className="user-info">{user?.email}</p>
+              <button onClick={handleLogout} className="btn-text">
+                Log Out
+              </button>
+            </div>
           </div>
         </div>
       </header>

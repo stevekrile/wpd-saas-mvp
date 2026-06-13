@@ -54,3 +54,20 @@ export interface TierLimitError {
   maxAllowedProcesses: number;
   upgradePrompt: string;
 }
+
+export interface PublicLens {
+  id: number;
+  name: string;
+  code: string;
+  displayOrder: number;
+  publicDescription: string;
+}
+
+export interface LandingContent {
+  title: string;
+  subtitle: string;
+  highlights: string[];
+  distressSignals: string[];
+  callToActionText: string;
+  callToActionRoute: string;
+}
