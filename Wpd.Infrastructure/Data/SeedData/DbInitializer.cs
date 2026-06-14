@@ -28,7 +28,7 @@ public static class DbInitializer
                 {
                     Name = "Free",
                     Code = "FREE",
-                    MaxActiveProcesses = 1,
+                    MaxActiveProcesses = 3,
                     AllowsExports = false,
                     AllowsArtifacts = false,
                     AllowsAiAssistance = false,

@@ -284,6 +284,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  position: relative;
+  padding-top: 1.5rem;
 }
 
 .form-group label {
@@ -292,8 +294,14 @@ body {
 }
 
 .form-group small {
+  position: absolute;
+  top: 0;
+  right: 0;
   font-size: 0.75rem;
   color: var(--secondary);
+  max-width: 45%;
+  text-align: right;
+  line-height: 1.4;
 }
 
 input[type="text"],
