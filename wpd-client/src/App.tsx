@@ -1,11 +1,11 @@
-import { AuthProvider } from './features/auth/AuthContext';
+import { WpdAuthProvider } from './features/auth/AuthContext';
 import AppRoutes from './routes';
 
 function App() {
   return (
-    <AuthProvider>
+    <WpdAuthProvider>
       <AppRoutes />
-    </AuthProvider>
+    </WpdAuthProvider>
   );
 }
 

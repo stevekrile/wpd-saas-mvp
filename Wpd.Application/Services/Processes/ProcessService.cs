@@ -16,7 +16,7 @@ public class ProcessService : IProcessService
 
     public async Task<(bool CanCreate, int CurrentCount, int MaxAllowed, string TierName)> CheckProcessLimitAsync(string userId)
     {
-        var user = await _context.Users.FindAsync(userId);
+        var user = await _context.WpdUsers.FindAsync(userId);
         if (user == null)
         {
             return (false, 0, 0, "Unknown");

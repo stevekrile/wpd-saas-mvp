@@ -1,85 +1,65 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import type { User, LoginRequest, RegisterRequest } from '../../types/index';
-import { authApi } from '../../api/authApi.ts';
+import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
+import axios from 'axios';
+import type { WpdUser } from '../../types/index';
 
-interface AuthContextType {
-  user: User | null;
-  token: string | null;
-  login: (data: LoginRequest) => Promise<void>;
-  register: (data: RegisterRequest) => Promise<void>;
-  logout: () => void;
+interface WpdAuthContextType {
+  wpdUser: WpdUser | null;
   isLoading: boolean;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const WpdAuthContext = createContext<WpdAuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+export const WpdAuthProvider = ({ children }: { children: ReactNode }) => {
+  const { user: clerkUser, isLoaded: clerkLoaded } = useUser();
+  const { getToken } = useClerkAuth();
+  const [wpdUser, setWpdUser] = useState<WpdUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing token on mount
-    const savedToken = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
+    if (!clerkLoaded) return;
 
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
+    if (!clerkUser) {
+      setWpdUser(null);
+      setIsLoading(false);
+      return;
     }
-    setIsLoading(false);
-  }, []);
 
-  const login = async (data: LoginRequest) => {
-    const response = await authApi.login(data);
-    setToken(response.token);
-    const userData: User = {
-      userId: response.userId,
-      email: response.email,
-      displayName: response.displayName,
-      subscriptionTierId: response.subscriptionTierId,
-      subscriptionTierName: response.subscriptionTierName,
+    const provision = async () => {
+      try {
+        const token = await getToken();
+        const baseURL = import.meta.env.VITE_API_URL;
+        const response = await axios.post<WpdUser>(
+          `${baseURL}/auth/provision`,
+          {
+            email: clerkUser.primaryEmailAddress?.emailAddress ?? '',
+            displayName: clerkUser.fullName ?? clerkUser.primaryEmailAddress?.emailAddress ?? '',
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setWpdUser(response.data);
+      } catch (err) {
+        console.error('Failed to provision WPD user:', err);
+      } finally {
+        setIsLoading(false);
+      }
     };
-    setUser(userData);
-    localStorage.setItem('token', response.token);
-    localStorage.setItem('user', JSON.stringify(userData));
-  };
 
-  const register = async (data: RegisterRequest) => {
-    const response = await authApi.register(data);
-    setToken(response.token);
-    const userData: User = {
-      userId: response.userId,
-      email: response.email,
-      displayName: response.displayName,
-      subscriptionTierId: response.subscriptionTierId,
-      subscriptionTierName: response.subscriptionTierName,
-    };
-    setUser(userData);
-    localStorage.setItem('token', response.token);
-    localStorage.setItem('user', JSON.stringify(userData));
-  };
-
-  const logout = () => {
-    authApi.logout();
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-  };
+    provision();
+  }, [clerkUser, clerkLoaded, getToken]);
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, isLoading }}>
+    <WpdAuthContext.Provider value={{ wpdUser, isLoading }}>
       {children}
-    </AuthContext.Provider>
+    </WpdAuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
+export const useWpdAuth = () => {
+  const context = useContext(WpdAuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('useWpdAuth must be used within a WpdAuthProvider');
   }
   return context;
 };

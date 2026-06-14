@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { processApi } from '../../api/processApi';
-import { useAuth } from '../../features/auth/AuthContext';
+import { useWpdAuth } from '../../features/auth/AuthContext';
 import { useState } from 'react';
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { wpdUser: user } = useWpdAuth();
   const navigate = useNavigate();
   const [tierLimitError, setTierLimitError] = useState<string | null>(null);
 

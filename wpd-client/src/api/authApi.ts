@@ -1,25 +1,14 @@
 import apiClient from './apiClient';
-import type { AuthResponse, LoginRequest, RegisterRequest, User } from '../types';
+import type { WpdUser } from '../types';
 
 export const authApi = {
-  register: async (data: RegisterRequest): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>('/auth/register', data);
+  getWpdUser: async (): Promise<WpdUser> => {
+    const response = await apiClient.get<WpdUser>('/auth/me');
     return response.data;
   },
 
-  login: async (data: LoginRequest): Promise<AuthResponse> => {
-    console.log('Calling login with apiClient baseURL:', apiClient.defaults.baseURL);
-    const response = await apiClient.post<AuthResponse>('/auth/login', data);
+  provisionWpdUser: async (email: string, displayName: string): Promise<WpdUser> => {
+    const response = await apiClient.post<WpdUser>('/auth/provision', { email, displayName });
     return response.data;
-  },
-
-  getCurrentUser: async (): Promise<User> => {
-    const response = await apiClient.get<User>('/auth/me');
-    return response.data;
-  },
-
-  logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
   },
 };

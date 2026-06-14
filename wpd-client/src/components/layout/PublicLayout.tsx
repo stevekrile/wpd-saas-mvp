@@ -1,8 +1,8 @@
 import { Link, Outlet } from 'react-router-dom';
-import { useAuth } from '../../features/auth/AuthContext';
+import { SignInButton, SignUpButton, UserButton, useAuth } from '@clerk/clerk-react';
 
 export default function PublicLayout() {
-  const { user } = useAuth();
+  const { isSignedIn } = useAuth();
 
   return (
     <div className="public-layout">
@@ -20,12 +20,19 @@ export default function PublicLayout() {
             <Link to="/what-is-wpd">What is WPD?</Link>
             <Link to="/lenses">Four Lenses</Link>
             <Link to="/pricing">Pricing</Link>
-            {user ? (
-              <Link to="/dashboard" className="btn-primary">Dashboard</Link>
+            {isSignedIn ? (
+              <>
+                <Link to="/dashboard" className="btn-primary">Dashboard</Link>
+                <UserButton afterSignOutUrl="/" />
+              </>
             ) : (
               <>
-                <Link to="/login">Log in</Link>
-                <Link to="/register" className="btn-primary">Get Started</Link>
+                <SignInButton mode="modal">
+                  <button className="btn-text">Log in</button>
+                </SignInButton>
+                <SignUpButton mode="modal">
+                  <button className="btn-primary">Get Started</button>
+                </SignUpButton>
               </>
             )}
           </nav>

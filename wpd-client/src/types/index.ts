@@ -1,30 +1,10 @@
-export interface User {
+export interface WpdUser {
   userId: string;
   email: string;
   displayName: string;
   subscriptionTierId: number;
   subscriptionTierName: string;
   defaultWorkspaceId?: number;
-}
-
-export interface AuthResponse {
-  userId: string;
-  email: string;
-  displayName: string;
-  token: string;
-  subscriptionTierId: number;
-  subscriptionTierName: string;
-}
-
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-export interface RegisterRequest {
-  email: string;
-  password: string;
-  displayName: string;
 }
 
 export interface Process {

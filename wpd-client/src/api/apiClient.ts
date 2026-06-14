@@ -1,7 +1,7 @@
 import axios from 'axios';
+import { useAuth } from '@clerk/clerk-react';
 
 const apiURL = import.meta.env.VITE_API_URL;
-console.log('Creating axios with baseURL:', apiURL);
 
 const apiClient = axios.create({
   baseURL: apiURL,
@@ -10,28 +10,34 @@ const apiClient = axios.create({
   },
 });
 
-console.log('API URL:', import.meta.env.VITE_API_URL);
-
-// Add token to requests if it exists
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Handle 401 errors (unauthorized)
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
-
 export default apiClient;
+
+// Hook-based factory so Clerk token is always fresh
+export function useApiClient() {
+  const { getToken } = useAuth();
+
+  const client = axios.create({
+    baseURL: apiURL,
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  client.interceptors.request.use(async (config) => {
+    const token = await getToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  });
+
+  client.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (error.response?.status === 401) {
+        window.location.href = '/';
+      }
+      return Promise.reject(error);
+    }
+  );
+
+  return client;
+}

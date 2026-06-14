@@ -1,17 +1,16 @@
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Wpd.Domain.Entities;
-using Wpd.Infrastructure.Identity;
 
 namespace Wpd.Infrastructure.Data;
 
-public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
+public class ApplicationDbContext : DbContext
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)
     {
     }
 
+    public DbSet<WpdUser> WpdUsers { get; set; }
     public DbSet<SubscriptionTier> SubscriptionTiers { get; set; }
     public DbSet<Organization> Organizations { get; set; }
     public DbSet<Workspace> Workspaces { get; set; }

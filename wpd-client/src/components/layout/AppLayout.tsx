@@ -1,14 +1,9 @@
-import { Outlet, useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../../features/auth/AuthContext';
+import { Outlet, Link } from 'react-router-dom';
+import { UserButton } from '@clerk/clerk-react';
+import { useWpdAuth } from '../../features/auth/AuthContext';
 
 export default function AppLayout() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+  const { wpdUser } = useWpdAuth();
 
   return (
     <div className="app-layout">
@@ -25,10 +20,8 @@ export default function AppLayout() {
               </Link>
             </div>
             <div className="app-user-controls">
-              <p className="user-info">{user?.email}</p>
-              <button onClick={handleLogout} className="btn-text">
-                Log Out
-              </button>
+              <p className="user-info">{wpdUser?.email}</p>
+              <UserButton afterSignOutUrl="/" />
             </div>
           </div>
         </div>
