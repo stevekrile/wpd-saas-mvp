@@ -2,24 +2,73 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { processApi } from '../../api/processApi';
-import ProcessDiscoveryModal, { type ProcessCategory } from '../../components/modals/ProcessDiscoveryModal';
+import ProcessDiscoveryModal, { type ProcessCategory, PROCESS_CATEGORIES } from '../../components/modals/ProcessDiscoveryModal';
 
-const CATEGORY_CONTEXT: Record<string, { placeholder: string; label: string }> = {
+// Category-specific guidance for form fields
+const CATEGORY_GUIDANCE: Record<string, {
+  label: string;
+  icon: string;
+  contextHint: string;
+  nameHelp: string;
+  namePlaceholder: string;
+  descriptionHelp: string;
+  descriptionPlaceholder: string;
+  problemHelp: string;
+  problemPlaceholder: string;
+  contextHelp: string;
+  contextPlaceholder: string;
+}> = {
   'customer-facing': {
     label: 'Customer-Facing Process',
-    placeholder: 'e.g., Onboarding, Support resolution, Account setup',
+    icon: '👥',
+    contextHint: 'Think about a process where your customer feels the gaps',
+    nameHelp: 'The specific customer-facing process you want to improve',
+    namePlaceholder: 'e.g., Customer Onboarding, Account Setup, Support Ticket Resolution',
+    descriptionHelp: 'Who interacts with this process? How many steps? What does successful completion look like?',
+    descriptionPlaceholder: 'E.g., "New customers go through email verification, profile setup, and first login. Success is a working account within 10 minutes."',
+    problemHelp: 'Where is the customer experience breaking down? What frustrations are they experiencing?',
+    problemPlaceholder: 'E.g., "Customers hit errors during signup, give up on profile completion, and many never reach first login."',
+    contextHelp: 'Customer volume, SLAs, teams involved, tool stack, regulatory constraints, etc.',
+    contextPlaceholder: 'E.g., "1,000 signups/month. Engineering, Product, Support teams. Must comply with GDPR."'
   },
   'internal-ops': {
     label: 'Internal Operations',
-    placeholder: 'e.g., Hiring workflow, Procurement, Expense approval',
+    icon: '⚙️',
+    contextHint: 'Think about a process where work gets stuck or repeated',
+    nameHelp: 'The operational process you want to diagnose',
+    namePlaceholder: 'e.g., Hiring Workflow, Expense Approval, Procurement Process',
+    descriptionHelp: 'Who starts it? Who completes it? What approvals are needed? What tool(s) are used?',
+    descriptionPlaceholder: 'E.g., "HR posts job, engineering reviews applications, hiring manager interviews, offer sent to legal. Uses LinkedIn, Greenhouse, email, and Slack."',
+    problemHelp: 'Where do things get stuck? What causes delays, rework, or frustration?',
+    problemPlaceholder: 'E.g., "Approval step takes 2 weeks. Job postings get lost between systems. No one knows where an application is."',
+    contextHelp: 'Team size, number of locations, systems used, compliance requirements, typical volume, etc.',
+    contextPlaceholder: 'E.g., "50-person company. 3 offices. 10-15 hires/year. Uses 5 different tools."'
   },
   'team-workflow': {
     label: 'Team Workflow',
-    placeholder: 'e.g., Sprint planning, Code review, Knowledge sharing',
+    icon: '👫',
+    contextHint: 'Think about a process where your team struggles with clarity or coordination',
+    nameHelp: 'The daily or recurring team workflow you want to improve',
+    namePlaceholder: 'e.g., Sprint Planning, Code Review, Daily Standup, Project Kickoff',
+    descriptionHelp: 'How often does it happen? Who is involved? How long does it take? What is the expected output?',
+    descriptionPlaceholder: 'E.g., "Weekly 2-hour sprint planning. 6 engineers + product manager. Outputs sprint board with prioritized tickets. Uses Jira + Figma."',
+    problemHelp: 'Where does the team struggle? Unclear expectations? Poor communication? Too many steps?',
+    problemPlaceholder: 'E.g., "Meetings run over. Priorities change mid-sprint. No one agrees on the definition of done. PMs and engineers talk past each other."',
+    contextHelp: 'Team size, experience level, time zones, tools, constraints, strategic goals, etc.',
+    contextPlaceholder: 'E.g., "8 engineers, 2 junior. Remote + office hybrid. Distributed across 2 time zones. Ship every 2 weeks."'
   },
   'cross-functional': {
     label: 'Cross-Functional Process',
-    placeholder: 'e.g., Product launch, Budget planning, Strategic planning',
+    icon: '🔗',
+    contextHint: 'Think about a process where teams struggle to work together',
+    nameHelp: 'The cross-functional initiative or process you want to diagnose',
+    namePlaceholder: 'e.g., Product Launch, Budget Planning, Incident Response, Quarterly Planning',
+    descriptionHelp: 'Which teams are involved? How long does it take? What does success look like? How do teams coordinate?',
+    descriptionPlaceholder: 'E.g., "Product launch: 3 months from kickoff to go-live. Involves Product, Engineering, Design, Marketing, Sales, Support. Success is all teams aligned and launching together."',
+    problemHelp: 'Where do teams misalign? Communication breakdowns? Conflicting goals? Unclear ownership?',
+    problemPlaceholder: 'E.g., "Marketing starts campaigns before engineering is ready. Sales promises features we can\'t build. No one owns the launch timeline. Teams blame each other when things slip."',
+    contextHelp: 'Teams involved, decision-making structure, timeline constraints, stakeholders, dependencies, past launch issues, etc.',
+    contextPlaceholder: 'E.g., "5 teams. No clear DRI. 3-month constraint. Last 2 launches slipped 2+ weeks. Sales and Product rarely agree."'
   },
 };
 
@@ -34,10 +83,17 @@ export default function CreateProcessPage() {
   const [selectedCategory, setSelectedCategory] = useState<ProcessCategory | null>(null);
   const [showDiscoveryModal, setShowDiscoveryModal] = useState(false);
 
-  // If no category passed via query param, show discovery modal
+  // Load category from URL on mount
   useEffect(() => {
     const categoryParam = searchParams.get('category');
-    if (!categoryParam) {
+    if (categoryParam) {
+      const found = PROCESS_CATEGORIES.find((c) => c.id === categoryParam);
+      if (found) {
+        setSelectedCategory(found);
+      } else {
+        setShowDiscoveryModal(true);
+      }
+    } else {
       setShowDiscoveryModal(true);
     }
   }, [searchParams]);
@@ -48,14 +104,9 @@ export default function CreateProcessPage() {
     navigate(`/processes/create?category=${category.id}`);
   };
 
-  const getCategoryContext = () => {
-    if (selectedCategory) {
-      return CATEGORY_CONTEXT[selectedCategory.id] || CATEGORY_CONTEXT['customer-facing'];
-    }
-    return CATEGORY_CONTEXT['customer-facing'];
-  };
-
-  const categoryContext = getCategoryContext();
+  const guidance = selectedCategory 
+    ? CATEGORY_GUIDANCE[selectedCategory.id] 
+    : CATEGORY_GUIDANCE['customer-facing'];
 
   const createMutation = useMutation({
     mutationFn: processApi.createProcess,
@@ -117,8 +168,9 @@ export default function CreateProcessPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              placeholder={categoryContext.placeholder}
+              placeholder={guidance.namePlaceholder}
             />
+            <small>{guidance.nameHelp}</small>
           </div>
 
           <div className="form-group">
@@ -128,10 +180,10 @@ export default function CreateProcessPage() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               required
-              rows={3}
-              placeholder="Brief overview of this process — who's involved, what steps does it take, what's the end goal?"
+              rows={4}
+              placeholder={guidance.descriptionPlaceholder}
             />
-            <small>A 2-3 sentence summary of how this process works</small>
+            <small>{guidance.descriptionHelp}</small>
           </div>
 
           <div className="form-group">
@@ -142,9 +194,9 @@ export default function CreateProcessPage() {
               onChange={(e) => setProblemStatement(e.target.value)}
               required
               rows={4}
-              placeholder={selectedCategory ? `What makes this ${selectedCategory.label.toLowerCase()} difficult?` : "What's broken or inefficient about this process?"}
+              placeholder={guidance.problemPlaceholder}
             />
-            <small>Describe the pain points and challenges you're experiencing</small>
+            <small>{guidance.problemHelp}</small>
           </div>
 
           <div className="form-group">
@@ -154,9 +206,9 @@ export default function CreateProcessPage() {
               value={context}
               onChange={(e) => setContext(e.target.value)}
               rows={4}
-              placeholder="Team size, budget constraints, organizational structure, urgency, stakeholders involved, etc."
+              placeholder={guidance.contextPlaceholder}
             />
-            <small>Anything that helps us understand your situation better</small>
+            <small>{guidance.contextHelp}</small>
           </div>
 
           {error && <div className="error-message">{error}</div>}

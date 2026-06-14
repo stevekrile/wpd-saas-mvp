@@ -11,7 +11,7 @@ export interface ProcessCategory {
   contextHint: string;
 }
 
-const PROCESS_CATEGORIES: ProcessCategory[] = [
+export const PROCESS_CATEGORIES: ProcessCategory[] = [
   {
     id: 'customer-facing',
     label: 'Customer-Facing Process',
