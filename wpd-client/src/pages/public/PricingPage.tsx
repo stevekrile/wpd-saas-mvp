@@ -18,7 +18,7 @@ const tiers = [
     status: '',
     statusVariant: '',
     features: {
-      processes: 'One',
+      processes: 'Three',
       diagnostic: 'Guided',
       planner: true,
       opex: true,
