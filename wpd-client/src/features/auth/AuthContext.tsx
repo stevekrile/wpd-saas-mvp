@@ -1,8 +1,9 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
 import axios from 'axios';
 import type { WpdUser } from '../../types/index';
+import { configureApiAuth } from '../../api/apiClient';
 
 interface WpdAuthContextType {
   wpdUser: WpdUser | null;
@@ -16,6 +17,15 @@ export const WpdAuthProvider = ({ children }: { children: ReactNode }) => {
   const { getToken } = useClerkAuth();
   const [wpdUser, setWpdUser] = useState<WpdUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const authConfigured = useRef(false);
+
+  // Wire Clerk token into the shared apiClient once
+  useEffect(() => {
+    if (!authConfigured.current) {
+      configureApiAuth(getToken);
+      authConfigured.current = true;
+    }
+  }, [getToken]);
 
   useEffect(() => {
     if (!clerkLoaded) return;

@@ -1,27 +1,15 @@
 import axios from 'axios';
-import { useAuth } from '@clerk/clerk-react';
 
 const apiURL = import.meta.env.VITE_API_URL;
 
 const apiClient = axios.create({
   baseURL: apiURL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
 });
 
-export default apiClient;
-
-// Hook-based factory so Clerk token is always fresh
-export function useApiClient() {
-  const { getToken } = useAuth();
-
-  const client = axios.create({
-    baseURL: apiURL,
-    headers: { 'Content-Type': 'application/json' },
-  });
-
-  client.interceptors.request.use(async (config) => {
+// Called once from WpdAuthProvider with Clerk's getToken function
+export function configureApiAuth(getToken: () => Promise<string | null>) {
+  apiClient.interceptors.request.use(async (config) => {
     const token = await getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -29,7 +17,7 @@ export function useApiClient() {
     return config;
   });
 
-  client.interceptors.response.use(
+  apiClient.interceptors.response.use(
     (response) => response,
     (error) => {
       if (error.response?.status === 401) {
@@ -38,6 +26,6 @@ export function useApiClient() {
       return Promise.reject(error);
     }
   );
-
-  return client;
 }
+
+export default apiClient;

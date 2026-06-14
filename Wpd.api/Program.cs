@@ -99,10 +99,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("AllowReactApp");
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseCors("AllowReactApp");
 app.MapControllers();
 
 app.Run();
+
 

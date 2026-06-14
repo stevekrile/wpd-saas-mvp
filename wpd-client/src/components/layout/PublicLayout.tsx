@@ -1,5 +1,6 @@
 import { Link, Outlet } from 'react-router-dom';
 import { SignInButton, SignUpButton, UserButton, useAuth } from '@clerk/clerk-react';
+import Footer from './Footer';
 
 export default function PublicLayout() {
   const { isSignedIn } = useAuth();
@@ -18,7 +19,6 @@ export default function PublicLayout() {
 
           <nav className="public-nav" aria-label="Main">
             <Link to="/what-is-wpd">What is WPD?</Link>
-            <Link to="/lenses">Four Lenses</Link>
             <Link to="/pricing">Pricing</Link>
             {isSignedIn ? (
               <>
@@ -45,19 +45,7 @@ export default function PublicLayout() {
         </div>
       </main>
 
-      <footer className="public-footer">
-        <div className="container footer-content">
-          <div className="footer-brand">
-            <img
-              src="/images/wpd-logo-primary-color.png"
-              alt="WPD"
-              className="footer-mark"
-            />
-            <p>Whole Process Design</p>
-          </div>
-          <p className="footer-copy">Structured diagnosis and practical system improvement.</p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

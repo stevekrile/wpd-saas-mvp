@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160" font-family="system-ui,-apple-system,sans-serif">
+  <defs>
+    <radialGradient id="bg" cx="35%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="#3a2000"/><stop offset="100%" stop-color="#1a0e00"/>
+    </radialGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <circle cx="80" cy="80" r="75" fill="url(#bg)" stroke="#ffb74d" stroke-width="2.5" filter="url(#glow)"/>
+  <circle cx="80" cy="80" r="69" fill="none" stroke="#ffb74d" stroke-width="0.5" opacity="0.3"/>
+  <circle cx="80" cy="50" r="11" fill="none" stroke="#ffb74d" stroke-width="2" opacity="0.9"/>
+  <path d="M58 78 Q58 64 80 64 Q102 64 102 78" fill="none" stroke="#ffb74d" stroke-width="2" opacity="0.9"/>
+  <text x="80" y="102" text-anchor="middle" font-size="14" font-weight="700" fill="#ffb74d" letter-spacing="0.5">PEOPLE</text>
+  <text x="80" y="118" text-anchor="middle" font-size="11" fill="#ffcc80" opacity="0.85">SYSTEMS</text>
+</svg>

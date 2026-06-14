@@ -114,9 +114,6 @@ export default function ProcessDetailPage() {
     <div className="process-detail-page">
       <div className="page-header">
         <h1>{process.name}</h1>
-        <button className="btn-secondary" onClick={() => navigate('/dashboard')}>
-          Back
-        </button>
       </div>
 
       <div className="process-form">

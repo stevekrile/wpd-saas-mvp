@@ -1,6 +1,8 @@
 import { Outlet, Link } from 'react-router-dom';
 import { UserButton } from '@clerk/clerk-react';
 import { useWpdAuth } from '../../features/auth/AuthContext';
+import Footer from './Footer';
+import Breadcrumbs from './Breadcrumbs';
 
 export default function AppLayout() {
   const { wpdUser } = useWpdAuth();
@@ -28,9 +30,11 @@ export default function AppLayout() {
       </header>
       <main className="app-main">
         <div className="container">
+          <Breadcrumbs />
           <Outlet />
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

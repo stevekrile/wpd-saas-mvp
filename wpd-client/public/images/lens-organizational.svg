@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160" font-family="system-ui,-apple-system,sans-serif">
+  <defs>
+    <radialGradient id="bg" cx="35%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="#2a1040"/><stop offset="100%" stop-color="#140820"/>
+    </radialGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <circle cx="80" cy="80" r="75" fill="url(#bg)" stroke="#ce93d8" stroke-width="2.5" filter="url(#glow)"/>
+  <circle cx="80" cy="80" r="69" fill="none" stroke="#ce93d8" stroke-width="0.5" opacity="0.3"/>
+  <rect x="73" y="40" width="14" height="12" rx="2" fill="none" stroke="#ce93d8" stroke-width="2" opacity="0.9"/>
+  <rect x="52" y="60" width="13" height="11" rx="2" fill="none" stroke="#ce93d8" stroke-width="2" opacity="0.9"/>
+  <rect x="95" y="60" width="13" height="11" rx="2" fill="none" stroke="#ce93d8" stroke-width="2" opacity="0.9"/>
+  <line x1="80" y1="52" x2="80" y2="60" stroke="#ce93d8" stroke-width="1.8" opacity="0.8"/>
+  <line x1="58" y1="60" x2="102" y2="60" stroke="#ce93d8" stroke-width="1.8" opacity="0.8"/>
+  <text x="80" y="102" text-anchor="middle" font-size="13" font-weight="700" fill="#ce93d8" letter-spacing="0.3">ORGANIZATIONAL</text>
+  <text x="80" y="118" text-anchor="middle" font-size="11" fill="#e1bee7" opacity="0.85">SYSTEMS</text>
+</svg>
