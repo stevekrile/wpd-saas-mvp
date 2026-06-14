@@ -78,8 +78,10 @@ export default function ProcessDiscoveryModal({ onSelect, onClose, isOpen }: Pro
               className={`category-card ${selectedCategory === category.id ? 'selected' : ''}`}
               onClick={() => setSelectedCategory(category.id)}
             >
-              <div className="category-icon">{category.icon}</div>
-              <h3>{category.label}</h3>
+              <div className="category-header">
+                <div className="category-icon">{category.icon}</div>
+                <h3>{category.label}</h3>
+              </div>
               <p className="category-description">{category.description}</p>
               
               <div className="category-details">
