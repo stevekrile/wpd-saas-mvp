@@ -83,7 +83,7 @@ export default function DashboardPage() {
             </p>
           </div>
           <button onClick={handleCreateProcess} className="btn-primary">
-            + Create Process
+            Create Process
           </button>
         </div>
 
@@ -101,7 +101,7 @@ export default function DashboardPage() {
             <h2>No processes yet</h2>
             <p>Create your first process to start diagnosing with the Four System Lenses</p>
             <button onClick={handleCreateProcess} className="btn-primary">
-              Create Your First Process
+              Create Process
             </button>
           </div>
         ) : (

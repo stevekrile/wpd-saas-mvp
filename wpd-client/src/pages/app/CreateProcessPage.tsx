@@ -110,8 +110,8 @@ export default function CreateProcessPage() {
 
   const createMutation = useMutation({
     mutationFn: processApi.createProcess,
-    onSuccess: () => {
-      navigate('/dashboard');
+    onSuccess: (process) => {
+      navigate(`/processes/${process.id}/diagnostic`);
     },
     onError: (err: any) => {
       if (err.response?.status === 403) {
@@ -161,7 +161,10 @@ export default function CreateProcessPage() {
 
         <form onSubmit={handleSubmit} className="process-form">
           <div className="form-group">
-            <label htmlFor="name">Process Name *</label>
+            <div className="form-group-header">
+              <label htmlFor="name">Process Name *</label>
+              <small>{guidance.nameHelp}</small>
+            </div>
             <input
               id="name"
               type="text"
@@ -170,11 +173,13 @@ export default function CreateProcessPage() {
               required
               placeholder={guidance.namePlaceholder}
             />
-            <small>{guidance.nameHelp}</small>
           </div>
 
           <div className="form-group">
-            <label htmlFor="description">Description *</label>
+            <div className="form-group-header">
+              <label htmlFor="description">Description *</label>
+              <small>{guidance.descriptionHelp}</small>
+            </div>
             <textarea
               id="description"
               value={description}
@@ -183,11 +188,13 @@ export default function CreateProcessPage() {
               rows={4}
               placeholder={guidance.descriptionPlaceholder}
             />
-            <small>{guidance.descriptionHelp}</small>
           </div>
 
           <div className="form-group">
-            <label htmlFor="problemStatement">What's not working? *</label>
+            <div className="form-group-header">
+              <label htmlFor="problemStatement">What's not working? *</label>
+              <small>{guidance.problemHelp}</small>
+            </div>
             <textarea
               id="problemStatement"
               value={problemStatement}
@@ -196,11 +203,13 @@ export default function CreateProcessPage() {
               rows={4}
               placeholder={guidance.problemPlaceholder}
             />
-            <small>{guidance.problemHelp}</small>
           </div>
 
           <div className="form-group">
-            <label htmlFor="context">Context (Optional)</label>
+            <div className="form-group-header">
+              <label htmlFor="context">Context (Optional)</label>
+              <small>{guidance.contextHelp}</small>
+            </div>
             <textarea
               id="context"
               value={context}
@@ -208,7 +217,6 @@ export default function CreateProcessPage() {
               rows={4}
               placeholder={guidance.contextPlaceholder}
             />
-            <small>{guidance.contextHelp}</small>
           </div>
 
           {error && <div className="error-message">{error}</div>}

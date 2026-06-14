@@ -137,10 +137,10 @@ export default function HomePage() {
             ))}
           </ul>
           {isSignedIn ? (
-            <Link to="/dashboard" className="btn-primary">Create a free process</Link>
+            <Link to="/dashboard" className="btn-primary">Create Process</Link>
           ) : (
             <SignUpButton mode="modal">
-              <button className="btn-primary">Create a free process</button>
+              <button className="btn-primary">Create Process</button>
             </SignUpButton>
           )}
         </div>

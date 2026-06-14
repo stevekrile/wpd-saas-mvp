@@ -153,4 +153,63 @@ public class ProcessService : IProcessService
         await _context.SaveChangesAsync();
         return true;
     }
+
+    public async Task<Diagnostic?> StartOrGetDiagnosticAsync(int processId, string userId)
+    {
+        var process = await GetProcessByIdAsync(processId, userId);
+        if (process == null)
+        {
+            return null;
+        }
+
+        var diagnostic = await _context.Diagnostics
+            .FirstOrDefaultAsync(d => d.ProcessId == processId && d.UserId == userId);
+
+        if (diagnostic == null)
+        {
+            diagnostic = new Diagnostic
+            {
+                ProcessId = processId,
+                UserId = userId,
+                Status = DiagnosticStatus.Draft,
+                CreatedAt = DateTime.UtcNow,
+                OverallSummary = string.Empty
+            };
+
+            _context.Diagnostics.Add(diagnostic);
+            await _context.SaveChangesAsync();
+        }
+
+        return diagnostic;
+    }
+
+    public async Task<bool> SaveDiagnosticResponseAsync(int processId, string userId, int questionId, int numericResponse, string textResponse)
+    {
+        var diagnostic = await StartOrGetDiagnosticAsync(processId, userId);
+        if (diagnostic == null)
+        {
+            return false;
+        }
+
+        var response = await _context.DiagnosticResponses
+            .FirstOrDefaultAsync(r => r.DiagnosticId == diagnostic.Id && r.DiagnosticQuestionId == questionId);
+
+        if (response == null)
+        {
+            response = new DiagnosticResponse
+            {
+                DiagnosticId = diagnostic.Id,
+                DiagnosticQuestionId = questionId,
+                CreatedAt = DateTime.UtcNow
+            };
+            _context.DiagnosticResponses.Add(response);
+        }
+
+        response.NumericResponse = numericResponse;
+        response.TextResponse = textResponse;
+        response.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return true;
+    }
 }

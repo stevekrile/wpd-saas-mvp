@@ -36,6 +36,19 @@ export default function Breadcrumbs() {
 
     // Process detail
     if (path.startsWith('/processes/') && processId) {
+      if (path.endsWith('/diagnostic')) {
+        return [
+          { label: 'Home', href: '/', active: false },
+          { label: 'Dashboard', href: '/dashboard', active: false },
+          {
+            label: process?.name || 'Process',
+            href: `/processes/${processId}`,
+            active: false,
+          },
+          { label: 'WPD Lens Diagnostic', href: `/processes/${processId}/diagnostic`, active: true },
+        ];
+      }
+
       return [
         { label: 'Home', href: '/', active: false },
         { label: 'Dashboard', href: '/dashboard', active: false },

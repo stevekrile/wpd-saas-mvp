@@ -1,0 +1,413 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { processApi } from '../../api/processApi';
+
+type LensKey = 'business' | 'information' | 'human' | 'organizational';
+type Rating = 1 | 2 | 3 | 4 | 5;
+
+interface DiagnosticQuestion {
+  id: string;
+  prompt: string;
+  help: string;
+}
+
+interface LensStep {
+  key: LensKey;
+  title: string;
+  icon: string;
+  intro: string;
+  questions: DiagnosticQuestion[];
+}
+
+const JOURNEY_STEPS = [
+  { title: 'Add a Process', state: 'complete' },
+  { title: 'Lens Diagnostic', state: 'active' },
+  { title: 'Generative Summary', state: 'upcoming' },
+] as const;
+
+const LENS_STEPS: LensStep[] = [
+  {
+    key: 'business',
+    title: 'Business Systems',
+    icon: '📘',
+    intro: 'Rules, policies, standards, and how clearly the process is governed.',
+    questions: [
+      {
+        id: 'business-1',
+        prompt: 'Business rules for this process are clearly documented and easy to find.',
+        help: 'Think about whether the work depends on tribal knowledge or written rules.',
+      },
+      {
+        id: 'business-2',
+        prompt: 'There is clear ownership and authority over business rules and decisions.',
+        help: 'Who can change the rules, approve exceptions, or settle disputes?',
+      },
+      {
+        id: 'business-3',
+        prompt: 'Business rules are applied consistently across teams, locations, and situations.',
+        help: 'Look for variation caused by people improvising or interpreting the rules differently.',
+      },
+    ],
+  },
+  {
+    key: 'information',
+    title: 'Information Systems',
+    icon: '📊',
+    intro: 'The data, technology, and reporting that support the process.',
+    questions: [
+      {
+        id: 'information-1',
+        prompt: 'The data model is well-designed for the information we need to capture.',
+        help: 'Are fields, records, and systems structured in a way that makes sense?',
+      },
+      {
+        id: 'information-2',
+        prompt: 'Data acquisition is easy and does not require significant workarounds.',
+        help: 'Can people get the data into the system without friction or extra steps?',
+      },
+      {
+        id: 'information-3',
+        prompt: 'Data quality is validated and errors are caught early in the process.',
+        help: 'Think about missing, wrong, or late information and where it gets caught.',
+      },
+    ],
+  },
+  {
+    key: 'human',
+    title: 'People Systems',
+    icon: '👥',
+    intro: 'Skills, behavior, capacity, and change readiness.',
+    questions: [
+      {
+        id: 'human-1',
+        prompt: 'People have the appropriate level of training for their role in this process.',
+        help: 'Consider whether the team has awareness, knowledge, skills, or expertise.',
+      },
+      {
+        id: 'human-2',
+        prompt: 'People understand not just what to do, but why the process matters.',
+        help: 'Are they aligned on the purpose, or just following steps mechanically?',
+      },
+      {
+        id: 'human-3',
+        prompt: 'People have enough time and capacity to complete this process well.',
+        help: 'Look for overload, competing priorities, and shortcuts caused by pressure.',
+      },
+    ],
+  },
+  {
+    key: 'organizational',
+    title: 'Organizational Systems',
+    icon: '🏗️',
+    intro: 'Roles, structure, accountability, and cross-functional alignment.',
+    questions: [
+      {
+        id: 'organizational-1',
+        prompt: 'Roles and responsibilities for this process are clearly defined and understood.',
+        help: 'Can people tell who owns what, or does work fall between the cracks?',
+      },
+      {
+        id: 'organizational-2',
+        prompt: 'The organizational structure supports effective execution of this process.',
+        help: 'Do reporting lines and boundaries help or hinder the flow of work?',
+      },
+      {
+        id: 'organizational-3',
+        prompt: 'The business values this process enough to provide proper resources and support.',
+        help: 'Is this work treated as important, or as overhead?',
+      },
+    ],
+  },
+];
+
+const STORAGE_PREFIX = 'wpd-diagnostic-draft';
+
+function buildStorageKey(processId: number) {
+  return `${STORAGE_PREFIX}-${processId}`;
+}
+
+function getEmptyRatings() {
+  return LENS_STEPS.flatMap((lens) => lens.questions).reduce<Record<string, Rating | ''>>((acc, question) => {
+    acc[question.id] = '';
+    return acc;
+  }, {});
+}
+
+function getEmptyNotes() {
+  return LENS_STEPS.reduce<Record<LensKey, string>>((acc, lens) => {
+    acc[lens.key] = '';
+    return acc;
+  }, {} as Record<LensKey, string>);
+}
+
+export default function DiagnosticWizardPage() {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const processId = Number(id);
+  const [currentLensIndex, setCurrentLensIndex] = useState(0);
+  const [ratings, setRatings] = useState<Record<string, Rating | ''>>(getEmptyRatings);
+  const [notes, setNotes] = useState<Record<LensKey, string>>(getEmptyNotes);
+
+  const { data: process, isLoading, isError } = useQuery({
+    queryKey: ['process', processId],
+    queryFn: () => processApi.getProcess(processId),
+    enabled: Number.isFinite(processId) && processId > 0,
+  });
+
+  useEffect(() => {
+    if (!Number.isFinite(processId) || processId <= 0 || typeof window === 'undefined') {
+      return;
+    }
+
+    const raw = window.localStorage.getItem(buildStorageKey(processId));
+    if (!raw) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as {
+        ratings?: Record<string, Rating | ''>;
+        notes?: Record<LensKey, string>;
+        currentLensIndex?: number;
+      };
+
+      if (parsed.ratings) {
+        setRatings((prev) => ({ ...prev, ...parsed.ratings }));
+      }
+
+      if (parsed.notes) {
+        setNotes((prev) => ({ ...prev, ...parsed.notes }));
+      }
+
+      if (typeof parsed.currentLensIndex === 'number' && parsed.currentLensIndex >= 0) {
+        setCurrentLensIndex(Math.min(parsed.currentLensIndex, LENS_STEPS.length - 1));
+      }
+    } catch {
+      // Ignore malformed local drafts and start fresh.
+    }
+  }, [processId]);
+
+  useEffect(() => {
+    if (!Number.isFinite(processId) || processId <= 0 || typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.setItem(
+      buildStorageKey(processId),
+      JSON.stringify({
+        ratings,
+        notes,
+        currentLensIndex,
+      })
+    );
+  }, [currentLensIndex, notes, processId, ratings]);
+
+  const activeLens = LENS_STEPS[currentLensIndex];
+  const totalQuestions = LENS_STEPS.length * LENS_STEPS[0].questions.length;
+  const answeredQuestions = Object.values(ratings).filter((value) => value !== '').length;
+
+  const lensAverages = useMemo(() => {
+    return LENS_STEPS.map((lens) => {
+      const values = lens.questions
+        .map((question) => ratings[question.id])
+        .filter((value): value is Rating => typeof value === 'number');
+
+      const average = values.length
+        ? values.reduce((sum, value) => sum + value, 0) / values.length
+        : 0;
+
+      return {
+        key: lens.key,
+        title: lens.title,
+        average,
+      };
+    });
+  }, [ratings]);
+
+  const handleRatingChange = (questionId: string, value: Rating) => {
+    setRatings((prev) => ({ ...prev, [questionId]: value }));
+  };
+
+  const handleSaveAndExit = () => {
+    navigate(`/processes/${processId}`);
+  };
+
+  if (isLoading) {
+    return <div className="loading">Loading diagnostic...</div>;
+  }
+
+  if (isError || !process) {
+    return (
+      <div className="diagnostic-page">
+        <div className="process-form">
+          <h1>Diagnostic not found</h1>
+          <p>This process could not be loaded.</p>
+          <div className="form-actions">
+            <button className="btn-secondary" onClick={() => navigate('/dashboard')}>
+              Back to Dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="diagnostic-page">
+      <div className="diagnostic-hero">
+        <div>
+          <p className="diagnostic-kicker">Step 2 of 3</p>
+          <h1>WPD Lens Diagnostic</h1>
+          <p>
+            You already named the process. Now answer a guided set of questions so WPD can complete the context
+            across the four system lenses and prepare the synthesis step.
+          </p>
+        </div>
+
+        <div className="diagnostic-hero-card">
+          <h2>{process.name}</h2>
+          <p>{process.description}</p>
+        </div>
+      </div>
+
+      <div className="diagnostic-journey">
+        {JOURNEY_STEPS.map((step, index) => (
+          <div key={step.title} className={`diagnostic-journey-step diagnostic-journey-${step.state}`}>
+            <span className="diagnostic-journey-index">{index + 1}</span>
+            <span>{step.title}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="diagnostic-layout">
+        <div className="diagnostic-main">
+          <div className="diagnostic-lens-tabs">
+            {LENS_STEPS.map((lens, index) => (
+              <button
+                key={lens.key}
+                type="button"
+                className={`diagnostic-lens-tab ${index === currentLensIndex ? 'active' : ''}`}
+                onClick={() => setCurrentLensIndex(index)}
+              >
+                <span>{lens.icon}</span>
+                {lens.title}
+              </button>
+            ))}
+          </div>
+
+          <section className="diagnostic-card">
+            <div className="diagnostic-card-header">
+              <div>
+                <p className="diagnostic-kicker">Lens {currentLensIndex + 1} of {LENS_STEPS.length}</p>
+                <h2>
+                  <span className="diagnostic-lens-icon">{activeLens.icon}</span>
+                  {activeLens.title}
+                </h2>
+                <p>{activeLens.intro}</p>
+              </div>
+              <div className="diagnostic-answer-count">
+                {answeredQuestions} of {totalQuestions} answered
+              </div>
+            </div>
+
+            <div className="diagnostic-question-list">
+              {activeLens.questions.map((question) => (
+                <div key={question.id} className="diagnostic-question-card">
+                  <div className="diagnostic-question-copy">
+                    <h3>{question.prompt}</h3>
+                    <p>{question.help}</p>
+                  </div>
+                  <div className="diagnostic-scale" role="radiogroup" aria-label={question.prompt}>
+                    {[1, 2, 3, 4, 5].map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={`diagnostic-scale-option ${ratings[question.id] === value ? 'active' : ''}`}
+                        onClick={() => handleRatingChange(question.id, value as Rating)}
+                        aria-pressed={ratings[question.id] === value}
+                        aria-label={`${question.prompt} score ${value}`}
+                      >
+                        {value}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="diagnostic-note">
+              <label htmlFor={`${activeLens.key}-notes`}>Optional lens notes</label>
+              <textarea
+                id={`${activeLens.key}-notes`}
+                rows={4}
+                value={notes[activeLens.key]}
+                onChange={(e) => setNotes((prev) => ({ ...prev, [activeLens.key]: e.target.value }))}
+                placeholder="Add anything that is not captured by the rating questions."
+              />
+            </div>
+
+            <div className="diagnostic-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setCurrentLensIndex((value) => Math.max(value - 1, 0))}
+                disabled={currentLensIndex === 0}
+              >
+                Back
+              </button>
+              {currentLensIndex < LENS_STEPS.length - 1 ? (
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => setCurrentLensIndex((value) => Math.min(value + 1, LENS_STEPS.length - 1))}
+                >
+                  Next lens
+                </button>
+              ) : (
+                <button type="button" className="btn-primary" onClick={handleSaveAndExit}>
+                  Save draft and return to process
+                </button>
+              )}
+            </div>
+          </section>
+        </div>
+
+        <aside className="diagnostic-sidebar">
+          <section className="diagnostic-sidebar-card">
+            <h2>What step 3 will do</h2>
+            <p>
+              The next step will turn these answers into a concise synthesis: what the issue is, where to start,
+              and the first plan of attack.
+            </p>
+            <ul>
+              <li>Summarize the pattern across all four lenses.</li>
+              <li>Surface the most useful first moves.</li>
+              <li>Suggest a practical path forward.</li>
+            </ul>
+          </section>
+
+          <section className="diagnostic-sidebar-card">
+            <h2>Live lens snapshot</h2>
+            <div className="diagnostic-snapshot-list">
+              {lensAverages.map((lens) => (
+                <div key={lens.key} className="diagnostic-snapshot-item">
+                  <div className="diagnostic-snapshot-row">
+                    <span>{lens.title}</span>
+                    <strong>{lens.average ? lens.average.toFixed(1) : '—'}</strong>
+                  </div>
+                  <div className="diagnostic-progress">
+                    <span
+                      className="diagnostic-progress-fill"
+                      style={{ width: `${lens.average ? (lens.average / 5) * 100 : 0}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </aside>
+      </div>
+    </div>
+  );
+}

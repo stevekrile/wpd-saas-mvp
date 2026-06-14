@@ -117,6 +117,24 @@ export default function ProcessDetailPage() {
       </div>
 
       <div className="process-form">
+        <div className="diagnostic-callout">
+          <div>
+            <p className="diagnostic-callout-kicker">Next step</p>
+            <h2>Run the WPD Lens Diagnostic</h2>
+            <p>
+              Answer guided questions across the four system lenses so the eventual synthesis can
+              summarize the issue, surface first steps, and suggest a plan of attack.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => navigate(`/processes/${process.id}/diagnostic`)}
+          >
+            Start Diagnostic
+          </button>
+        </div>
+
         {isEditing ? (
           <>
             <div className="form-group">

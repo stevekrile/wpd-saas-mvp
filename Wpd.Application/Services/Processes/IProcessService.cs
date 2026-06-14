@@ -16,4 +16,6 @@ public interface IProcessService
     Task<bool> UpdateProcessAsync(int processId, string userId, string name, string description, string problemStatement, string context, string status);
     Task<bool> DeleteProcessAsync(int processId, string userId);
     Task<(bool CanCreate, int CurrentCount, int MaxAllowed, string TierName)> CheckProcessLimitAsync(string userId);
+    Task<Diagnostic?> StartOrGetDiagnosticAsync(int processId, string userId);
+    Task<bool> SaveDiagnosticResponseAsync(int processId, string userId, int questionId, int numericResponse, string textResponse);
 }

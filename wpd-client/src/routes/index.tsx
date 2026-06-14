@@ -8,6 +8,7 @@ import PricingPage from '../pages/public/PricingPage';
 import DashboardPage from '../pages/app/DashboardPage';
 import CreateProcessPage from '../pages/app/CreateProcessPage';
 import ProcessDetailPage from '../pages/app/ProcessDetailPage';
+import DiagnosticWizardPage from '../pages/app/DiagnosticWizardPage';
 import type { ReactNode } from 'react';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -44,6 +45,7 @@ export default function AppRoutes() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/processes/create" element={<CreateProcessPage />} />
           <Route path="/processes/:id" element={<ProcessDetailPage />} />
+          <Route path="/processes/:id/diagnostic" element={<DiagnosticWizardPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
@@ -51,4 +53,3 @@ export default function AppRoutes() {
     </BrowserRouter>
   );
 }
-
