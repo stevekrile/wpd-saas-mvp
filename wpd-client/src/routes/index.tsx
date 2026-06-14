@@ -5,6 +5,7 @@ import AppLayout from '../components/layout/AppLayout';
 import HomePage from '../pages/public/HomePage';
 import WhatIsWpdPage from '../pages/public/WhatIsWpdPage';
 import PricingPage from '../pages/public/PricingPage';
+import AboutPage from '../pages/public/AboutPage';
 import DashboardPage from '../pages/app/DashboardPage';
 import CreateProcessPage from '../pages/app/CreateProcessPage';
 import ProcessDetailPage from '../pages/app/ProcessDetailPage';
@@ -32,6 +33,7 @@ export default function AppRoutes() {
         <Route element={<PublicLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/what-is-wpd" element={<WhatIsWpdPage />} />
+          <Route path="/about" element={<AboutPage />} />
           <Route path="/pricing" element={<PricingPage />} />
         </Route>
 

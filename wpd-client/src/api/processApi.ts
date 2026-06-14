@@ -1,37 +1,82 @@
 import apiClient from './apiClient';
-import type { Process, CreateProcessRequest } from '../types';
+
+export interface DiagnosticResponseData {
+  questionId: number;
+  numericResponse: number;
+  textResponse: string;
+  answeredAt?: string;
+}
+
+export interface LoadDiagnosticResponse {
+  diagnosticId: number;
+  processId: number;
+  status: string;
+  questions: DiagnosticResponseData[];
+}
+
+export interface SaveDiagnosticResponseRequest {
+  numericResponse: number;
+  textResponse: string;
+}
+
+export interface Process {
+  id: number;
+  name: string;
+  description: string;
+  problemStatement: string;
+  context: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  workspaceId: number;
+}
+
+export interface CreateProcessRequest {
+  name: string;
+  description: string;
+  problemStatement: string;
+  context: string;
+}
 
 export const processApi = {
+  getProcess: async (processId: number): Promise<Process> => {
+    const response = await apiClient.get<Process>(`/api/processes/${processId}`);
+    return response.data;
+  },
+
   getProcesses: async (): Promise<Process[]> => {
-    const response = await apiClient.get<Process[]>('/processes');
+    const response = await apiClient.get<Process[]>('/api/processes');
     return response.data;
   },
 
-  getProcess: async (id: number): Promise<Process> => {
-    const response = await apiClient.get<Process>(`/processes/${id}`);
+  createProcess: async (request: CreateProcessRequest) => {
+    const response = await apiClient.post('/api/processes', request);
     return response.data;
   },
 
-  createProcess: async (data: CreateProcessRequest): Promise<Process> => {
-    const response = await apiClient.post<Process>('/processes', data);
+  updateProcess: async (processId: number, request: CreateProcessRequest) => {
+    await apiClient.put(`/api/processes/${processId}`, request);
+  },
+
+  deleteProcess: async (processId: number) => {
+    await apiClient.delete(`/api/processes/${processId}`);
+  },
+
+  checkTierLimit: async () => {
+    const response = await apiClient.get('/api/processes/tier-limit');
     return response.data;
   },
 
-  updateProcess: async (id: number, data: Partial<CreateProcessRequest> & { status?: string }): Promise<void> => {
-    await apiClient.put(`/processes/${id}`, data);
-  },
-
-  deleteProcess: async (id: number): Promise<void> => {
-    await apiClient.delete(`/processes/${id}`);
-  },
-
-  checkTierLimit: async (): Promise<{
-    canCreate: boolean;
-    currentCount: number;
-    maxAllowed: string;
-    tierName: string;
-  }> => {
-    const response = await apiClient.get('/processes/tier-limit');
+  loadDiagnostic: async (processId: number): Promise<LoadDiagnosticResponse> => {
+    const response = await apiClient.get<LoadDiagnosticResponse>(`/api/diagnostics/${processId}`);
     return response.data;
+  },
+
+  saveDiagnosticResponse: async (
+    processId: number,
+    questionId: number,
+    request: SaveDiagnosticResponseRequest
+  ): Promise<void> => {
+    await apiClient.put(`/api/diagnostics/${processId}/questions/${questionId}`, request);
   },
 };

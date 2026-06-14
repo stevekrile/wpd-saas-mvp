@@ -57,7 +57,7 @@ public class ApplicationDbContext : DbContext
             .HasOne(d => d.Process)
             .WithMany(p => p.Diagnostics)
             .HasForeignKey(d => d.ProcessId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<Diagnostic>()
             .HasOne(d => d.PrimaryLens)

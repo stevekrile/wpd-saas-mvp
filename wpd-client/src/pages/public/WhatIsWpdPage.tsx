@@ -31,13 +31,41 @@ export default function WhatIsWpdPage() {
         <p>
           Whole Process Design turns that uneasy feeling into precise diagnosis using four interconnected system lenses:
         </p>
-        <ul className="framework-list">
-          <li><strong>Business Systems</strong> — Rules, policies, and standards that define how work gets done</li>
-          <li><strong>Information Systems</strong> — Technology and data flows that capture, move, and inform operational decisions</li>
-          <li><strong>People Systems</strong> — Skills, behaviors, and culture that determine how individuals and teams actually perform</li>
-          <li><strong>Organizational Systems</strong> — Structure, governance, and roles that shape accountability and decision-making</li>
-        </ul>
-        <p>
+        
+        {/* Four-Quadrant Lens Layout */}
+        <div className="four-lenses-quadrant">
+          <div className="lens-quadrant lens-top-left">
+            <img src="/images/lens-business.svg" alt="Business Systems" className="lens-quad-icon" />
+            <h3>Business Systems</h3>
+            <p>Rules, policies, and standards that define how work gets done</p>
+          </div>
+          
+          <div className="lens-quadrant lens-top-right">
+            <img src="/images/lens-people.svg" alt="People Systems" className="lens-quad-icon" />
+            <h3>People Systems</h3>
+            <p>Skills, behaviors, and culture that determine how individuals and teams actually perform</p>
+          </div>
+          
+          <div className="lens-center-circle">
+            <div className="wpd-center-content">
+              <img src="/images/lens-wpd-center.svg" alt="Whole Process Design" className="wpd-center-image" />
+            </div>
+          </div>
+          
+          <div className="lens-quadrant lens-bottom-left">
+            <img src="/images/lens-information.svg" alt="Information Systems" className="lens-quad-icon" />
+            <h3>Information Systems</h3>
+            <p>Technology and data flows that capture, move, and inform operational decisions</p>
+          </div>
+          
+          <div className="lens-quadrant lens-bottom-right">
+            <img src="/images/lens-organizational.svg" alt="Organizational Systems" className="lens-quad-icon" />
+            <h3>Organizational Systems</h3>
+            <p>Structure, governance, and roles that shape accountability and decision-making</p>
+          </div>
+        </div>
+
+        <p style={{ marginTop: '2rem' }}>
           Most interventions fail because they address only one lens while the others stay misaligned. WPD forces you to think about all four—even when you can only change some of them.
         </p>
       </section>

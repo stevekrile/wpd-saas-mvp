@@ -41,3 +41,18 @@ public class SaveDiagnosticResponseRequest
     public int NumericResponse { get; set; }
     public string TextResponse { get; set; } = string.Empty;
 }
+public class LoadDiagnosticResponse
+{
+    public int DiagnosticId { get; set; }
+    public int ProcessId { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public List<DiagnosticResponseData> Questions { get; set; } = new();
+}
+
+public class DiagnosticResponseData
+{
+    public int QuestionId { get; set; }
+    public int NumericResponse { get; set; }
+    public string TextResponse { get; set; } = string.Empty;
+    public DateTime? AnsweredAt { get; set; }
+}

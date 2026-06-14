@@ -163,6 +163,7 @@ public class ProcessService : IProcessService
         }
 
         var diagnostic = await _context.Diagnostics
+            .Include(d => d.DiagnosticResponses)
             .FirstOrDefaultAsync(d => d.ProcessId == processId && d.UserId == userId);
 
         if (diagnostic == null)
@@ -213,3 +214,4 @@ public class ProcessService : IProcessService
         return true;
     }
 }
+

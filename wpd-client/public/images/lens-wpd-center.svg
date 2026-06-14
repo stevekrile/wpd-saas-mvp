@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" font-family="system-ui, -apple-system, sans-serif">
+  <defs>
+    <filter id="centerGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- CENTER node -->
+  <circle cx="100" cy="100" r="54" fill="#0e1e38" stroke="#f9a825" stroke-width="2.5" filter="url(#centerGlow)"/>
+  <circle cx="100" cy="100" r="48" fill="none" stroke="#f9a825" stroke-width="0.5" opacity="0.3"/>
+  <text x="100" y="91" text-anchor="middle" font-size="12" font-weight="700" fill="#fff9c4" letter-spacing="2">WHOLE</text>
+  <text x="100" y="106" text-anchor="middle" font-size="12" font-weight="700" fill="#fff9c4" letter-spacing="2">PROCESS</text>
+  <text x="100" y="121" text-anchor="middle" font-size="9" fill="#ffd54f" letter-spacing="1" opacity="0.8">DESIGN</text>
+</svg>

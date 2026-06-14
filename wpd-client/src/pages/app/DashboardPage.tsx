@@ -1,17 +1,18 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { processApi } from '../../api/processApi';
 import { useWpdAuth } from '../../features/auth/AuthContext';
 import { useState } from 'react';
-import ProcessDiscoveryModal, { type ProcessCategory } from '../../components/modals/ProcessDiscoveryModal';
+import CreateProcessModal from '../../components/modals/CreateProcessModal';
 
 export default function DashboardPage() {
   const { wpdUser: user } = useWpdAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [tierLimitError, setTierLimitError] = useState<string | null>(null);
-  const [showDiscoveryModal, setShowDiscoveryModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const { data: processes, isLoading, refetch } = useQuery({
+  const { data: processes, isLoading } = useQuery({
     queryKey: ['processes'],
     queryFn: processApi.getProcesses,
   });
@@ -21,34 +22,21 @@ export default function DashboardPage() {
     queryFn: processApi.checkTierLimit,
   });
 
-  // Show discovery modal on first visit (no processes yet)
-  const isFirstTime = processes && processes.length === 0;
-
-  const handleCreateProcess = async () => {
+  const handleCreateProcess = () => {
     if (tierLimit && !tierLimit.canCreate) {
       setTierLimitError(
         `You've reached the limit of ${tierLimit.maxAllowed} process(es) for the ${tierLimit.tierName} tier. Upgrade to Pro for unlimited processes.`
       );
       return;
     }
-    // If first time, show discovery modal instead of going straight to form
-    if (isFirstTime) {
-      setShowDiscoveryModal(true);
-    } else {
-      navigate('/processes/create');
-    }
-  };
-
-  const handleSelectCategory = (category: ProcessCategory) => {
-    setShowDiscoveryModal(false);
-    navigate(`/processes/create?category=${category.id}`);
+    setShowCreateModal(true);
   };
 
   const handleDeleteProcess = async (id: number) => {
     if (confirm('Are you sure you want to delete this process?')) {
       try {
         await processApi.deleteProcess(id);
-        refetch();
+        queryClient.invalidateQueries({ queryKey: ['processes'] });
       } catch (error) {
         console.error('Failed to delete process:', error);
       }
@@ -61,13 +49,15 @@ export default function DashboardPage() {
 
   return (
     <>
-      {isFirstTime && (
-        <ProcessDiscoveryModal
-          isOpen={showDiscoveryModal}
-          onSelect={handleSelectCategory}
-          onClose={() => setShowDiscoveryModal(false)}
-        />
-      )}
+      <CreateProcessModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={(processId) => {
+          setShowCreateModal(false);
+          queryClient.invalidateQueries({ queryKey: ['processes'] });
+          navigate(`/processes/${processId}/diagnostic`);
+        }}
+      />
 
       <div className="dashboard">
         <div className="dashboard-header">
@@ -90,9 +80,7 @@ export default function DashboardPage() {
         {tierLimitError && (
           <div className="tier-limit-banner">
             <p>{tierLimitError}</p>
-            <button onClick={() => setTierLimitError(null)} className="btn-text">
-              Dismiss
-            </button>
+            <button onClick={() => setTierLimitError(null)} className="btn-text">Dismiss</button>
           </div>
         )}
 
@@ -122,10 +110,10 @@ export default function DashboardPage() {
                 )}
                 <div className="process-card-footer">
                   <button
-                    onClick={() => navigate(`/processes/${process.id}`)}
+                    onClick={() => navigate(`/processes/${process.id}/diagnostic`)}
                     className="btn-secondary"
                   >
-                    View Details
+                    Open Diagnostic
                   </button>
                   <button
                     onClick={() => handleDeleteProcess(process.id)}

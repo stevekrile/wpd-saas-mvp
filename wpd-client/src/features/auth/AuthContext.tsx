@@ -41,7 +41,7 @@ export const WpdAuthProvider = ({ children }: { children: ReactNode }) => {
         const token = await getToken();
         const baseURL = import.meta.env.VITE_API_URL;
         const response = await axios.post<WpdUser>(
-          `${baseURL}/auth/provision`,
+          `${baseURL}/api/auth/provision`,
           {
             email: clerkUser.primaryEmailAddress?.emailAddress ?? '',
             displayName: clerkUser.fullName ?? clerkUser.primaryEmailAddress?.emailAddress ?? '',

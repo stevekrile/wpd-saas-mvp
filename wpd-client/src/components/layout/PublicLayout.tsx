@@ -19,6 +19,7 @@ export default function PublicLayout() {
 
           <nav className="public-nav" aria-label="Main">
             <Link to="/what-is-wpd">What is WPD?</Link>
+            <Link to="/about">About</Link>
             <Link to="/pricing">Pricing</Link>
             {isSignedIn ? (
               <>
