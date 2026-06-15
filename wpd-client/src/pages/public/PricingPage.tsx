@@ -29,8 +29,8 @@ const tiers = [
   },
   {
     name: 'Pro',
-    price: '$10/mo',
-    status: 'Coming soon',
+    price: '$10/month',
+    status: 'Coming Soon',
     statusVariant: 'coming-soon',
     features: {
       processes: 'Unlimited',
@@ -44,7 +44,7 @@ const tiers = [
   },
   {
     name: 'Enterprise',
-    price: 'Custom',
+    price: 'Call Us',
     status: 'Planned',
     statusVariant: 'planned',
     features: {
@@ -73,21 +73,35 @@ export default function PricingPage() {
         <div className="pricing-table-wrapper">
           <table className="pricing-table">
             <thead>
-              <tr>
-                <th className="feature-column">Feature</th>
+              <tr className="pricing-header-row pricing-header-row-name">
+                <th className="feature-column pricing-empty-header" aria-hidden="true"></th>
                 {tiers.map((tier) => (
-                  <th key={tier.name} className="tier-column">
-                    <div className="tier-header">
-                      <h2>{tier.name} Tier</h2>
-                      {tier.status ? (
-                        <span className={`tier-status-badge tier-status-${tier.statusVariant}`}>
-                          {tier.status}
-                        </span>
-                      ) : (
-                        <span className="tier-status-placeholder" />
-                      )}
-                      <p className="tier-price">{tier.price}</p>
-                    </div>
+                  <th key={tier.name} className="tier-column pricing-tier-name">
+                    {tier.name}
+                  </th>
+                ))}
+              </tr>
+
+              <tr className="pricing-header-row pricing-header-row-status">
+                <th className="feature-column pricing-empty-header" aria-hidden="true"></th>
+                {tiers.map((tier) => (
+                  <th key={`${tier.name}-status`} className="tier-column pricing-tier-status-cell">
+                    {tier.status ? (
+                      <span className={`tier-status-badge tier-status-${tier.statusVariant}`}>
+                        {tier.status}
+                      </span>
+                    ) : (
+                      <span className="tier-status-placeholder" aria-hidden="true"></span>
+                    )}
+                  </th>
+                ))}
+              </tr>
+
+              <tr className="pricing-header-row pricing-header-row-price">
+                <th className="feature-column pricing-feature-header">Features</th>
+                {tiers.map((tier) => (
+                  <th key={`${tier.name}-price`} className="tier-column pricing-tier-price-cell">
+                    <span className="tier-price">{tier.price}</span>
                   </th>
                 ))}
               </tr>

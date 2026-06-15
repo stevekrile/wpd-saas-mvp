@@ -69,3 +69,24 @@
   background: var(--gray-300);
   color: var(--primary);
 }
+
+@media (max-width: 768px) {
+  .breadcrumbs {
+    padding: 0.75rem 0;
+    margin-bottom: 1rem;
+  }
+
+  .breadcrumbs-with-action {
+    align-items: flex-start;
+    gap: 0.6rem;
+  }
+
+  .breadcrumbs ol {
+    font-size: 0.85rem;
+  }
+
+  .breadcrumb-help-icon {
+    width: 36px;
+    height: 36px;
+  }
+}
