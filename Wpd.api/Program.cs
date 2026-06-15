@@ -39,7 +39,14 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection"),
-        b => b.MigrationsAssembly("Wpd.Infrastructure")));
+        sqlOptions =>
+        {
+            sqlOptions.MigrationsAssembly("Wpd.Infrastructure");
+            sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null);
+        }));
 
 // Clerk JWT validation — verifies tokens issued by Clerk using their public JWKS
 var clerkAuthority = builder.Configuration["Clerk:Authority"]
@@ -108,3 +115,4 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
