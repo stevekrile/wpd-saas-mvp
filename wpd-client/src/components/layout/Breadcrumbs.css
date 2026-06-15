@@ -3,6 +3,13 @@
   margin-bottom: 1.5rem;
 }
 
+.breadcrumbs-with-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 .breadcrumbs ol {
   list-style: none;
   margin: 0;
@@ -39,4 +46,26 @@
 .breadcrumb-separator {
   color: #999;
   margin: 0 0.25rem;
+}
+
+.breadcrumb-help-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: var(--gray-200);
+  color: var(--secondary);
+  font-size: 0.9rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
+  flex-shrink: 0;
+  transition: background 0.2s ease;
+}
+
+.breadcrumb-help-icon:hover {
+  background: var(--gray-300);
+  color: var(--primary);
 }

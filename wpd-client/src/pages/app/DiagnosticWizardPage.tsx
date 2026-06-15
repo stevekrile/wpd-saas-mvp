@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { processApi } from '../../api/processApi';
-import { LensRadarChart } from '../../components/LensRadarChart';
 
 type LensKey = 'business' | 'information' | 'human' | 'organizational';
 type Rating = 1 | 2 | 3 | 4 | 5;
@@ -27,13 +26,6 @@ const LENS_COLORS: Record<LensKey, string> = {
   information: '#00AA44',  // Strong green
   human: '#FF9900',        // Strong orange
   organizational: '#9933CC', // Strong purple
-};
-
-const LENS_ICON_IMAGES: Record<LensKey, string> = {
-  business: '/images/lens-business-icon.svg',
-  information: '/images/lens-information-icon.svg',
-  human: '/images/lens-human-icon.svg',
-  organizational: '/images/lens-organizational-icon.svg',
 };
 
 const LENS_TAB_ICONS: Record<LensKey, string> = {
@@ -174,6 +166,7 @@ function getEmptyNotes() {
 
 export default function DiagnosticWizardPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { id } = useParams();
   const processId = Number(id);
   const [mainTab, setMainTab] = useState<MainTab>('process');
@@ -183,6 +176,14 @@ export default function DiagnosticWizardPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [showProcessEditor, setShowProcessEditor] = useState(false);
+  const [processFormError, setProcessFormError] = useState<string | null>(null);
+  const [processForm, setProcessForm] = useState({
+    name: '',
+    description: '',
+    problemStatement: '',
+    context: '',
+  });
 
   const { data: process, isLoading, isError } = useQuery({
     queryKey: ['process', processId],
@@ -252,6 +253,25 @@ export default function DiagnosticWizardPage() {
     );
   }, [currentLensIndex, notes, processId, ratings]);
 
+  useEffect(() => {
+    const handleOpenHelp = () => setShowHelp(true);
+    window.addEventListener('wpd:open-diagnostic-help', handleOpenHelp);
+    return () => window.removeEventListener('wpd:open-diagnostic-help', handleOpenHelp);
+  }, []);
+
+  useEffect(() => {
+    if (!process) {
+      return;
+    }
+
+    setProcessForm({
+      name: process.name ?? '',
+      description: process.description ?? '',
+      problemStatement: process.problemStatement ?? '',
+      context: process.context ?? '',
+    });
+  }, [process]);
+
   const activeLens = LENS_STEPS[currentLensIndex];
 
   const lensAverages = useMemo(() => {
@@ -293,8 +313,43 @@ export default function DiagnosticWizardPage() {
     }
   };
 
-  const handleExit = () => {
-    navigate(`/processes/${processId}`);
+  const updateProcessMutation = useMutation({
+    mutationFn: async () => {
+      await processApi.updateProcess(processId, processForm);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['process', processId] });
+      await queryClient.invalidateQueries({ queryKey: ['processes'] });
+      setShowProcessEditor(false);
+      setProcessFormError(null);
+    },
+    onError: () => {
+      setProcessFormError('Failed to save process details. Please try again.');
+    },
+  });
+
+  const openProcessEditor = () => {
+    if (!process) {
+      return;
+    }
+
+    setProcessForm({
+      name: process.name ?? '',
+      description: process.description ?? '',
+      problemStatement: process.problemStatement ?? '',
+      context: process.context ?? '',
+    });
+    setProcessFormError(null);
+    setShowProcessEditor(true);
+  };
+
+  const saveProcessDetails = () => {
+    if (!processForm.name.trim() || !processForm.description.trim() || !processForm.problemStatement.trim()) {
+      setProcessFormError('Name, description, and problem statement are required.');
+      return;
+    }
+
+    updateProcessMutation.mutate();
   };
 
   if (isLoading) {
@@ -319,17 +374,6 @@ export default function DiagnosticWizardPage() {
 
   return (
     <div className="diagnostic-page-v2">
-      <div className="diagnostic-help-icon diagnostic-help-icon--breadcrumb" onClick={() => setShowHelp(true)} role="button" aria-label="How this works">
-        ?
-      </div>
-      {/* Header with title and tabs */}
-      <div className="diagnostic-header">
-        <div className="container">
-          <h1>WPD Lens Diagnostic</h1>
-          <p className="diagnostic-subtitle">Systematically diagnose process health across four system lenses</p>
-        </div>
-      </div>
-
       {/* Main tab navigation */}
       <div className="diagnostic-tab-nav">
         <div className="container">
@@ -365,13 +409,82 @@ export default function DiagnosticWizardPage() {
             <button className="help-modal-close" onClick={() => setShowHelp(false)} aria-label="Close">✕</button>
             <h2>How the WPD Diagnostic Works</h2>
             <p className="help-modal-intro">
-              The WPD Lens Diagnostic helps you assess process health across four systems.
+              The WPD Lens Diagnostic gives you a structured, repeatable way to assess the health of any business process — across the four systems that make processes succeed or fail.
             </p>
             <ol className="help-modal-steps">
-              <li><strong>Process:</strong> confirm the process details and scope.</li>
-              <li><strong>Diagnostic:</strong> rate each lens question from 1-5.</li>
-              <li><strong>Summary:</strong> review scores and identify the weakest lens.</li>
+              <li>
+                <strong>Describe the process</strong>
+                <p>Start by entering basic context: the process name, owner, and a brief description. This anchors the diagnostic to a specific workflow.</p>
+              </li>
+              <li>
+                <strong>Answer lens questions</strong>
+                <p>Rate each question 1–5 across four system lenses: Business Systems, Information Systems, People Systems, and Organizational Systems. Each lens probes a distinct dimension of process health. Answer honestly — there are no wrong answers.</p>
+              </li>
+              <li>
+                <strong>Review your analysis</strong>
+                <p>The Summary tab shows your scores as a radar chart alongside a narrative analysis. WPD identifies your weakest lens, surfaces patterns, and recommends where to focus improvement efforts.</p>
+              </li>
             </ol>
+            <p className="help-modal-footer">
+              💡 <strong>Pro tip:</strong> The Pro model unlocks deeper questions per lens and generates a full written diagnostic report you can share with stakeholders.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {showProcessEditor && (
+        <div className="modal-overlay" onClick={() => setShowProcessEditor(false)}>
+          <div className="modal-content process-edit-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Edit process details</h2>
+            </div>
+            <div className="modal-form">
+              <div className="form-group">
+                <label htmlFor="diag-proc-name">Process Name *</label>
+                <input
+                  id="diag-proc-name"
+                  type="text"
+                  value={processForm.name}
+                  onChange={(e) => setProcessForm((prev) => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="diag-proc-desc">Description *</label>
+                <textarea
+                  id="diag-proc-desc"
+                  rows={3}
+                  value={processForm.description}
+                  onChange={(e) => setProcessForm((prev) => ({ ...prev, description: e.target.value }))}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="diag-proc-problem">Problem Statement *</label>
+                <textarea
+                  id="diag-proc-problem"
+                  rows={3}
+                  value={processForm.problemStatement}
+                  onChange={(e) => setProcessForm((prev) => ({ ...prev, problemStatement: e.target.value }))}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="diag-proc-context">Context</label>
+                <textarea
+                  id="diag-proc-context"
+                  rows={3}
+                  value={processForm.context}
+                  onChange={(e) => setProcessForm((prev) => ({ ...prev, context: e.target.value }))}
+                />
+              </div>
+              {processFormError && <div className="error-message">{processFormError}</div>}
+              <div className="modal-footer">
+                <button type="button" className="btn-secondary" onClick={() => setShowProcessEditor(false)}>
+                  Cancel
+                </button>
+                <button type="button" className="btn-primary" onClick={saveProcessDetails} disabled={updateProcessMutation.isPending}>
+                  {updateProcessMutation.isPending ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -394,27 +507,33 @@ export default function DiagnosticWizardPage() {
               <div className="diagnostic-card-header">
                 <h2>Process Details</h2>
               </div>
-              <div className="process-details">
-                <div className="detail-field">
-                  <label>Process Name</label>
-                  <p>{process.name}</p>
+              <dl className="process-read-view">
+                <div className="process-read-row">
+                  <dt>Name</dt>
+                  <dd>{process.name}</dd>
                 </div>
-                <div className="detail-field">
-                  <label>Description</label>
-                  <p>{process.description}</p>
-                </div>
-                <div className="detail-field">
-                  <label>Problem Statement</label>
-                  <p>{process.problemStatement}</p>
-                </div>
-                <div className="detail-field">
-                  <label>Context</label>
-                  <p>{process.context}</p>
-                </div>
-              </div>
+                {process.description && (
+                  <div className="process-read-row">
+                    <dt>Description</dt>
+                    <dd>{process.description}</dd>
+                  </div>
+                )}
+                {process.problemStatement && (
+                  <div className="process-read-row">
+                    <dt>Problem Statement</dt>
+                    <dd>{process.problemStatement}</dd>
+                  </div>
+                )}
+                {process.context && (
+                  <div className="process-read-row">
+                    <dt>Context</dt>
+                    <dd>{process.context}</dd>
+                  </div>
+                )}
+              </dl>
               <div className="diagnostic-actions">
-                <button className="btn-primary" onClick={() => setMainTab('diagnostic')}>
-                  Begin Diagnostic →
+                <button className="btn-secondary" onClick={openProcessEditor}>
+                  Edit
                 </button>
               </div>
             </div>
@@ -425,117 +544,95 @@ export default function DiagnosticWizardPage() {
       {mainTab === 'diagnostic' && (
         <div className="diagnostic-tab-content diagnostic-tab-content-full">
           <div className="diagnostic-layout">
-            <div className="diagnostic-main">
-                {/* Progress visualization and lens tabs - horizontal row */}
-                <div className="diagnostic-controls-row">
-                  {/* Lens tabs */}
-                  <div className="diagnostic-lens-tabs">
-                    {LENS_STEPS.map((lens, index) => (
-                      <button
-                        key={lens.key}
-                        type="button"
-                        className={`diagnostic-lens-tab ${index === currentLensIndex ? 'active' : ''}`}
-                        onClick={() => setCurrentLensIndex(index)}
-                        title={lens.title}
-                      >
-                        <img src={LENS_TAB_ICONS[lens.key as LensKey]} alt={lens.title} className="diagnostic-lens-tab-image" />
-                        <span className="diagnostic-lens-tab-label">{lens.title}</span>
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="diagnostic-progress-section">
-                    <LensRadarChart 
-                      lenses={lensAverages.map((l) => ({
-                        key: l.key,
-                        title: l.title,
-                        score: l.average,
-                        color: l.color,
-                        image: LENS_ICON_IMAGES[l.key as LensKey]
-                      }))}
-                      size={220}
-                    />
-                  </div>
+            <div className="diagnostic-question-column">
+              <div className="diagnostic-active-lens-block diagnostic-active-lens-block-left" aria-live="polite">
+                <h3 className="diagnostic-active-lens-title">{activeLens.title}</h3>
+              </div>
+              <section className="diagnostic-card">
+                <div className="diagnostic-card-header">
+                  <p className="diagnostic-pro-hint">💡 Pro model includes more questions for deeper insights</p>
                 </div>
 
-                {/* Questions card */}
-                <section className="diagnostic-card">
-                  <div className="diagnostic-card-header">
-                    <div>
-                      <h2>
-                        <img src={activeLens.image} alt={activeLens.title} className="diagnostic-lens-icon-img" />
-                        {activeLens.title}
-                      </h2>
-                      <p>{activeLens.intro}</p>
-                      <p className="diagnostic-pro-hint">💡 Pro model includes more questions for deeper insights</p>
+                <div className="diagnostic-question-list">
+                  {activeLens.questions.map((question) => (
+                    <div key={question.id} className="diagnostic-question-card">
+                      <div className="diagnostic-question-copy">
+                        <h3>{question.prompt}</h3>
+                        <p>{question.help}</p>
+                      </div>
+                      <div className="diagnostic-scale" role="radiogroup" aria-label={question.prompt}>
+                        {[1, 2, 3, 4, 5].map((value) => (
+                          <button
+                            key={value}
+                            type="button"
+                            className={`diagnostic-scale-option ${ratings[question.id] === value ? 'active' : ''}`}
+                            onClick={() => handleRatingChange(question.id, value as Rating)}
+                            disabled={isSaving}
+                            aria-pressed={ratings[question.id] === value}
+                            aria-label={`${question.prompt} score ${value}`}
+                          >
+                            {value}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  ))}
+                </div>
 
-                  <div className="diagnostic-question-list">
-                    {activeLens.questions.map((question) => (
-                      <div key={question.id} className="diagnostic-question-card">
-                        <div className="diagnostic-question-copy">
-                          <h3>{question.prompt}</h3>
-                          <p>{question.help}</p>
+                <div className="diagnostic-note">
+                  <label htmlFor={`${activeLens.key}-notes`}>Optional lens notes</label>
+                  <textarea
+                    id={`${activeLens.key}-notes`}
+                    rows={3}
+                    value={notes[activeLens.key]}
+                    onChange={(e) => setNotes((prev) => ({ ...prev, [activeLens.key]: e.target.value }))}
+                    placeholder="Add anything that is not captured by the rating questions."
+                  />
+                </div>
+
+              </section>
+            </div>
+
+            <aside className="diagnostic-radar-column">
+              <div className="diagnostic-score-panel" aria-label="Lens score comparison">
+                {LENS_STEPS.map((lens, index) => {
+                  const average = lensAverages[index].average;
+                  const valueText = average > 0 ? average.toFixed(1) : '—';
+
+                  return (
+                    <div key={lens.key} className={`diagnostic-score-row ${index === currentLensIndex ? 'active' : ''}`}>
+                      <button
+                        type="button"
+                        className={`diagnostic-lens-tab diagnostic-score-lens-button ${index === currentLensIndex ? 'active' : ''}`}
+                        onClick={() => setCurrentLensIndex(index)}
+                        aria-label={`Select ${lens.title}`}
+                      >
+                        <span className="diagnostic-lens-tab-circle">
+                          <img src={LENS_TAB_ICONS[lens.key as LensKey]} alt="" className="diagnostic-lens-tab-image" />
+                        </span>
+                      </button>
+                      <div className="diagnostic-score-content">
+                        <div className="diagnostic-score-header">
+                          <span className="diagnostic-score-title">{lens.title}</span>
+                          <span className="diagnostic-score-value">{valueText}/5</span>
                         </div>
-                        <div className="diagnostic-scale" role="radiogroup" aria-label={question.prompt}>
-                          {[1, 2, 3, 4, 5].map((value) => (
-                            <button
-                              key={value}
-                              type="button"
-                              className={`diagnostic-scale-option ${ratings[question.id] === value ? 'active' : ''}`}
-                              onClick={() => handleRatingChange(question.id, value as Rating)}
-                              disabled={isSaving}
-                              aria-pressed={ratings[question.id] === value}
-                              aria-label={`${question.prompt} score ${value}`}
-                            >
-                              {value}
-                            </button>
-                          ))}
+                        <div className="diagnostic-score-track">
+                          <div
+                            className="diagnostic-score-fill"
+                            style={{
+                              width: `${(average / 5) * 100}%`,
+                              background: `linear-gradient(90deg, ${LENS_COLORS[lens.key]}, ${LENS_COLORS[lens.key]}CC)`,
+                            }}
+                          />
                         </div>
                       </div>
-                    ))}
-                  </div>
-
-                  <div className="diagnostic-note">
-                    <label htmlFor={`${activeLens.key}-notes`}>Optional lens notes</label>
-                    <textarea
-                      id={`${activeLens.key}-notes`}
-                      rows={4}
-                      value={notes[activeLens.key]}
-                      onChange={(e) => setNotes((prev) => ({ ...prev, [activeLens.key]: e.target.value }))}
-                      placeholder="Add anything that is not captured by the rating questions."
-                    />
-                  </div>
-
-                  <div className="diagnostic-actions">
-                    {currentLensIndex > 0 && (
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={() => setCurrentLensIndex((value) => Math.max(value - 1, 0))}
-                      >
-                        ← Previous Lens
-                      </button>
-                    )}
-                    {currentLensIndex < LENS_STEPS.length - 1 ? (
-                      <button
-                        type="button"
-                        className="btn-primary"
-                        onClick={() => setCurrentLensIndex((value) => Math.min(value + 1, LENS_STEPS.length - 1))}
-                      >
-                        Next Lens →
-                      </button>
-                    ) : (
-                      <button type="button" className="btn-primary" onClick={() => setMainTab('summary')}>
-                        View Summary →
-                      </button>
-                    )}
-                  </div>
-                </section>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
+            </aside>
           </div>
+        </div>
         )}
 
         {mainTab === 'summary' && (
@@ -546,20 +643,6 @@ export default function DiagnosticWizardPage() {
                 <h2>Diagnostic Summary</h2>
               </div>
               <div className="summary-content">
-                <div className="summary-section">
-                  <h3>Overall Lens Scores</h3>
-                  <LensRadarChart 
-                    lenses={lensAverages.map((l) => ({
-                      key: l.key,
-                      title: l.title,
-                      score: l.average,
-                      color: l.color,
-                      image: LENS_ICON_IMAGES[l.key as LensKey]
-                    }))}
-                    size={260}
-                  />
-                </div>
-
                 <div className="summary-section">
                   <h3>Lens Scores</h3>
                   <div className="lens-scores">
@@ -587,14 +670,6 @@ export default function DiagnosticWizardPage() {
                   </p>
                 </div>
 
-                <div className="diagnostic-actions">
-                  <button className="btn-secondary" onClick={() => setMainTab('diagnostic')}>
-                    ← Back to Questions
-                  </button>
-                  <button className="btn-primary" onClick={handleExit}>
-                    Return to Process
-                  </button>
-                </div>
               </div>
             </div>
           </div>

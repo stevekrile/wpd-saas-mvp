@@ -45,7 +45,7 @@ export default function HomePage() {
 
   if (isError || !data) {
     return (
-      <div className="marketing-page">
+      <div className="marketing-page home-page">
         <section className="marketing-section">
           <h1>Whole Process Design</h1>
           <p>We couldn't load public content right now. Please refresh and try again.</p>

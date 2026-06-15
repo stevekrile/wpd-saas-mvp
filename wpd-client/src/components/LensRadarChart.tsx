@@ -11,9 +11,10 @@ interface LensScore {
 interface LensRadarChartProps {
   lenses: LensScore[];
   size?: number; // diameter in pixels
+  showLabels?: boolean;
 }
 
-export const LensRadarChart: React.FC<LensRadarChartProps> = ({ lenses, size = 200 }) => {
+export const LensRadarChart: React.FC<LensRadarChartProps> = ({ lenses, size = 200, showLabels = true }) => {
   const padding = 40; // Add padding for icon space
   const svgSize = size + padding * 2; // Total SVG size with padding
   const radius = size / 2;
@@ -80,10 +81,10 @@ export const LensRadarChart: React.FC<LensRadarChartProps> = ({ lenses, size = 2
 
   const labels = lenses.map((lens, i) => {
     const angle = angleSlice * i - Math.PI / 2;
-    const labelDistance = (radius * 0.75) + 25;
+    const labelDistance = (radius * 0.75) + 32;
     const x = centerX + labelDistance * Math.cos(angle);
     const y = centerY + labelDistance * Math.sin(angle);
-    const iconSize = 28; // Small icon size
+    const iconSize = 40;
     
     // Render colored icon using foreignObject with color filter
     if (lens.image) {
@@ -148,7 +149,7 @@ export const LensRadarChart: React.FC<LensRadarChartProps> = ({ lenses, size = 2
         y={y}
         textAnchor="middle"
         dominantBaseline="middle"
-        fontSize="11"
+        fontSize="12"
         fontWeight="600"
         fill={lens.color}
         className="lens-radar-score"
@@ -195,7 +196,7 @@ export const LensRadarChart: React.FC<LensRadarChartProps> = ({ lenses, size = 2
         {scoreLabels}
         
         {/* Axis labels */}
-        {labels}
+        {showLabels && labels}
       </svg>
     </div>
   );

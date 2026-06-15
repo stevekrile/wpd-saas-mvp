@@ -40,11 +40,6 @@ export default function Breadcrumbs() {
         return [
           { label: 'Home', href: '/', active: false },
           { label: 'Dashboard', href: '/dashboard', active: false },
-          {
-            label: process?.name || 'Process',
-            href: `/processes/${processId}`,
-            active: false,
-          },
           { label: 'WPD Lens Diagnostic', href: `/processes/${processId}/diagnostic`, active: true },
         ];
       }
@@ -64,13 +59,14 @@ export default function Breadcrumbs() {
   };
 
   const breadcrumbs = getBreadcrumbs();
+  const isDiagnosticPage = location.pathname.endsWith('/diagnostic');
 
   if (breadcrumbs.length === 0) {
     return null;
   }
 
   return (
-    <nav className="breadcrumbs" aria-label="Breadcrumb">
+    <nav className={`breadcrumbs ${isDiagnosticPage ? 'breadcrumbs-with-action' : ''}`} aria-label="Breadcrumb">
       <ol>
         {breadcrumbs.map((crumb, index) => (
           <li key={index}>
@@ -85,6 +81,16 @@ export default function Breadcrumbs() {
           </li>
         ))}
       </ol>
+      {isDiagnosticPage && (
+        <button
+          type="button"
+          className="breadcrumb-help-icon"
+          onClick={() => window.dispatchEvent(new CustomEvent('wpd:open-diagnostic-help'))}
+          aria-label="How this works"
+        >
+          ?
+        </button>
+      )}
     </nav>
   );
 }
