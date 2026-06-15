@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'Wpd.Api/**'
+      - 'Wpd.api/**'
       - 'Wpd.Application/**'
       - 'Wpd.Domain/**'
       - 'Wpd.Infrastructure/**'
@@ -25,13 +25,13 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Restore dependencies
-        run: dotnet restore Wpd.Api/Wpd.Api.csproj
+        run: dotnet restore Wpd.api/Wpd.Api.csproj
 
       - name: Build
-        run: dotnet build Wpd.Api/Wpd.Api.csproj --configuration Release --no-restore
+        run: dotnet build Wpd.api/Wpd.Api.csproj --configuration Release --no-restore
 
       - name: Publish
-        run: dotnet publish Wpd.Api/Wpd.Api.csproj --configuration Release --no-build --output ./publish
+        run: dotnet publish Wpd.api/Wpd.Api.csproj --configuration Release --no-build --output ./publish
 
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v3
