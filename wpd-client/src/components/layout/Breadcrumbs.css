@@ -4,15 +4,12 @@
 }
 
 .breadcrumbs-with-action {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: nowrap;
-  gap: 1rem;
+  position: relative;
+  padding-right: 44px;
 }
 
 .breadcrumbs-with-action ol {
-  min-width: 0;
+  /* no extra styles needed */
 }
 
 .breadcrumbs ol {
@@ -66,8 +63,11 @@
   align-items: center;
   justify-content: center;
   cursor: help;
-  flex-shrink: 0;
   transition: background 0.2s ease;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .breadcrumb-help-icon:hover {
@@ -82,8 +82,7 @@
   }
 
   .breadcrumbs-with-action {
-    align-items: center;
-    gap: 0.6rem;
+    padding-right: 48px;
   }
 
   .breadcrumbs ol {
