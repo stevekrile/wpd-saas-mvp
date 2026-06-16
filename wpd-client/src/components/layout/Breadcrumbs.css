@@ -7,7 +7,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: nowrap;
   gap: 1rem;
+}
+
+.breadcrumbs-with-action ol {
+  min-width: 0;
 }
 
 .breadcrumbs ol {
@@ -77,7 +82,7 @@
   }
 
   .breadcrumbs-with-action {
-    align-items: flex-start;
+    align-items: center;
     gap: 0.6rem;
   }
 
