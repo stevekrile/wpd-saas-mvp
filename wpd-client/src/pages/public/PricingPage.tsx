@@ -29,7 +29,7 @@ const tiers = [
   },
   {
     name: 'Pro',
-    price: '$10/month',
+    price: '$20/month',
     status: 'Coming Soon',
     statusVariant: 'coming-soon',
     features: {
