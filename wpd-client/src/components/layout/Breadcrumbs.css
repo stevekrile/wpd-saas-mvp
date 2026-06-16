@@ -53,6 +53,9 @@
 .breadcrumb-help-icon {
   width: 28px;
   height: 28px;
+  padding: 0;
+  box-sizing: border-box;
+  line-height: 1;
   border-radius: 50%;
   border: none;
   background: var(--gray-200);
