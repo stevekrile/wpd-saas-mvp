@@ -77,3 +77,30 @@ Given a process definition and lens scores, the agent suggests and helps execute
 - It operates in a **co-creation model** — drafts and suggests, but the user owns the decisions
 - It should feel like a knowledgeable coach who has seen this type of problem before
 - Applicable at all three tiers (Process, Function, Business) with scope-appropriate outputs
+
+---
+
+## Collaborative Asset Workspace (Enterprise)
+
+For enterprise teams, the platform should provide a **shared co-creation space** where all tangible outputs of the process development work are built, stored, and evolved together.
+
+This is not just document storage — it is a living workspace tied to the process, function, or enterprise design effort.
+
+### Asset Categories
+
+**Operating System Documents**
+The formal artifacts that define and govern how work is done: process maps, RACI matrices, SLAs, governance policies, operating procedures, and standards. Drafted with agent assistance, refined collaboratively, and versioned over time.
+
+**Information System Mock-ups and Documents**
+Wireframes, data flow diagrams, system integration specs, and information architecture documents that represent the future-state technology and data layer. Built in the tool, not imported from somewhere else.
+
+**Training Material Development and Library**
+Role-based training content generated from the process design work — talking points, onboarding guides, change narrative documents, and a reusable library that grows as the organization's process knowledge matures.
+
+### Design Intent
+
+- Assets are **attached to the process or function** they belong to — not stored in a general file system
+- The **agentic partner creates first drafts**; the team co-edits and approves
+- Version history ties changes back to diagnostic scores and design decisions
+- Enterprise teams can **share assets across processes** (e.g., a common training template library or reusable information structures)
+- Access is governed by the organization's role model — contributors, reviewers, approvers
