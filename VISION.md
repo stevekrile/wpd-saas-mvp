@@ -39,3 +39,41 @@ Expand the platform to the enterprise level. Address C-suite and senior leadersh
 - **Same philosophy, wider aperture.** Each tier applies the same lens-based diagnostic logic to a larger unit of design — not a different methodology.
 - **Platform continuity.** Users and organizations move upward through the tiers as their maturity and scope grows. The platform architecture supports this progression.
 - **IP protection.** Each product surface guides structured thinking without reproducing the full intellectual property of the underlying methodology or book.
+
+---
+
+## Agentic Partner Capability
+
+Beyond the guided diagnostic, the platform should include an **agent on rails** — an AI co-creator that takes a completed process intake and diagnostic scores and actively helps the user progress the work from theoretical to practical.
+
+### How It Works
+
+Given a process definition and lens scores, the agent suggests and helps execute the next appropriate actions. It operates within the methodology — not as a general AI assistant, but as a structured partner that knows what good looks like at each stage of WPD.
+
+**Example inputs:**
+
+> **Process:** Customer Onboarding
+> **Description:** After signing a commercial agreement, customers need to have a reliable and easy process to get to full value.
+> **Problem Statement:** Different commercial agreements, promises from sales, confusion about offerings, and separation of customer teams lead to far too many disconnected and painful early impressions.
+>
+> | Lens | Score |
+> |---|---|
+> | Business Systems | 1.0 / 5 |
+> | Information Systems | 1.0 / 5 |
+> | People Systems | 2.7 / 5 |
+> | Organizational Systems | 1.3 / 5 |
+
+**Example agent actions given these inputs:**
+
+- **Benchmarking questionnaires** — Draft targeted questions for process actors based on the lowest-scoring lenses
+- **Business system documents** — Generate first rough drafts of key artifacts (e.g., RACI, process maps, SLAs) in a coaching/co-creation model
+- **Information structures** — Suggest data and system structures that could support the future-state business system
+- **Training and change management** — Propose approaches starting with how to frame and talk about the problem with stakeholders
+- **Prioritized action roadmap** — Sequence the work based on score gaps and dependencies between lenses
+
+### Design Intent
+
+- The agent stays **on rails** — it guides within the WPD methodology, not outside it
+- It operates in a **co-creation model** — drafts and suggests, but the user owns the decisions
+- It should feel like a knowledgeable coach who has seen this type of problem before
+- Applicable at all three tiers (Process, Function, Business) with scope-appropriate outputs
