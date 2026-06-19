@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { processApi } from '../../api/processApi';
 import ProcessDiscoveryModal, { type ProcessCategory, PROCESS_CATEGORIES } from '../../components/modals/ProcessDiscoveryModal';
+import { clearDraft, loadDraft, saveDraft } from '../../utils/draftStorage';
 
 // Category-specific guidance for form fields
 const CATEGORY_GUIDANCE: Record<string, {
@@ -72,6 +73,8 @@ const CATEGORY_GUIDANCE: Record<string, {
   },
 };
 
+const CREATE_PROCESS_DRAFT_KEY = 'wpd-create-process-draft';
+
 export default function CreateProcessPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -82,6 +85,24 @@ export default function CreateProcessPage() {
   const [error, setError] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ProcessCategory | null>(null);
   const [showDiscoveryModal, setShowDiscoveryModal] = useState(false);
+
+  useEffect(() => {
+    const draft = loadDraft<{
+      name?: string;
+      description?: string;
+      problemStatement?: string;
+      context?: string;
+    }>(CREATE_PROCESS_DRAFT_KEY);
+
+    if (!draft) {
+      return;
+    }
+
+    setName(draft.name ?? '');
+    setDescription(draft.description ?? '');
+    setProblemStatement(draft.problemStatement ?? '');
+    setContext(draft.context ?? '');
+  }, []);
 
   // Load category from URL on mount
   useEffect(() => {
@@ -98,6 +119,15 @@ export default function CreateProcessPage() {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    saveDraft(CREATE_PROCESS_DRAFT_KEY, {
+      name,
+      description,
+      problemStatement,
+      context,
+    });
+  }, [context, description, name, problemStatement]);
+
   const handleSelectCategory = (category: ProcessCategory) => {
     setSelectedCategory(category);
     setShowDiscoveryModal(false);
@@ -111,6 +141,7 @@ export default function CreateProcessPage() {
   const createMutation = useMutation({
     mutationFn: processApi.createProcess,
     onSuccess: (process) => {
+      clearDraft(CREATE_PROCESS_DRAFT_KEY);
       navigate(`/processes/${process.id}/diagnostic`);
     },
     onError: (err: any) => {

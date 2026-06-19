@@ -1,15 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { processApi } from '../../api/processApi';
+import { clearDraft, loadDraft, saveDraft } from '../../utils/draftStorage';
 
 type ProcessStatus = 'Draft' | 'Active' | 'Archived';
+const PROCESS_DETAIL_DRAFT_PREFIX = 'wpd-process-detail-edit-draft';
+
+function buildProcessDetailDraftKey(processId: number): string {
+  return `${PROCESS_DETAIL_DRAFT_PREFIX}-${processId}`;
+}
 
 export default function ProcessDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const processId = Number(id);
+  const draftKey = Number.isFinite(processId) && processId > 0 ? buildProcessDetailDraftKey(processId) : null;
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
@@ -31,6 +38,9 @@ export default function ProcessDetailPage() {
       await processApi.updateProcess(processId, formData);
     },
     onSuccess: async () => {
+      if (draftKey) {
+        clearDraft(draftKey);
+      }
       await queryClient.invalidateQueries({ queryKey: ['process', processId] });
       await queryClient.invalidateQueries({ queryKey: ['processes'] });
       setIsEditing(false);
@@ -59,18 +69,29 @@ export default function ProcessDetailPage() {
       return;
     }
 
-    setFormData({
+    const initialFormData = {
       name: process.name,
       description: process.description,
       problemStatement: process.problemStatement ?? '',
       context: process.context ?? '',
       status: (process.status as ProcessStatus) ?? 'Draft',
-    });
+    };
+
+    if (!draftKey) {
+      setFormData(initialFormData);
+    } else {
+      const draft = loadDraft<typeof formData>(draftKey);
+      setFormData(draft ?? initialFormData);
+    }
+
     setError('');
     setIsEditing(true);
   };
 
   const cancelEdit = () => {
+    if (draftKey) {
+      clearDraft(draftKey);
+    }
     setError('');
     setIsEditing(false);
   };
@@ -89,6 +110,14 @@ export default function ProcessDetailPage() {
       deleteMutation.mutate();
     }
   };
+
+  useEffect(() => {
+    if (!isEditing || !draftKey) {
+      return;
+    }
+
+    saveDraft(draftKey, formData);
+  }, [draftKey, formData, isEditing]);
 
   if (isLoading) {
     return <div className="loading">Loading process details...</div>;

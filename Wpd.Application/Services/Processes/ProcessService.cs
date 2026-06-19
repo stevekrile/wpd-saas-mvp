@@ -164,6 +164,7 @@ public class ProcessService : IProcessService
 
         var diagnostic = await _context.Diagnostics
             .Include(d => d.DiagnosticResponses)
+            .Include(d => d.DiagnosticLensNotes)
             .FirstOrDefaultAsync(d => d.ProcessId == processId && d.UserId == userId);
 
         if (diagnostic == null)
@@ -213,5 +214,35 @@ public class ProcessService : IProcessService
         await _context.SaveChangesAsync();
         return true;
     }
-}
 
+    public async Task<bool> SaveDiagnosticLensNoteAsync(int processId, string userId, string lensKey, string noteText)
+    {
+        var diagnostic = await StartOrGetDiagnosticAsync(processId, userId);
+        if (diagnostic == null)
+        {
+            return false;
+        }
+
+        var normalizedLensKey = lensKey.Trim().ToLowerInvariant();
+
+        var lensNote = await _context.DiagnosticLensNotes
+            .FirstOrDefaultAsync(n => n.DiagnosticId == diagnostic.Id && n.LensKey == normalizedLensKey);
+
+        if (lensNote == null)
+        {
+            lensNote = new DiagnosticLensNote
+            {
+                DiagnosticId = diagnostic.Id,
+                LensKey = normalizedLensKey,
+                CreatedAt = DateTime.UtcNow
+            };
+            _context.DiagnosticLensNotes.Add(lensNote);
+        }
+
+        lensNote.NoteText = noteText ?? string.Empty;
+        lensNote.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return true;
+    }
+}

@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { processApi } from '../../api/processApi';
 import { PROCESS_CATEGORIES, type ProcessCategory } from './ProcessDiscoveryModal';
 import '../styles/ProcessDiscoveryModal.css';
+import { clearDraft, loadDraft, saveDraft } from '../../utils/draftStorage';
 
 const CATEGORY_GUIDANCE: Record<string, {
   namePlaceholder: string;
@@ -42,6 +43,8 @@ interface Props {
   onSuccess: (processId: number) => void;
 }
 
+const CREATE_PROCESS_MODAL_DRAFT_KEY = 'wpd-create-process-modal-draft';
+
 export default function CreateProcessModal({ isOpen, onClose, onSuccess }: Props) {
   const [step, setStep] = useState<'category' | 'form'>('category');
   const [selectedCategory, setSelectedCategory] = useState<ProcessCategory | null>(null);
@@ -51,6 +54,51 @@ export default function CreateProcessModal({ isOpen, onClose, onSuccess }: Props
   const [context, setContext] = useState('');
   const [formError, setFormError] = useState('');
 
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const draft = loadDraft<{
+      step?: 'category' | 'form';
+      selectedCategoryId?: string | null;
+      name?: string;
+      description?: string;
+      problemStatement?: string;
+      context?: string;
+    }>(CREATE_PROCESS_MODAL_DRAFT_KEY);
+
+    if (!draft) {
+      return;
+    }
+
+    const draftCategory = draft.selectedCategoryId
+      ? PROCESS_CATEGORIES.find((category) => category.id === draft.selectedCategoryId) ?? null
+      : null;
+
+    setSelectedCategory(draftCategory);
+    setStep(draft.step === 'form' && draftCategory ? 'form' : 'category');
+    setName(draft.name ?? '');
+    setDescription(draft.description ?? '');
+    setProblemStatement(draft.problemStatement ?? '');
+    setContext(draft.context ?? '');
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    saveDraft(CREATE_PROCESS_MODAL_DRAFT_KEY, {
+      step,
+      selectedCategoryId: selectedCategory?.id ?? null,
+      name,
+      description,
+      problemStatement,
+      context,
+    });
+  }, [context, description, isOpen, name, problemStatement, selectedCategory, step]);
+
   const guidance = selectedCategory
     ? CATEGORY_GUIDANCE[selectedCategory.id]
     : CATEGORY_GUIDANCE['customer-facing'];
@@ -58,6 +106,7 @@ export default function CreateProcessModal({ isOpen, onClose, onSuccess }: Props
   const createMutation = useMutation({
     mutationFn: processApi.createProcess,
     onSuccess: (process) => {
+      clearDraft(CREATE_PROCESS_MODAL_DRAFT_KEY);
       onSuccess(process.id);
     },
     onError: (err: any) => {

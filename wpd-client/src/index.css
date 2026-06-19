@@ -1214,7 +1214,30 @@ body {
 
 .home-hero-announce-image {
   width: 100%;
-  max-width: 680px;
+  max-width: 940px;
+  position: relative;
+}
+
+.home-hero-announce-image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      to right,
+      #ffffff 0%,
+      rgba(255, 255, 255, 0) 6%,
+      rgba(255, 255, 255, 0) 94%,
+      #ffffff 100%
+    ),
+    linear-gradient(
+      to bottom,
+      #ffffff 0%,
+      rgba(255, 255, 255, 0) 6%,
+      rgba(255, 255, 255, 0) 94%,
+      #ffffff 100%
+    );
 }
 
 .home-hero-announce-image img {

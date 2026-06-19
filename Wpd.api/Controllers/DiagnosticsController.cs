@@ -11,6 +11,14 @@ namespace Wpd.Api.Controllers;
 [Authorize]
 public class DiagnosticsController : ControllerBase
 {
+    private static readonly HashSet<string> SupportedLensKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "business",
+        "information",
+        "human",
+        "organizational"
+    };
+
     private readonly IProcessService _processService;
 
     public DiagnosticsController(IProcessService processService)
@@ -49,6 +57,12 @@ public class DiagnosticsController : ControllerBase
                 NumericResponse = r.NumericResponse ?? 0,
                 TextResponse = r.TextResponse ?? string.Empty,
                 AnsweredAt = r.UpdatedAt
+            }).ToList(),
+            LensNotes = diagnostic.DiagnosticLensNotes.Select(note => new DiagnosticLensNoteData
+            {
+                LensKey = note.LensKey,
+                NoteText = note.NoteText,
+                UpdatedAt = note.UpdatedAt
             }).ToList()
         };
 
@@ -73,6 +87,38 @@ public class DiagnosticsController : ControllerBase
             questionId,
             request.NumericResponse,
             request.TextResponse);
+
+        if (!succeeded)
+        {
+            return NotFound();
+        }
+
+        return NoContent();
+    }
+
+    [HttpPut("{processId}/lenses/{lensKey}/notes")]
+    public async Task<IActionResult> SaveDiagnosticLensNote(
+        int processId,
+        string lensKey,
+        [FromBody] SaveDiagnosticLensNoteRequest request)
+    {
+        var userId = GetUserId();
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized();
+        }
+
+        var normalizedLensKey = lensKey.Trim().ToLowerInvariant();
+        if (!SupportedLensKeys.Contains(normalizedLensKey))
+        {
+            return BadRequest($"Unsupported lens key '{lensKey}'.");
+        }
+
+        var succeeded = await _processService.SaveDiagnosticLensNoteAsync(
+            processId,
+            userId,
+            normalizedLensKey,
+            request.NoteText);
 
         if (!succeeded)
         {

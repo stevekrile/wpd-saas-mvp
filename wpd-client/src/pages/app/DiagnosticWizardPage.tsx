@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { processApi } from '../../api/processApi';
+import { clearDraft, loadDraft, saveDraft } from '../../utils/draftStorage';
 
 type LensKey = 'business' | 'information' | 'human' | 'organizational';
 type Rating = 1 | 2 | 3 | 4 | 5;
@@ -131,6 +132,7 @@ const LENS_STEPS: LensStep[] = [
 ];
 
 const STORAGE_PREFIX = 'wpd-diagnostic-draft';
+const PROCESS_EDITOR_DRAFT_PREFIX = 'wpd-diagnostic-process-editor-draft';
 const QUESTION_ID_MAP: Record<string, number> = {
   'business-1': 1,
   'business-2': 2,
@@ -148,6 +150,10 @@ const QUESTION_ID_MAP: Record<string, number> = {
 
 function buildStorageKey(processId: number) {
   return `${STORAGE_PREFIX}-${processId}`;
+}
+
+function buildProcessEditorDraftKey(processId: number) {
+  return `${PROCESS_EDITOR_DRAFT_PREFIX}-${processId}`;
 }
 
 function getEmptyRatings() {
@@ -169,6 +175,9 @@ export default function DiagnosticWizardPage() {
   const queryClient = useQueryClient();
   const { id } = useParams();
   const processId = Number(id);
+  const processEditorDraftKey = Number.isFinite(processId) && processId > 0
+    ? buildProcessEditorDraftKey(processId)
+    : null;
   const [mainTab, setMainTab] = useState<MainTab>('process');
   const [currentLensIndex, setCurrentLensIndex] = useState(0);
   const [ratings, setRatings] = useState<Record<string, Rating | ''>>(getEmptyRatings);
@@ -197,40 +206,61 @@ export default function DiagnosticWizardPage() {
     }
 
     const loadPersistedDiagnostic = async () => {
+      const draft = loadDraft<{
+        ratings?: Record<string, Rating | ''>;
+        notes?: Record<LensKey, string>;
+        currentLensIndex?: number;
+      }>(buildStorageKey(processId));
+
       try {
         const diagnostic = await processApi.loadDiagnostic(processId);
         const loadedRatings: Record<string, Rating | ''> = getEmptyRatings();
-        
+        const loadedNotes: Record<LensKey, string> = getEmptyNotes();
+
         diagnostic.questions.forEach((q) => {
           const localId = Object.entries(QUESTION_ID_MAP).find(([_, id]) => id === q.questionId)?.[0];
           if (localId && q.numericResponse > 0) {
             loadedRatings[localId] = q.numericResponse as Rating;
           }
         });
-        
-        setRatings(loadedRatings);
-      } catch (error) {
-        console.warn('Failed to load diagnostic from API, falling back to localStorage', error);
-        const raw = window.localStorage.getItem(buildStorageKey(processId));
-        if (raw) {
-          try {
-            const parsed = JSON.parse(raw) as {
-              ratings?: Record<string, Rating | ''>;
-              notes?: Record<LensKey, string>;
-              currentLensIndex?: number;
-            };
-            if (parsed.ratings) {
-              setRatings((prev) => ({ ...prev, ...parsed.ratings }));
-            }
-            if (parsed.notes) {
-              setNotes((prev) => ({ ...prev, ...parsed.notes }));
-            }
-            if (typeof parsed.currentLensIndex === 'number' && parsed.currentLensIndex >= 0) {
-              setCurrentLensIndex(Math.min(parsed.currentLensIndex, LENS_STEPS.length - 1));
-            }
-          } catch {
-            // Ignore malformed local drafts
+
+        diagnostic.lensNotes.forEach((note) => {
+          if (note.lensKey in loadedNotes) {
+            loadedNotes[note.lensKey as LensKey] = note.noteText ?? '';
           }
+        });
+
+        if (draft?.ratings) {
+          Object.entries(draft.ratings).forEach(([questionId, rating]) => {
+            if (typeof rating === 'number') {
+              loadedRatings[questionId] = rating;
+            }
+          });
+        }
+
+        if (draft?.notes) {
+          Object.entries(draft.notes).forEach(([lensKey, noteText]) => {
+            loadedNotes[lensKey as LensKey] = noteText;
+          });
+        }
+
+        setRatings(loadedRatings);
+        setNotes(loadedNotes);
+
+        if (typeof draft?.currentLensIndex === 'number' && draft.currentLensIndex >= 0) {
+          setCurrentLensIndex(Math.min(draft.currentLensIndex, LENS_STEPS.length - 1));
+        }
+      } catch (error) {
+        console.warn('Failed to load diagnostic from API, using local draft if available', error);
+
+        if (draft?.ratings) {
+          setRatings((prev) => ({ ...prev, ...draft.ratings }));
+        }
+        if (draft?.notes) {
+          setNotes((prev) => ({ ...prev, ...draft.notes }));
+        }
+        if (typeof draft?.currentLensIndex === 'number' && draft.currentLensIndex >= 0) {
+          setCurrentLensIndex(Math.min(draft.currentLensIndex, LENS_STEPS.length - 1));
         }
       }
     };
@@ -239,18 +269,15 @@ export default function DiagnosticWizardPage() {
   }, [processId]);
 
   useEffect(() => {
-    if (!Number.isFinite(processId) || processId <= 0 || typeof window === 'undefined') {
+    if (!Number.isFinite(processId) || processId <= 0) {
       return;
     }
 
-    window.localStorage.setItem(
-      buildStorageKey(processId),
-      JSON.stringify({
-        ratings,
-        notes,
-        currentLensIndex,
-      })
-    );
+    saveDraft(buildStorageKey(processId), {
+      ratings,
+      notes,
+      currentLensIndex,
+    });
   }, [currentLensIndex, notes, processId, ratings]);
 
   useEffect(() => {
@@ -271,6 +298,14 @@ export default function DiagnosticWizardPage() {
       context: process.context ?? '',
     });
   }, [process]);
+
+  useEffect(() => {
+    if (!showProcessEditor || !processEditorDraftKey) {
+      return;
+    }
+
+    saveDraft(processEditorDraftKey, processForm);
+  }, [processEditorDraftKey, processForm, showProcessEditor]);
 
   const activeLens = LENS_STEPS[currentLensIndex];
 
@@ -313,11 +348,32 @@ export default function DiagnosticWizardPage() {
     }
   };
 
+  const handleLensNoteBlur = async (lensKey: LensKey, noteText: string) => {
+    if (!Number.isFinite(processId) || processId <= 0) {
+      return;
+    }
+
+    setSaveError(null);
+
+    try {
+      await processApi.saveDiagnosticLensNote(processId, lensKey, {
+        noteText,
+      });
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Failed to save note. Your note is saved locally.';
+      setSaveError(errorMsg);
+      console.error('Failed to save diagnostic note:', error);
+    }
+  };
+
   const updateProcessMutation = useMutation({
     mutationFn: async () => {
       await processApi.updateProcess(processId, processForm);
     },
     onSuccess: async () => {
+      if (processEditorDraftKey) {
+        clearDraft(processEditorDraftKey);
+      }
       await queryClient.invalidateQueries({ queryKey: ['process', processId] });
       await queryClient.invalidateQueries({ queryKey: ['processes'] });
       setShowProcessEditor(false);
@@ -333,12 +389,15 @@ export default function DiagnosticWizardPage() {
       return;
     }
 
-    setProcessForm({
+    const fallbackProcessForm = {
       name: process.name ?? '',
       description: process.description ?? '',
       problemStatement: process.problemStatement ?? '',
       context: process.context ?? '',
-    });
+    };
+
+    const draft = processEditorDraftKey ? loadDraft<typeof processForm>(processEditorDraftKey) : null;
+    setProcessForm(draft ?? fallbackProcessForm);
     setProcessFormError(null);
     setShowProcessEditor(true);
   };
@@ -586,6 +645,7 @@ export default function DiagnosticWizardPage() {
                     rows={3}
                     value={notes[activeLens.key]}
                     onChange={(e) => setNotes((prev) => ({ ...prev, [activeLens.key]: e.target.value }))}
+                    onBlur={(e) => void handleLensNoteBlur(activeLens.key, e.target.value)}
                     placeholder="Add anything that is not captured by the rating questions."
                   />
                 </div>

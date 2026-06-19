@@ -19,6 +19,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<DiagnosticQuestion> DiagnosticQuestions { get; set; }
     public DbSet<Diagnostic> Diagnostics { get; set; }
     public DbSet<DiagnosticResponse> DiagnosticResponses { get; set; }
+    public DbSet<DiagnosticLensNote> DiagnosticLensNotes { get; set; }
     public DbSet<LensScore> LensScores { get; set; }
     public DbSet<SystemTension> SystemTensions { get; set; }
     public DbSet<UpgradeEvent> UpgradeEvents { get; set; }
@@ -82,6 +83,20 @@ public class ApplicationDbContext : DbContext
             .WithMany(q => q.DiagnosticResponses)
             .HasForeignKey(r => r.DiagnosticQuestionId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<DiagnosticLensNote>()
+            .Property(n => n.LensKey)
+            .HasMaxLength(50);
+
+        modelBuilder.Entity<DiagnosticLensNote>()
+            .HasIndex(n => new { n.DiagnosticId, n.LensKey })
+            .IsUnique();
+
+        modelBuilder.Entity<DiagnosticLensNote>()
+            .HasOne(n => n.Diagnostic)
+            .WithMany(d => d.DiagnosticLensNotes)
+            .HasForeignKey(n => n.DiagnosticId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<LensScore>()
             .HasOne(s => s.Diagnostic)

@@ -72,7 +72,7 @@ export default function HomePage() {
         </div>
         <div className="home-hero-announce-image">
           <img
-            src="/images/wpd-hero-four-lenses.svg"
+            src="/images/wpd-hero-four-lenses.png"
             alt="Whole Process Design — four interconnected system lenses"
           />
         </div>

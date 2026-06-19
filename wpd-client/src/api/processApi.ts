@@ -12,11 +12,22 @@ export interface LoadDiagnosticResponse {
   processId: number;
   status: string;
   questions: DiagnosticResponseData[];
+  lensNotes: DiagnosticLensNoteData[];
 }
 
 export interface SaveDiagnosticResponseRequest {
   numericResponse: number;
   textResponse: string;
+}
+
+export interface DiagnosticLensNoteData {
+  lensKey: string;
+  noteText: string;
+  updatedAt?: string;
+}
+
+export interface SaveDiagnosticLensNoteRequest {
+  noteText: string;
 }
 
 export interface Process {
@@ -78,5 +89,13 @@ export const processApi = {
     request: SaveDiagnosticResponseRequest
   ): Promise<void> => {
     await apiClient.put(`/api/diagnostics/${processId}/questions/${questionId}`, request);
+  },
+
+  saveDiagnosticLensNote: async (
+    processId: number,
+    lensKey: string,
+    request: SaveDiagnosticLensNoteRequest
+  ): Promise<void> => {
+    await apiClient.put(`/api/diagnostics/${processId}/lenses/${lensKey}/notes`, request);
   },
 };

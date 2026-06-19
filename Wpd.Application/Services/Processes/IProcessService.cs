@@ -18,4 +18,5 @@ public interface IProcessService
     Task<(bool CanCreate, int CurrentCount, int MaxAllowed, string TierName)> CheckProcessLimitAsync(string userId);
     Task<Diagnostic?> StartOrGetDiagnosticAsync(int processId, string userId);
     Task<bool> SaveDiagnosticResponseAsync(int processId, string userId, int questionId, int numericResponse, string textResponse);
+    Task<bool> SaveDiagnosticLensNoteAsync(int processId, string userId, string lensKey, string noteText);
 }

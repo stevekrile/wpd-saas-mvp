@@ -41,12 +41,19 @@ public class SaveDiagnosticResponseRequest
     public int NumericResponse { get; set; }
     public string TextResponse { get; set; } = string.Empty;
 }
+
+public class SaveDiagnosticLensNoteRequest
+{
+    public string NoteText { get; set; } = string.Empty;
+}
+
 public class LoadDiagnosticResponse
 {
     public int DiagnosticId { get; set; }
     public int ProcessId { get; set; }
     public string Status { get; set; } = string.Empty;
     public List<DiagnosticResponseData> Questions { get; set; } = new();
+    public List<DiagnosticLensNoteData> LensNotes { get; set; } = new();
 }
 
 public class DiagnosticResponseData
@@ -55,4 +62,11 @@ public class DiagnosticResponseData
     public int NumericResponse { get; set; }
     public string TextResponse { get; set; } = string.Empty;
     public DateTime? AnsweredAt { get; set; }
+}
+
+public class DiagnosticLensNoteData
+{
+    public string LensKey { get; set; } = string.Empty;
+    public string NoteText { get; set; } = string.Empty;
+    public DateTime? UpdatedAt { get; set; }
 }
