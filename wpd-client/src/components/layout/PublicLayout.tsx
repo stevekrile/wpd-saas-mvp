@@ -37,14 +37,6 @@ export default function PublicLayout() {
                 className="brand-wordmark"
               />
             </Link>
-
-            <div className="public-header-user">
-              {isSignedIn ? (
-                <UserButton afterSignOutUrl="/" />
-              ) : (
-                <span className="public-header-user-spacer" aria-hidden="true" />
-              )}
-            </div>
           </div>
 
           <nav
@@ -68,6 +60,14 @@ export default function PublicLayout() {
               </>
             )}
           </nav>
+
+          <div className="public-header-user">
+            {isSignedIn ? (
+              <UserButton afterSignOutUrl="/" />
+            ) : (
+              <span className="public-header-user-spacer" aria-hidden="true" />
+            )}
+          </div>
         </div>
       </header>
 

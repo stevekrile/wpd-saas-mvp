@@ -170,6 +170,10 @@ function getEmptyNotes() {
   }, {} as Record<LensKey, string>);
 }
 
+function isMainTab(value: unknown): value is MainTab {
+  return value === 'process' || value === 'diagnostic' || value === 'summary';
+}
+
 export default function DiagnosticWizardPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -178,7 +182,14 @@ export default function DiagnosticWizardPage() {
   const processEditorDraftKey = Number.isFinite(processId) && processId > 0
     ? buildProcessEditorDraftKey(processId)
     : null;
-  const [mainTab, setMainTab] = useState<MainTab>('process');
+  const [mainTab, setMainTab] = useState<MainTab>(() => {
+    if (!Number.isFinite(processId) || processId <= 0) {
+      return 'process';
+    }
+
+    const draft = loadDraft<{ mainTab?: MainTab }>(buildStorageKey(processId));
+    return isMainTab(draft?.mainTab) ? draft.mainTab : 'process';
+  });
   const [currentLensIndex, setCurrentLensIndex] = useState(0);
   const [ratings, setRatings] = useState<Record<string, Rating | ''>>(getEmptyRatings);
   const [notes, setNotes] = useState<Record<LensKey, string>>(getEmptyNotes);
@@ -210,6 +221,7 @@ export default function DiagnosticWizardPage() {
         ratings?: Record<string, Rating | ''>;
         notes?: Record<LensKey, string>;
         currentLensIndex?: number;
+        mainTab?: MainTab;
       }>(buildStorageKey(processId));
 
       try {
@@ -250,6 +262,10 @@ export default function DiagnosticWizardPage() {
         if (typeof draft?.currentLensIndex === 'number' && draft.currentLensIndex >= 0) {
           setCurrentLensIndex(Math.min(draft.currentLensIndex, LENS_STEPS.length - 1));
         }
+
+        if (isMainTab(draft?.mainTab)) {
+          setMainTab(draft.mainTab);
+        }
       } catch (error) {
         console.warn('Failed to load diagnostic from API, using local draft if available', error);
 
@@ -261,6 +277,9 @@ export default function DiagnosticWizardPage() {
         }
         if (typeof draft?.currentLensIndex === 'number' && draft.currentLensIndex >= 0) {
           setCurrentLensIndex(Math.min(draft.currentLensIndex, LENS_STEPS.length - 1));
+        }
+        if (isMainTab(draft?.mainTab)) {
+          setMainTab(draft.mainTab);
         }
       }
     };
@@ -277,8 +296,9 @@ export default function DiagnosticWizardPage() {
       ratings,
       notes,
       currentLensIndex,
+      mainTab,
     });
-  }, [currentLensIndex, notes, processId, ratings]);
+  }, [currentLensIndex, mainTab, notes, processId, ratings]);
 
   useEffect(() => {
     const handleOpenHelp = () => setShowHelp(true);
@@ -327,6 +347,21 @@ export default function DiagnosticWizardPage() {
       };
     });
   }, [ratings]);
+
+  const handleMainTabChange = (tab: MainTab) => {
+    setMainTab(tab);
+
+    if (!Number.isFinite(processId) || processId <= 0) {
+      return;
+    }
+
+    saveDraft(buildStorageKey(processId), {
+      ratings,
+      notes,
+      currentLensIndex,
+      mainTab: tab,
+    });
+  };
 
   const handleRatingChange = async (questionId: string, value: Rating) => {
     setRatings((prev) => ({ ...prev, [questionId]: value }));
@@ -439,21 +474,21 @@ export default function DiagnosticWizardPage() {
           <div className="diagnostic-tab-buttons">
             <button
               className={`diagnostic-tab-btn ${mainTab === 'process' ? 'active' : ''}`}
-              onClick={() => setMainTab('process')}
+              onClick={() => handleMainTabChange('process')}
             >
               <span className="diagnostic-tab-number">1</span>
               <span className="diagnostic-tab-label">Process</span>
             </button>
             <button
               className={`diagnostic-tab-btn ${mainTab === 'diagnostic' ? 'active' : ''}`}
-              onClick={() => setMainTab('diagnostic')}
+              onClick={() => handleMainTabChange('diagnostic')}
             >
               <span className="diagnostic-tab-number">2</span>
               <span className="diagnostic-tab-label">Diagnostic</span>
             </button>
             <button
               className={`diagnostic-tab-btn ${mainTab === 'summary' ? 'active' : ''}`}
-              onClick={() => setMainTab('summary')}
+              onClick={() => handleMainTabChange('summary')}
             >
               <span className="diagnostic-tab-number">3</span>
               <span className="diagnostic-tab-label">Summary</span>
@@ -607,11 +642,7 @@ export default function DiagnosticWizardPage() {
               <div className="diagnostic-active-lens-block diagnostic-active-lens-block-left" aria-live="polite">
                 <h3 className="diagnostic-active-lens-title">{activeLens.title}</h3>
               </div>
-              <section className="diagnostic-card">
-                <div className="diagnostic-card-header">
-                  <p className="diagnostic-pro-hint">💡 Pro model includes more questions for deeper insights</p>
-                </div>
-
+              <section className="diagnostic-card diagnostic-question-panel">
                 <div className="diagnostic-question-list">
                   {activeLens.questions.map((question) => (
                     <div key={question.id} className="diagnostic-question-card">
@@ -650,6 +681,8 @@ export default function DiagnosticWizardPage() {
                   />
                 </div>
 
+                <p className="diagnostic-pro-hint">Pro model includes more questions for deeper insights.</p>
+
               </section>
             </div>
 
@@ -686,6 +719,7 @@ export default function DiagnosticWizardPage() {
                           />
                         </div>
                       </div>
+
                     </div>
                   );
                 })}
