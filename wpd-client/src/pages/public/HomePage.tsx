@@ -72,7 +72,7 @@ export default function HomePage() {
         </div>
         <div className="home-hero-announce-image">
           <img
-            src="/images/wpd-hero-four-lenses.png"
+            src="/images/wpd-hero-four-lenses.svg"
             alt="Whole Process Design — four interconnected system lenses"
           />
         </div>
@@ -125,7 +125,6 @@ export default function HomePage() {
       {/* ── Bottom CTA pair ── */}
       <div className="home-cta-pair">
         <div className="home-cta-card home-cta-process">
-          <div className="home-cta-icon">⚙️</div>
           <h2>Define your process</h2>
           <p>
             Start by naming what you're working on. Give it a context, a problem statement, and a clear description.
@@ -146,7 +145,6 @@ export default function HomePage() {
         </div>
 
         <div className="home-cta-card home-cta-diagnostic">
-          <div className="home-cta-icon">🔍</div>
           <h2>Run a diagnostic</h2>
           <p>
             Something feels off but you can't put your finger on it. These are the signals WPD is built to surface.

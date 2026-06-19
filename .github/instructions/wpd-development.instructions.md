@@ -4,25 +4,29 @@
 
 **Backend API Port:** 7193
 
-The WPD API runs on `http://localhost:7193` in development.
+The WPD API runs on **`https://localhost:7193`** in development (HTTPS only).
 
 ### Starting the Backend
 
 ```bash
 cd C:\Users\skril\source\repos\WPD\Wpd.api
-dotnet run
+dotnet run --launch-profile https
 ```
 
-The server listens on `http://localhost:7193` by default.
+The server listens on **`https://localhost:7193`** by default.
+
+**⚠️ IMPORTANT:** Always use the `https` launch profile. Never use the `http` profile. See [HTTPS-Only Policy](./wpd-https-only-policy.instructions.md) for details.
 
 ### Starting the Frontend
 
 ```bash
 cd C:\Users\skril\source\repos\WPD\wpd-client
-npm run dev
+npm run dev -- --https
 ```
 
-Frontend typically runs on `http://localhost:5174` (or next available port if 5173+ are in use).
+Frontend typically runs on **`https://localhost:5173`** (or next available port if in use).
+
+**⚠️ IMPORTANT:** Always use HTTPS. See [HTTPS-Only Policy](./wpd-https-only-policy.instructions.md) for details.
 
 ## Architecture
 

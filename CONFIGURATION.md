@@ -3,7 +3,7 @@
 ## Development Environment
 
 ### Frontend
-- **URL:** http://localhost:5173 (Vite dev server)
+- **URL:** https://localhost:5173 (Vite dev server)
 - **Configuration:** `.env.development`
 - **API Endpoint:** Reads from `VITE_API_URL` env var
 - **Default:** `https://localhost:7193`
@@ -26,7 +26,7 @@ dotnet run --launch-profile https
 **Frontend:**
 ```bash
 cd C:\Users\skril\source\repos\WPD\wpd-client
-npm run dev
+npm run dev -- --host localhost
 ```
 
 ---
@@ -37,7 +37,7 @@ npm run dev
 
 1. **appsettings.json** (default/development)
    - Local development database
-   - CORS: `["http://localhost:5173"]`
+   - CORS: `["https://localhost:5173", "https://127.0.0.1:5173"]`
    - Logging: `Information` level
    
 2. **appsettings.Production.json** (production override)
@@ -140,8 +140,8 @@ CORS__AllowedOrigins__0=https://yourdomain.com
 
 **Fix:**
 1. Check `.env.development` → `VITE_API_URL`
-2. Check `appsettings.json` → `CORS:AllowedOrigins`
-3. Ensure they match (both localhost:5173)
+2. Check `appsettings.json` / `appsettings.Development.json` → `CORS:AllowedOrigins`
+3. Ensure they match and use HTTPS (`https://localhost:5173`)
 4. Restart backend after config changes
 
 ### Production: CORS errors after deployment
@@ -160,7 +160,7 @@ CORS__AllowedOrigins__0=https://yourdomain.com
 
 ### Test Backend on Different Machine
 
-1. Frontend: `localhost:5173` (your dev machine)
+1. Frontend: `https://localhost:5173` (your dev machine)
 2. Backend: `192.168.x.x:7193` (remote machine)
 
 **Setup:**
@@ -168,7 +168,7 @@ CORS__AllowedOrigins__0=https://yourdomain.com
 # Backend appsettings.json
 {
   "CORS": {
-    "AllowedOrigins": ["http://localhost:5173", "http://192.168.x.x:*"]
+    "AllowedOrigins": ["https://localhost:5173", "https://192.168.x.x:*"]
   }
 }
 
