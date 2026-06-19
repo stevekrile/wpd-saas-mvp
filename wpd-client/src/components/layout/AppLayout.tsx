@@ -1,16 +1,12 @@
-import { useEffect, useState } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { Outlet, Link } from 'react-router-dom';
 import { UserButton } from '@clerk/clerk-react';
 import Footer from './Footer';
 import Breadcrumbs from './Breadcrumbs';
+import ThemeMenu from './ThemeMenu';
 
 export default function AppLayout() {
-  const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  useEffect(() => {
-    setIsMenuOpen(false);
-  }, [location.pathname]);
 
   const closeMenu = () => setIsMenuOpen(false);
 
@@ -50,6 +46,7 @@ export default function AppLayout() {
             </nav>
 
             <div className="app-user-controls">
+              <ThemeMenu />
               <UserButton afterSignOutUrl="/" />
             </div>
           </div>

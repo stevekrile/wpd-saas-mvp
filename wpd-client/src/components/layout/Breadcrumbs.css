@@ -97,3 +97,19 @@
     height: 36px;
   }
 }
+
+:root[data-theme='dark'] .breadcrumbs a {
+  color: #8dbdff;
+}
+
+:root[data-theme='dark'] .breadcrumbs a:hover {
+  color: #b8d8ff;
+}
+
+:root[data-theme='dark'] .breadcrumb-active {
+  color: var(--gray-900);
+}
+
+:root[data-theme='dark'] .breadcrumb-separator {
+  color: var(--gray-700);
+}

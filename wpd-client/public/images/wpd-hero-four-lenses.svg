@@ -81,7 +81,4 @@
   <text x="600" y="465" text-anchor="middle" font-size="13" font-weight="700" fill="#ce93d8" letter-spacing="0.5">ORGANIZATIONAL</text>
   <text x="600" y="481" text-anchor="middle" font-size="10" fill="#e1bee7" opacity="0.85">SYSTEMS</text>
 
-  <rect x="240" y="26" width="320" height="52" rx="3" fill="none" stroke="#80a9d1" stroke-width="0.8" stroke-dasharray="4,3" opacity="0.7"/>
-  <text x="400" y="54" text-anchor="middle" font-size="22" font-weight="700" fill="#012151" letter-spacing="3">FOUR SYSTEM LENSES</text>
-  <text x="400" y="70" text-anchor="middle" font-size="10" fill="#305a84" letter-spacing="1.5" opacity="0.85">Interconnected · Simultaneous · Aligned</text>
 </svg>

@@ -1,16 +1,12 @@
-import { useEffect, useState } from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, Outlet } from 'react-router-dom';
 import { SignInButton, SignUpButton, UserButton, useAuth } from '@clerk/clerk-react';
 import Footer from './Footer';
+import ThemeMenu from './ThemeMenu';
 
 export default function PublicLayout() {
   const { isSignedIn } = useAuth();
-  const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  useEffect(() => {
-    setIsMenuOpen(false);
-  }, [location.pathname, isSignedIn]);
 
   const closeMenu = () => setIsMenuOpen(false);
 
@@ -62,11 +58,10 @@ export default function PublicLayout() {
           </nav>
 
           <div className="public-header-user">
+            <ThemeMenu />
             {isSignedIn ? (
               <UserButton afterSignOutUrl="/" />
-            ) : (
-              <span className="public-header-user-spacer" aria-hidden="true" />
-            )}
+            ) : null}
           </div>
         </div>
       </header>

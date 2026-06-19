@@ -5,37 +5,37 @@ import { publicApi } from '../../api/publicApi';
 
 const lenses = [
   {
+    key: 'business',
     img: '/images/lens-business.svg',
     alt: 'Business Systems',
     title: 'Business Systems',
-    color: '#4fc3f7',
-    body: 'The rules, policies, and standards that define how work gets done. From informal personality-driven habits to sophisticated operating systems—these are the structures your team navigates every day.',
+    body: 'The rules, policies, and standards that define how work gets done. From informal personality-driven habits to sophisticated operating systems-these are the structures your team navigates every day.',
   },
   {
+    key: 'information',
     img: '/images/lens-information.svg',
     alt: 'Information Systems',
     title: 'Information Systems',
-    color: '#81c784',
     body: 'The technology and data flows that capture, move, and make sense of operational information. Poor information systems create rework, mistrust, and decisions made in the dark.',
   },
   {
+    key: 'people',
     img: '/images/lens-people.svg',
     alt: 'People Systems',
     title: 'People Systems',
-    color: '#ffb74d',
     body: 'The skills, behaviors, and culture that determine how individuals and teams actually perform. Even the best processes fail when people systems are misaligned.',
   },
   {
+    key: 'organizational',
     img: '/images/lens-organizational.svg',
     alt: 'Organizational Systems',
     title: 'Organizational Systems',
-    color: '#ce93d8',
-    body: 'The structure, governance, and roles that shape accountability and decision-making. Org systems determine who owns what—and whether that ownership is clear.',
+    body: 'The structure, governance, and roles that shape accountability and decision-making. Org systems determine who owns what-and whether that ownership is clear.',
   },
 ];
 
 export default function HomePage() {
-  const { isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn } = useAuth();
   const { data, isLoading, isError } = useQuery({
     queryKey: ['public', 'landing-content'],
     queryFn: publicApi.getLandingContent,
@@ -55,14 +55,13 @@ export default function HomePage() {
   }
 
   return (
-    <div className="marketing-page">
-
-      {/* ── Hero: full-width announcement ── */}
+    <div className="marketing-page home-page">
+      {/* -- Hero: full-width announcement -- */}
       <section className="home-hero-announce">
         <div className="home-hero-announce-text">
           <h1>{data.title}</h1>
           <p className="hero-subtitle">{data.subtitle}</p>
-          {!isSignedIn && (
+          {isLoaded && !isSignedIn && (
             <div className="hero-actions">
               <SignUpButton mode="modal">
                 <button className="btn-primary">{data.callToActionText}</button>
@@ -71,14 +70,18 @@ export default function HomePage() {
           )}
         </div>
         <div className="home-hero-announce-image">
+          <div className="home-hero-graphic-label">
+            <h2>Four System Lenses</h2>
+            <p>Interconnected · Simultaneous · Aligned</p>
+          </div>
           <img
             src="/images/wpd-hero-four-lenses.svg"
-            alt="Whole Process Design — four interconnected system lenses"
+            alt="Whole Process Design - four interconnected system lenses"
           />
         </div>
       </section>
 
-      {/* ── Before / After ── */}
+      {/* -- Before / After -- */}
       <section className="home-before-after-section">
         <h2 className="before-after-heading">The real cost of misaligned systems</h2>
         <div className="hero-before-after">
@@ -107,22 +110,22 @@ export default function HomePage() {
         </p>
       </section>
 
-      {/* ── Four lenses ── */}
+      {/* -- Four lenses -- */}
       <section className="home-lenses-section">
         <h2 className="home-lenses-title">Diagnose through four lenses</h2>
-        <p className="home-lenses-subtitle">Every process failure lives in one — or more — of these systems.</p>
+        <p className="home-lenses-subtitle">Every process failure lives in one - or more - of these systems.</p>
         <div className="home-lenses-grid">
           {lenses.map((lens) => (
-            <div key={lens.title} className="home-lens-card">
+            <div key={lens.title} className={`home-lens-card home-lens-card--${lens.key}`}>
               <img src={lens.img} alt={lens.alt} className="home-lens-icon" />
-              <h3 style={{ color: lens.color }}>{lens.title}</h3>
+              <h3>{lens.title}</h3>
               <p>{lens.body}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ── Bottom CTA pair ── */}
+      {/* -- Bottom CTA pair -- */}
       <div className="home-cta-pair">
         <div className="home-cta-card home-cta-process">
           <h2>Define your process</h2>
@@ -135,13 +138,13 @@ export default function HomePage() {
               <li key={item}>{item}</li>
             ))}
           </ul>
-          {isSignedIn ? (
+          {isLoaded && isSignedIn ? (
             <Link to="/dashboard" className="btn-primary">Create Process</Link>
-          ) : (
+          ) : isLoaded ? (
             <SignUpButton mode="modal">
               <button className="btn-primary">Create Process</button>
             </SignUpButton>
-          )}
+          ) : null}
         </div>
 
         <div className="home-cta-card home-cta-diagnostic">
@@ -155,16 +158,15 @@ export default function HomePage() {
               <li key={item}>{item}</li>
             ))}
           </ul>
-          {isSignedIn ? (
+          {isLoaded && isSignedIn ? (
             <Link to="/dashboard" className="btn-secondary">Start a diagnostic</Link>
-          ) : (
+          ) : isLoaded ? (
             <SignUpButton mode="modal">
               <button className="btn-secondary">Start a diagnostic</button>
             </SignUpButton>
-          )}
+          ) : null}
         </div>
       </div>
-
     </div>
   );
 }
