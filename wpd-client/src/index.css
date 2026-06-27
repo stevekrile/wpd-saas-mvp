@@ -2556,13 +2556,12 @@ body {
   display: grid;
   position: relative;
   grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-  margin: 2rem 0;
-  padding: 2rem;
-  background: linear-gradient(135deg, rgba(1, 33, 81, 0.02), rgba(2, 113, 151, 0.04));
-  border-radius: 0.75rem;
-  border: 1px solid #e9eef5;
-
+  gap: 1.35rem;
+  margin: 1.5rem 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
 }
 
 .lens-center-circle {
@@ -2596,14 +2595,14 @@ body {
   padding: 1.5rem;
   background: white;
   border-radius: 0.75rem;
-  border: 1px solid #d6dfeb;
-  box-shadow: 0 2px 8px rgba(1, 33, 81, 0.04);
+  border: none;
+  box-shadow: 0 8px 20px rgba(1, 33, 81, 0.08);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .lens-quadrant:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 16px rgba(1, 33, 81, 0.08);
+  box-shadow: 0 12px 24px rgba(1, 33, 81, 0.12);
 }
 
 .lens-quad-icon {
@@ -2629,7 +2628,6 @@ body {
 @media (max-width: 900px) {
   .four-lenses-quadrant {
     gap: 1.5rem;
-    padding: 1.5rem;
   }
 
   .lens-quadrant {
@@ -2645,17 +2643,37 @@ body {
 @media (max-width: 700px) {
   .four-lenses-quadrant {
     grid-template-columns: 1fr;
-    gap: 1rem;
-    padding: 1rem;
+    gap: 0.25rem;
   }
 
   .lens-quadrant {
     padding: 1rem;
   }
 
+  .lens-center-circle {
+    position: static;
+    top: auto;
+    left: auto;
+    transform: none;
+    z-index: 2;
+    display: flex;
+    justify-content: center;
+    margin: -3.4rem 0 -3rem;
+  }
+
+  .wpd-center-content {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .wpd-center-image {
+    width: 285px;
+    height: 285px;
+  }
+
   .lens-quad-icon {
-    width: 70px;
-    height: 70px;
+    width: 105px;
+    height: 105px;
   }
 
   .lens-quadrant h3 {
@@ -3655,14 +3673,66 @@ body {
   }
 }
 
+@media (max-width: 900px) {
+  .about-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .about-book-container {
+    order: 2;
+  }
+
+  .about-description {
+    order: 1;
+  }
+}
+
+@media (max-width: 700px) {
+  .about-hero {
+    padding: 1.5rem;
+  }
+
+  .about-platform-section,
+  .about-praise-section,
+  .about-author-section,
+  .about-cta-section {
+    padding: 1.75rem;
+  }
+
+  .about-book-cover {
+    max-width: 240px;
+    padding: 1.75rem 1.25rem;
+  }
+
+  .book-title {
+    font-size: 1.5rem;
+  }
+
+  .praise-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 480px) {
   .container {
     padding: 0 0.75rem;
   }
 
+  .public-header-content {
+    gap: 0.5rem;
+  }
+
+  .public-header-bar {
+    gap: 0.5rem;
+  }
+
+  .brand-link {
+    min-width: 0;
+  }
+
   .brand-wordmark {
-    height: 34px;
-    max-width: 88vw;
+    height: 32px;
+    max-width: min(260px, calc(100vw - 9rem));
   }
 
   .about-book-cover {
@@ -3737,7 +3807,7 @@ body {
 .marketing-page,
 .home-page {
   position: relative;
-  z-index: 0;
+  z-index: auto;
 }
 
 /* Theme menu icon trigger */
@@ -3925,6 +3995,11 @@ body {
   box-shadow: var(--surface-shadow);
 }
 
+:root[data-theme='dark'] .lens-quadrant {
+  border-color: transparent;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.34);
+}
+
 :root[data-theme='dark'] .tier-badge,
 :root[data-theme='dark'] .process-problem,
 :root[data-theme='dark'] .diagnostic-answer-count,
@@ -3932,7 +4007,6 @@ body {
 :root[data-theme='dark'] .lens-score-chart,
 :root[data-theme='dark'] .category-banner,
 :root[data-theme='dark'] .quote-callout,
-:root[data-theme='dark'] .four-lenses-quadrant,
 :root[data-theme='dark'] .detail-note,
 :root[data-theme='dark'] .modal-category-badge {
   background: rgba(14, 30, 48, 0.88);
@@ -4110,8 +4184,8 @@ body {
 }
 
 :root[data-theme='dark'] .four-lenses-quadrant {
-  background: linear-gradient(135deg, rgba(11, 26, 43, 0.88), rgba(14, 33, 52, 0.92));
-  border-color: var(--surface-border);
+  background: transparent;
+  border-color: transparent;
 }
 
 /* Final global page-canvas overrides */
@@ -4274,6 +4348,25 @@ body {
   .home-hero-graphic-label p {
     font-size: 0.78rem;
     letter-spacing: 0.12em;
+  }
+}
+
+@media (max-width: 480px) {
+  .home-hero-graphic-label {
+    top: 0.55rem;
+    min-width: calc(100% - 1rem);
+    padding: 0.58rem 0.75rem;
+  }
+
+  .home-hero-graphic-label h2 {
+    font-size: clamp(1.2rem, 5.8vw, 1.45rem);
+    letter-spacing: 0.08em;
+  }
+
+  .home-hero-graphic-label p {
+    margin-top: 0.25rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
   }
 }
 
@@ -4738,5 +4831,199 @@ body {
 @media (max-width: 900px) {
   .diagnostic-question-column {
     padding-inline: 0.35rem;
+  }
+}
+
+/* Shadow-first surface style: no borders on content containers */
+.hero-section,
+.marketing-section,
+.auth-card,
+.process-card,
+.process-form,
+.empty-state,
+.summary-placeholder,
+.diagnostic-hero-card,
+.diagnostic-card,
+.diagnostic-sidebar-card,
+.diagnostic-journey-step,
+.diagnostic-lens-tab,
+.diagnostic-question-card,
+.lens-card,
+.pricing-card,
+.home-before-after-section,
+.lens-quadrant,
+.step,
+.about-hero,
+.about-platform-section,
+.about-praise-section,
+.about-author-section,
+.about-cta-card,
+.praise-card,
+.pricing-table-wrapper,
+.pricing-cta,
+.pricing-logged-in,
+.pricing-logged-out {
+  border: none;
+  box-shadow: 0 8px 20px rgba(1, 33, 81, 0.09);
+}
+
+/* Avoid double container framing in About CTA */
+.about-cta-section {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+.pricing-card.featured {
+  border: none;
+  box-shadow: 0 12px 26px rgba(1, 33, 81, 0.14);
+}
+
+:root[data-theme='dark'] .hero-section,
+:root[data-theme='dark'] .marketing-section,
+:root[data-theme='dark'] .auth-card,
+:root[data-theme='dark'] .process-card,
+:root[data-theme='dark'] .process-form,
+:root[data-theme='dark'] .empty-state,
+:root[data-theme='dark'] .summary-placeholder,
+:root[data-theme='dark'] .diagnostic-hero-card,
+:root[data-theme='dark'] .diagnostic-card,
+:root[data-theme='dark'] .diagnostic-sidebar-card,
+:root[data-theme='dark'] .diagnostic-journey-step,
+:root[data-theme='dark'] .diagnostic-lens-tab,
+:root[data-theme='dark'] .diagnostic-question-card,
+:root[data-theme='dark'] .lens-card,
+:root[data-theme='dark'] .pricing-card,
+:root[data-theme='dark'] .home-before-after-section,
+:root[data-theme='dark'] .lens-quadrant,
+:root[data-theme='dark'] .step,
+:root[data-theme='dark'] .about-hero,
+:root[data-theme='dark'] .about-platform-section,
+:root[data-theme='dark'] .about-praise-section,
+:root[data-theme='dark'] .about-author-section,
+:root[data-theme='dark'] .about-cta-card,
+:root[data-theme='dark'] .praise-card,
+:root[data-theme='dark'] .pricing-table-wrapper,
+:root[data-theme='dark'] .pricing-cta,
+:root[data-theme='dark'] .pricing-logged-in,
+:root[data-theme='dark'] .pricing-logged-out {
+  border: none;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.31);
+}
+
+:root[data-theme='dark'] .about-cta-section {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+:root[data-theme='dark'] .pricing-card.featured {
+  border: none;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.36);
+}
+
+/* Header/footer chrome follows shadow-only boundary style */
+.public-header,
+.app-header {
+  border-bottom: none;
+  box-shadow: 0 6px 18px rgba(1, 33, 81, 0.1);
+}
+
+.public-footer {
+  border-top: none;
+  box-shadow: 0 -8px 20px rgba(1, 33, 81, 0.18);
+}
+
+:root[data-theme='dark'] .public-header,
+:root[data-theme='dark'] .app-header {
+  border-bottom: none;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.34);
+}
+
+:root[data-theme='dark'] .public-footer {
+  border-top: none;
+  box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.4);
+}
+
+@media (max-width: 768px) {
+  .hero-section,
+  .marketing-section,
+  .auth-card,
+  .process-card,
+  .process-form,
+  .empty-state,
+  .summary-placeholder,
+  .diagnostic-hero-card,
+  .diagnostic-card,
+  .diagnostic-sidebar-card,
+  .diagnostic-journey-step,
+  .diagnostic-lens-tab,
+  .diagnostic-question-card,
+  .lens-card,
+  .pricing-card,
+  .home-before-after-section,
+  .lens-quadrant,
+  .step,
+  .about-hero,
+  .about-platform-section,
+  .about-praise-section,
+  .about-author-section,
+  .about-cta-card,
+  .praise-card,
+  .pricing-table-wrapper,
+  .pricing-cta,
+  .pricing-logged-in,
+  .pricing-logged-out {
+    box-shadow: 0 6px 14px rgba(1, 33, 81, 0.08);
+  }
+
+  .public-header,
+  .app-header {
+    box-shadow: 0 4px 12px rgba(1, 33, 81, 0.09);
+  }
+
+  .public-footer {
+    box-shadow: 0 -6px 14px rgba(1, 33, 81, 0.15);
+  }
+
+  :root[data-theme='dark'] .hero-section,
+  :root[data-theme='dark'] .marketing-section,
+  :root[data-theme='dark'] .auth-card,
+  :root[data-theme='dark'] .process-card,
+  :root[data-theme='dark'] .process-form,
+  :root[data-theme='dark'] .empty-state,
+  :root[data-theme='dark'] .summary-placeholder,
+  :root[data-theme='dark'] .diagnostic-hero-card,
+  :root[data-theme='dark'] .diagnostic-card,
+  :root[data-theme='dark'] .diagnostic-sidebar-card,
+  :root[data-theme='dark'] .diagnostic-journey-step,
+  :root[data-theme='dark'] .diagnostic-lens-tab,
+  :root[data-theme='dark'] .diagnostic-question-card,
+  :root[data-theme='dark'] .lens-card,
+  :root[data-theme='dark'] .pricing-card,
+  :root[data-theme='dark'] .home-before-after-section,
+  :root[data-theme='dark'] .lens-quadrant,
+  :root[data-theme='dark'] .step,
+  :root[data-theme='dark'] .about-hero,
+  :root[data-theme='dark'] .about-platform-section,
+  :root[data-theme='dark'] .about-praise-section,
+  :root[data-theme='dark'] .about-author-section,
+  :root[data-theme='dark'] .about-cta-card,
+  :root[data-theme='dark'] .praise-card,
+  :root[data-theme='dark'] .pricing-table-wrapper,
+  :root[data-theme='dark'] .pricing-cta,
+  :root[data-theme='dark'] .pricing-logged-in,
+  :root[data-theme='dark'] .pricing-logged-out {
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+  }
+
+  :root[data-theme='dark'] .public-header,
+  :root[data-theme='dark'] .app-header {
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  :root[data-theme='dark'] .public-footer {
+    box-shadow: 0 -8px 18px rgba(0, 0, 0, 0.34);
   }
 }

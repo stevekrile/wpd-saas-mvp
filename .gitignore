@@ -24,6 +24,7 @@ wpd-client/.env.local
 wpd-client/.env.development.local
 wpd-client/.env.test.local
 wpd-client/.env.production.local
+wpd-client/certs/
 
 # VS/VSCode
 .vs/

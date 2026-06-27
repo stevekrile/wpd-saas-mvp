@@ -23,6 +23,10 @@ public class ApplicationDbContext : DbContext
     public DbSet<LensScore> LensScores { get; set; }
     public DbSet<SystemTension> SystemTensions { get; set; }
     public DbSet<UpgradeEvent> UpgradeEvents { get; set; }
+    public DbSet<UserAdminState> UserAdminStates { get; set; }
+    public DbSet<AccountAdminState> AccountAdminStates { get; set; }
+    public DbSet<AdminAuditEvent> AdminAuditEvents { get; set; }
+    public DbSet<AdminRecordAccessEvent> AdminRecordAccessEvents { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -121,5 +125,85 @@ public class ApplicationDbContext : DbContext
             .WithMany(l => l.SystemTensions)
             .HasForeignKey(t => t.LensId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<UserAdminState>()
+            .HasKey(s => s.UserId);
+
+        modelBuilder.Entity<UserAdminState>()
+            .Property(s => s.UserId)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<UserAdminState>()
+            .Property(s => s.AssignedRole)
+            .HasMaxLength(50);
+
+        modelBuilder.Entity<UserAdminState>()
+            .Property(s => s.DeactivatedByUserId)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<UserAdminState>()
+            .Property(s => s.ReactivatedByUserId)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<UserAdminState>()
+            .HasIndex(s => new { s.AccountId, s.WorkspaceId });
+
+        modelBuilder.Entity<AccountAdminState>()
+            .HasKey(s => s.AccountId);
+
+        modelBuilder.Entity<AccountAdminState>()
+            .Property(s => s.AccountId)
+            .ValueGeneratedNever();
+
+        modelBuilder.Entity<AccountAdminState>()
+            .Property(s => s.DeactivatedByUserId)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<AdminAuditEvent>()
+            .Property(e => e.ActorUserId)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<AdminAuditEvent>()
+            .Property(e => e.ActorRole)
+            .HasMaxLength(50);
+
+        modelBuilder.Entity<AdminAuditEvent>()
+            .Property(e => e.ActionType)
+            .HasMaxLength(100);
+
+        modelBuilder.Entity<AdminAuditEvent>()
+            .Property(e => e.TargetType)
+            .HasMaxLength(100);
+
+        modelBuilder.Entity<AdminAuditEvent>()
+            .Property(e => e.TargetId)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<AdminAuditEvent>()
+            .HasIndex(e => e.CreatedAt);
+
+        modelBuilder.Entity<AdminAuditEvent>()
+            .HasIndex(e => new { e.ActorUserId, e.CreatedAt });
+
+        modelBuilder.Entity<AdminAuditEvent>()
+            .HasIndex(e => new { e.AccountId, e.WorkspaceId, e.CreatedAt });
+
+        modelBuilder.Entity<AdminRecordAccessEvent>()
+            .Property(e => e.ActorUserId)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<AdminRecordAccessEvent>()
+            .Property(e => e.RecordType)
+            .HasMaxLength(100);
+
+        modelBuilder.Entity<AdminRecordAccessEvent>()
+            .Property(e => e.RecordId)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<AdminRecordAccessEvent>()
+            .HasIndex(e => e.CreatedAt);
+
+        modelBuilder.Entity<AdminRecordAccessEvent>()
+            .HasIndex(e => new { e.ActorUserId, e.CreatedAt });
     }
 }

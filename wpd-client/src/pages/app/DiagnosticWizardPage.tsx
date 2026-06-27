@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { processApi } from '../../api/processApi';
 import { clearDraft, loadDraft, saveDraft } from '../../utils/draftStorage';
+import '../../components/styles/ProcessDiscoveryModal.css';
 
 type LensKey = 'business' | 'information' | 'human' | 'organizational';
 type Rating = 1 | 2 | 3 | 4 | 5;

@@ -2,6 +2,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Wpd.Api.Middleware;
+using Wpd.Application.Services.Admin;
+using Wpd.Api.Security;
 using Wpd.Application.Services.Processes;
 using Wpd.Infrastructure.Data;
 using Wpd.Infrastructure.Data.SeedData;
@@ -63,11 +66,25 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(AdminAuthorizationPolicies.AdminPolicy, policy =>
+        policy.RequireAssertion(context =>
+            AdminRoleEvaluator.HasAnyRole(context.User, AdminRoles.Admin, AdminRoles.SystemAdmin)));
+
+    options.AddPolicy(AdminAuthorizationPolicies.SystemAdminPolicy, policy =>
+        policy.RequireAssertion(context =>
+            AdminRoleEvaluator.HasAnyRole(context.User, AdminRoles.SystemAdmin)));
+});
+
 var allowedOrigins = builder.Configuration.GetSection("CORS:AllowedOrigins").Get<string[]>()
     ?? new[] { "https://localhost:5173", "https://127.0.0.1:5173" };
 var allowedOriginSet = new HashSet<string>(allowedOrigins, StringComparer.OrdinalIgnoreCase);
 
 builder.Services.AddScoped<IProcessService, ProcessService>();
+builder.Services.AddScoped<IAdminAuditService, AdminAuditService>();
+builder.Services.AddScoped<IAdminUserService, AdminUserService>();
+builder.Services.AddScoped<IAdminUsageService, AdminUsageService>();
 
 var app = builder.Build();
 
@@ -99,6 +116,18 @@ app.UseHttpsRedirection();
 
 app.Use(async (context, next) =>
 {
+    var incomingRequestId = context.Request.Headers["X-Request-Id"].ToString();
+    if (!string.IsNullOrWhiteSpace(incomingRequestId))
+    {
+        context.TraceIdentifier = incomingRequestId;
+    }
+
+    context.Response.Headers["X-Request-Id"] = context.TraceIdentifier;
+    await next();
+});
+
+app.Use(async (context, next) =>
+{
     var origin = context.Request.Headers["Origin"].ToString();
 
     if (!string.IsNullOrWhiteSpace(origin) && allowedOriginSet.Contains(origin))
@@ -113,6 +142,7 @@ app.Use(async (context, next) =>
             ? "Authorization, Content-Type"
             : requestedHeaders;
         context.Response.Headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,PATCH,DELETE,OPTIONS";
+        context.Response.Headers["Access-Control-Expose-Headers"] = "X-Request-Id";
 
         if (HttpMethods.IsOptions(context.Request.Method))
         {
@@ -125,6 +155,7 @@ app.Use(async (context, next) =>
 });
 
 app.UseAuthentication();
+app.UseMiddleware<AdminStateEnforcementMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 
