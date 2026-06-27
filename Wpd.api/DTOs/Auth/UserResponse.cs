@@ -8,4 +8,5 @@ public class UserResponse
     public int SubscriptionTierId { get; set; }
     public string SubscriptionTierName { get; set; } = string.Empty;
     public int? DefaultWorkspaceId { get; set; }
+    public string Role { get; set; } = "User";
 }

@@ -25,6 +25,13 @@ export default function Breadcrumbs() {
       ];
     }
 
+    if (path === '/admin') {
+      return [
+        { label: 'Home', href: '/', active: false },
+        { label: 'Admin', href: '/admin', active: true },
+      ];
+    }
+
     // Create process
     if (path === '/processes/create') {
       return [

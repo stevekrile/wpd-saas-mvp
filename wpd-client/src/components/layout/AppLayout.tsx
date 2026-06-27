@@ -4,9 +4,12 @@ import { UserButton } from '@clerk/clerk-react';
 import Footer from './Footer';
 import Breadcrumbs from './Breadcrumbs';
 import ThemeMenu from './ThemeMenu';
+import { useWpdAuth } from '../../features/auth/AuthContext';
 
 export default function AppLayout() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { wpdUser } = useWpdAuth();
+  const isAdmin = wpdUser?.role === 'Admin' || wpdUser?.role === 'SystemAdmin';
 
   const closeMenu = () => setIsMenuOpen(false);
 
@@ -42,6 +45,7 @@ export default function AppLayout() {
               <Link to="/what-is-wpd" onClick={closeMenu}>What is WPD?</Link>
               <Link to="/about" onClick={closeMenu}>About</Link>
               <Link to="/pricing" onClick={closeMenu}>Pricing</Link>
+              {isAdmin && <Link to="/admin" onClick={closeMenu}>Admin</Link>}
               <Link to="/dashboard" className="btn-primary" onClick={closeMenu}>Dashboard</Link>
             </nav>
 

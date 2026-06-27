@@ -10,6 +10,8 @@ import DashboardPage from '../pages/app/DashboardPage';
 import CreateProcessPage from '../pages/app/CreateProcessPage';
 import ProcessDetailPage from '../pages/app/ProcessDetailPage';
 import DiagnosticWizardPage from '../pages/app/DiagnosticWizardPage';
+import AdminConsolePage from '../pages/app/AdminConsolePage';
+import { useWpdAuth } from '../features/auth/AuthContext';
 import type { ReactNode } from 'react';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -21,6 +23,20 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 
   if (!isSignedIn) {
     return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function AdminRoute({ children }: { children: ReactNode }) {
+  const { wpdUser, isLoading } = useWpdAuth();
+
+  if (isLoading) {
+    return <div className="loading">Loading...</div>;
+  }
+
+  if (wpdUser?.role !== 'Admin' && wpdUser?.role !== 'SystemAdmin') {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
@@ -45,6 +61,14 @@ export default function AppRoutes() {
           }
         >
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <AdminConsolePage />
+              </AdminRoute>
+            }
+          />
           <Route path="/processes/create" element={<CreateProcessPage />} />
           <Route path="/processes/:id" element={<ProcessDetailPage />} />
           <Route path="/processes/:id/diagnostic" element={<DiagnosticWizardPage />} />

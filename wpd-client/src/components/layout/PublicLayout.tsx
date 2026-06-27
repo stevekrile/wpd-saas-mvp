@@ -3,10 +3,13 @@ import { Link, Outlet } from 'react-router-dom';
 import { SignInButton, SignUpButton, UserButton, useAuth } from '@clerk/clerk-react';
 import Footer from './Footer';
 import ThemeMenu from './ThemeMenu';
+import { useWpdAuth } from '../../features/auth/AuthContext';
 
 export default function PublicLayout() {
   const { isSignedIn } = useAuth();
+  const { wpdUser } = useWpdAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const isAdmin = wpdUser?.role === 'Admin' || wpdUser?.role === 'SystemAdmin';
 
   const closeMenu = () => setIsMenuOpen(false);
 
@@ -44,7 +47,10 @@ export default function PublicLayout() {
             <Link to="/about" onClick={closeMenu}>About</Link>
             <Link to="/pricing" onClick={closeMenu}>Pricing</Link>
             {isSignedIn ? (
-              <Link to="/dashboard" className="btn-primary" onClick={closeMenu}>Dashboard</Link>
+              <>
+                {isAdmin && <Link to="/admin" onClick={closeMenu}>Admin</Link>}
+                <Link to="/dashboard" className="btn-primary" onClick={closeMenu}>Dashboard</Link>
+              </>
             ) : (
               <>
                 <SignInButton mode="modal">

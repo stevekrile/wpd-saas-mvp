@@ -894,6 +894,151 @@ textarea {
   margin-bottom: 2rem;
 }
 
+.admin-page {
+  display: grid;
+  gap: 2rem;
+}
+
+.admin-section,
+.admin-subsection {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-section {
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+}
+
+.admin-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.admin-muted {
+  color: var(--secondary);
+  margin-top: 0.25rem;
+}
+
+.admin-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  align-items: end;
+}
+
+.admin-filter-grid label {
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.admin-filter-button {
+  align-self: end;
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+  border-bottom: 1px solid var(--gray-200);
+  padding: 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.admin-table th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--secondary);
+}
+
+.admin-table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.admin-account-actions {
+  align-self: end;
+}
+
+.admin-inline-error {
+  margin-top: 0.5rem;
+}
+
+.admin-empty-state {
+  border: 1px dashed var(--gray-300);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  color: var(--secondary);
+  background: var(--gray-50);
+}
+
+.admin-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+.admin-metric-card {
+  display: grid;
+  gap: 0.35rem;
+  border: 1px solid var(--gray-200);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  background: var(--gray-50);
+}
+
+.admin-metric-card span {
+  color: var(--secondary);
+  font-size: 0.875rem;
+}
+
+.admin-metric-card strong {
+  font-size: 1.5rem;
+}
+
+.admin-response-meta {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.admin-response-meta div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.admin-response-meta strong {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--secondary);
+}
+
+.admin-json {
+  margin: 0;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background: #0f172a;
+  color: #e2e8f0;
+  overflow: auto;
+}
+
 .category-banner {
   background: linear-gradient(135deg, rgba(2, 113, 151, 0.08), rgba(79, 195, 247, 0.08));
   border: 1px solid #b8d5e4;
@@ -1312,6 +1457,10 @@ textarea {
   align-items: start;
 }
 
+.diagnostic-mobile-lens-switcher {
+  display: none;
+}
+
 .diagnostic-question-column {
   min-width: 0;
   order: 2;
@@ -1350,8 +1499,9 @@ textarea {
 
 .diagnostic-score-lens-button {
   flex: 0 0 auto;
+  position: relative;
   border: none;
-  border-radius: 0;
+  border-radius: 50%;
   background: transparent;
   padding: 0;
   box-shadow: none;
@@ -1404,6 +1554,7 @@ textarea {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
+  overflow: hidden;
 }
 
 .diagnostic-lens-tab-image {
@@ -1423,7 +1574,7 @@ textarea {
   opacity: 1;
 }
 
-.diagnostic-lens-tab.active .diagnostic-lens-tab-circle::after {
+.diagnostic-score-lens-button.active::after {
   content: "";
   position: absolute;
   inset: -10px;
@@ -1501,6 +1652,165 @@ textarea {
 .diagnostic-tab-content-full .diagnostic-main {
   width: 100%;
   max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  .diagnostic-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .diagnostic-mobile-lens-switcher {
+    display: grid;
+    gap: 0.5rem;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    width: 100%;
+  }
+
+  .diagnostic-mobile-lens-switcher-header {
+    display: grid;
+    gap: 0.25rem;
+    text-align: center;
+    justify-items: center;
+  }
+
+  .diagnostic-mobile-lens-switcher-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--primary);
+  }
+
+  .diagnostic-mobile-lens-switcher-header p {
+    margin: 0;
+    color: var(--gray-700);
+    font-size: 0.85rem;
+    line-height: 1.45;
+  }
+
+  .diagnostic-mobile-lens-switcher-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.4rem;
+    width: 100%;
+    align-items: start;
+    justify-items: center;
+  }
+
+  .diagnostic-mobile-lens-button {
+    display: grid;
+    justify-items: center;
+    gap: 0.25rem;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: var(--gray-900);
+    box-shadow: none;
+    appearance: none;
+    -webkit-appearance: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    font: inherit;
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  }
+
+  .diagnostic-mobile-lens-button:hover {
+    transform: none;
+    border-color: transparent;
+    background: transparent;
+  }
+
+  .diagnostic-mobile-lens-button:active,
+  .diagnostic-mobile-lens-button:focus,
+  .diagnostic-mobile-lens-button:focus-visible {
+    background: transparent;
+    box-shadow: none;
+    outline: none;
+  }
+
+  .diagnostic-mobile-lens-button.active {
+    border-color: transparent;
+    background: transparent;
+  }
+
+  .diagnostic-mobile-lens-icon {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    overflow: visible;
+  }
+
+  .diagnostic-mobile-lens-icon-mask {
+    width: 100%;
+    height: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    overflow: hidden;
+  }
+
+  .diagnostic-mobile-lens-icon.active::after {
+    content: "";
+    position: absolute;
+    inset: -8px;
+    border: 2px solid rgba(148, 163, 184, 0.95);
+    border-radius: 50%;
+    animation: lensPulse 2.4s ease-out infinite;
+    pointer-events: none;
+  }
+
+  .diagnostic-mobile-lens-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  .diagnostic-mobile-lens-value {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--gray-700);
+    line-height: 1;
+  }
+
+  .diagnostic-radar-column {
+    display: none;
+  }
+
+  .diagnostic-radar-column {
+    order: 0;
+    margin-top: 0;
+    position: static;
+    top: auto;
+    z-index: auto;
+    padding: 0;
+    background: transparent;
+  }
+
+  .diagnostic-question-column {
+    order: 1;
+    padding-inline: 0;
+  }
+
+  .diagnostic-active-lens-block,
+  .diagnostic-active-lens-block-left {
+    text-align: center;
+    justify-items: center;
+  }
+
+  .diagnostic-active-lens-title {
+    font-size: 1.8rem;
+  }
 }
 
 .form-actions {
@@ -4096,7 +4406,9 @@ body {
 }
 
 :root[data-theme='dark'] .diagnostic-scale-option.active {
-  color: #081321;
+  background: rgba(157, 204, 255, 0.18);
+  border-color: #8dbdff;
+  color: #f3f8ff;
 }
 
 :root[data-theme='dark'] .hero-image,
@@ -4788,6 +5100,7 @@ body {
 :root[data-theme='dark'] .diagnostic-score-lens-button.active {
   background: transparent;
   border-color: transparent;
+  border-radius: 50%;
   box-shadow: none;
   transform: none;
 }

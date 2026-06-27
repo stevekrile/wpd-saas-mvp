@@ -13,6 +13,10 @@ namespace Wpd.Api.Controllers;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
+    private const string BootstrapSuperAdminEmail = "stevekrile@gmail.com";
+    private const string SystemAdminRole = "SystemAdmin";
+    private const string DefaultUserRole = "User";
+
     private readonly ApplicationDbContext _context;
 
     public AuthController(ApplicationDbContext context)
@@ -23,67 +27,54 @@ public class AuthController : ControllerBase
     private string GetClerkUserId() =>
         User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
 
-    /// <summary>
-    /// Returns the current user's WPD profile. Call after Clerk sign-in.
-    /// </summary>
     [HttpGet("me")]
     [Authorize]
     public async Task<IActionResult> GetCurrentUser()
     {
         var clerkUserId = GetClerkUserId();
         if (string.IsNullOrEmpty(clerkUserId))
+        {
             return Unauthorized();
+        }
 
         var user = await _context.WpdUsers.FindAsync(clerkUserId);
         if (user == null)
-            return NotFound(new { error = "User profile not found. Call /auth/provision first." });
-
-        var tier = await _context.SubscriptionTiers.FindAsync(user.SubscriptionTierId);
-
-        return Ok(new UserResponse
         {
-            UserId = user.Id,
-            Email = user.Email,
-            DisplayName = user.DisplayName,
-            SubscriptionTierId = user.SubscriptionTierId,
-            SubscriptionTierName = tier?.Name ?? "Unknown",
-            DefaultWorkspaceId = user.DefaultWorkspaceId
-        });
+            return NotFound(new { error = "User profile not found. Call /auth/provision first." });
+        }
+
+        await EnsureBootstrapSuperAdminAsync(user);
+        await _context.SaveChangesAsync();
+        var response = await BuildUserResponseAsync(user);
+        return Ok(response);
     }
 
-    /// <summary>
-    /// Creates a WPD user profile on first sign-in. Idempotent — safe to call on every sign-in.
-    /// </summary>
     [HttpPost("provision")]
     [Authorize]
     public async Task<IActionResult> Provision([FromBody] ProvisionRequest request)
     {
         var clerkUserId = GetClerkUserId();
         if (string.IsNullOrEmpty(clerkUserId))
+        {
             return Unauthorized();
+        }
 
         var existing = await _context.WpdUsers.FindAsync(clerkUserId);
         if (existing != null)
         {
-            // Update last login and return existing profile
             existing.LastLoginAt = DateTime.UtcNow;
+            await EnsureBootstrapSuperAdminAsync(existing, request.Email);
             await _context.SaveChangesAsync();
 
-            var existingTier = await _context.SubscriptionTiers.FindAsync(existing.SubscriptionTierId);
-            return Ok(new UserResponse
-            {
-                UserId = existing.Id,
-                Email = existing.Email,
-                DisplayName = existing.DisplayName,
-                SubscriptionTierId = existing.SubscriptionTierId,
-                SubscriptionTierName = existingTier?.Name ?? "Unknown",
-                DefaultWorkspaceId = existing.DefaultWorkspaceId
-            });
+            var existingResponse = await BuildUserResponseAsync(existing);
+            return Ok(existingResponse);
         }
 
         var freeTier = _context.SubscriptionTiers.FirstOrDefault(t => t.Code == "FREE");
         if (freeTier == null)
+        {
             return StatusCode(500, new { error = "Subscription tiers not seeded." });
+        }
 
         var user = new WpdUser
         {
@@ -97,7 +88,6 @@ public class AuthController : ControllerBase
 
         _context.WpdUsers.Add(user);
 
-        // Create default personal workspace
         var workspace = new Workspace
         {
             Name = $"{request.DisplayName}'s Workspace",
@@ -111,18 +101,66 @@ public class AuthController : ControllerBase
         await _context.SaveChangesAsync();
 
         user.DefaultWorkspaceId = workspace.Id;
+        await EnsureBootstrapSuperAdminAsync(user, request.Email);
         await _context.SaveChangesAsync();
 
-        var tier = await _context.SubscriptionTiers.FindAsync(user.SubscriptionTierId);
+        var response = await BuildUserResponseAsync(user);
+        return Ok(response);
+    }
 
-        return Ok(new UserResponse
+    private async Task<UserResponse> BuildUserResponseAsync(WpdUser user)
+    {
+        var tier = await _context.SubscriptionTiers.FindAsync(user.SubscriptionTierId);
+        var role = await GetAssignedRoleAsync(user.Id, user.Email);
+
+        return new UserResponse
         {
             UserId = user.Id,
             Email = user.Email,
             DisplayName = user.DisplayName,
             SubscriptionTierId = user.SubscriptionTierId,
             SubscriptionTierName = tier?.Name ?? "Unknown",
-            DefaultWorkspaceId = user.DefaultWorkspaceId
-        });
+            DefaultWorkspaceId = user.DefaultWorkspaceId,
+            Role = role
+        };
     }
+
+    private async Task<string> GetAssignedRoleAsync(string clerkUserId, string email)
+    {
+        var state = await _context.UserAdminStates.FindAsync(clerkUserId);
+        if (state != null && !string.IsNullOrWhiteSpace(state.AssignedRole))
+        {
+            return state.AssignedRole;
+        }
+
+        return IsBootstrapSuperAdminEmail(email) ? SystemAdminRole : DefaultUserRole;
+    }
+
+    private async Task EnsureBootstrapSuperAdminAsync(WpdUser user, string? emailOverride = null)
+    {
+        var email = emailOverride ?? user.Email;
+        if (!IsBootstrapSuperAdminEmail(email))
+        {
+            return;
+        }
+
+        var state = await _context.UserAdminStates.FindAsync(user.Id);
+        if (state == null)
+        {
+            state = new UserAdminState
+            {
+                UserId = user.Id,
+                IsActive = true
+            };
+            _context.UserAdminStates.Add(state);
+        }
+
+        state.AssignedRole = SystemAdminRole;
+        state.IsActive = true;
+    }
+
+    private static bool IsBootstrapSuperAdminEmail(string email) =>
+        string.Equals(email, BootstrapSuperAdminEmail, StringComparison.OrdinalIgnoreCase);
 }
+
+

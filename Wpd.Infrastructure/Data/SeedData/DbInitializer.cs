@@ -109,6 +109,25 @@ public static class DbInitializer
             await context.SaveChangesAsync();
         }
 
+        const string bootstrapSuperAdminEmail = "stevekrile@gmail.com";
+        var bootstrapUser = context.WpdUsers.FirstOrDefault(u => u.Email == bootstrapSuperAdminEmail);
+        if (bootstrapUser != null)
+        {
+            var existingState = context.UserAdminStates.FirstOrDefault(s => s.UserId == bootstrapUser.Id);
+            if (existingState == null)
+            {
+                existingState = new UserAdminState
+                {
+                    UserId = bootstrapUser.Id,
+                    IsActive = true
+                };
+                context.UserAdminStates.Add(existingState);
+            }
+
+            existingState.AssignedRole = "SystemAdmin";
+            existingState.IsActive = true;
+            await context.SaveChangesAsync();
+        }
         // Seed Diagnostic Questions
         if (!context.DiagnosticQuestions.Any())
         {
@@ -353,3 +372,5 @@ public static class DbInitializer
         }
     }
 }
+
+

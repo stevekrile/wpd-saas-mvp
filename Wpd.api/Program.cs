@@ -85,6 +85,7 @@ builder.Services.AddScoped<IProcessService, ProcessService>();
 builder.Services.AddScoped<IAdminAuditService, AdminAuditService>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<IAdminUsageService, AdminUsageService>();
+builder.Services.AddScoped<IAdminRecordAccessService, AdminRecordAccessService>();
 
 var app = builder.Build();
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { processApi } from '../../api/processApi';
@@ -321,6 +322,20 @@ export default function DiagnosticWizardPage() {
   }, [process]);
 
   useEffect(() => {
+    if (!showHelp && !showProcessEditor) {
+      return;
+    }
+
+    const { body } = document;
+    const previousOverflow = body.style.overflow;
+    body.style.overflow = 'hidden';
+
+    return () => {
+      body.style.overflow = previousOverflow;
+    };
+  }, [showHelp, showProcessEditor]);
+
+  useEffect(() => {
     if (!showProcessEditor || !processEditorDraftKey) {
       return;
     }
@@ -329,6 +344,7 @@ export default function DiagnosticWizardPage() {
   }, [processEditorDraftKey, processForm, showProcessEditor]);
 
   const activeLens = LENS_STEPS[currentLensIndex];
+  const modalRoot = typeof document !== 'undefined' ? document.body : null;
 
   const lensAverages = useMemo(() => {
     return LENS_STEPS.map((lens) => {
@@ -498,7 +514,7 @@ export default function DiagnosticWizardPage() {
         </div>
       </div>
 
-      {showHelp && (
+      {modalRoot && showHelp && createPortal(
         <div className="help-modal-overlay" onClick={() => setShowHelp(false)}>
           <div className="help-modal" onClick={(e) => e.stopPropagation()}>
             <button className="help-modal-close" onClick={() => setShowHelp(false)} aria-label="Close">✕</button>
@@ -524,10 +540,11 @@ export default function DiagnosticWizardPage() {
               💡 <strong>Pro tip:</strong> The Pro model unlocks deeper questions per lens and generates a full written diagnostic report you can share with stakeholders.
             </p>
           </div>
-        </div>
+        </div>,
+        modalRoot,
       )}
 
-      {showProcessEditor && (
+      {modalRoot && showProcessEditor && createPortal(
         <div className="modal-overlay" onClick={() => setShowProcessEditor(false)}>
           <div className="modal-content process-edit-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -581,7 +598,8 @@ export default function DiagnosticWizardPage() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        modalRoot,
       )}
 
       {/* Error banner */}
@@ -639,53 +657,35 @@ export default function DiagnosticWizardPage() {
       {mainTab === 'diagnostic' && (
         <div className="diagnostic-tab-content diagnostic-tab-content-full">
           <div className="diagnostic-layout">
-            <div className="diagnostic-question-column">
-              <div className="diagnostic-active-lens-block diagnostic-active-lens-block-left" aria-live="polite">
-                <h3 className="diagnostic-active-lens-title">{activeLens.title}</h3>
+            <section className="diagnostic-mobile-lens-switcher" aria-label="Lens selector">
+              <div className="diagnostic-mobile-lens-switcher-header">
+                <h3>Choose a lens</h3>
+                <p>Tap a lens first, then answer the questions below.</p>
               </div>
-              <section className="diagnostic-card diagnostic-question-panel">
-                <div className="diagnostic-question-list">
-                  {activeLens.questions.map((question) => (
-                    <div key={question.id} className="diagnostic-question-card">
-                      <div className="diagnostic-question-copy">
-                        <h3>{question.prompt}</h3>
-                        <p>{question.help}</p>
-                      </div>
-                      <div className="diagnostic-scale" role="radiogroup" aria-label={question.prompt}>
-                        {[1, 2, 3, 4, 5].map((value) => (
-                          <button
-                            key={value}
-                            type="button"
-                            className={`diagnostic-scale-option ${ratings[question.id] === value ? 'active' : ''}`}
-                            onClick={() => handleRatingChange(question.id, value as Rating)}
-                            disabled={isSaving}
-                            aria-pressed={ratings[question.id] === value}
-                            aria-label={`${question.prompt} score ${value}`}
-                          >
-                            {value}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              <div className="diagnostic-mobile-lens-switcher-grid">
+                {LENS_STEPS.map((lens, index) => {
+                  const average = lensAverages[index].average;
+                  const valueText = average > 0 ? average.toFixed(1) : '—';
 
-                <div className="diagnostic-note">
-                  <label htmlFor={`${activeLens.key}-notes`}>Optional lens notes</label>
-                  <textarea
-                    id={`${activeLens.key}-notes`}
-                    rows={3}
-                    value={notes[activeLens.key]}
-                    onChange={(e) => setNotes((prev) => ({ ...prev, [activeLens.key]: e.target.value }))}
-                    onBlur={(e) => void handleLensNoteBlur(activeLens.key, e.target.value)}
-                    placeholder="Add anything that is not captured by the rating questions."
-                  />
-                </div>
-
-                <p className="diagnostic-pro-hint">Pro model includes more questions for deeper insights.</p>
-
-              </section>
-            </div>
+                  return (
+                    <button
+                      key={lens.key}
+                      type="button"
+                      className={`diagnostic-mobile-lens-button ${index === currentLensIndex ? 'active' : ''}`}
+                      onClick={() => setCurrentLensIndex(index)}
+                      aria-label={`Select ${lens.title}`}
+                    >
+                      <span className={`diagnostic-mobile-lens-icon ${index === currentLensIndex ? 'active' : ''}`}>
+                        <span className="diagnostic-mobile-lens-icon-mask">
+                          <img src={LENS_TAB_ICONS[lens.key as LensKey]} alt="" className="diagnostic-mobile-lens-image" />
+                        </span>
+                      </span>
+                      <span className="diagnostic-mobile-lens-value">{valueText}/5</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
 
             <aside className="diagnostic-radar-column">
               <div className="diagnostic-score-panel" aria-label="Lens score comparison">
@@ -726,6 +726,53 @@ export default function DiagnosticWizardPage() {
                 })}
               </div>
             </aside>
+
+            <div className="diagnostic-question-column">
+              <div className="diagnostic-active-lens-block diagnostic-active-lens-block-left" aria-live="polite">
+                <h3 className="diagnostic-active-lens-title">{activeLens.title}</h3>
+              </div>
+              <section className="diagnostic-card diagnostic-question-panel">
+                <div className="diagnostic-question-list">
+                  {activeLens.questions.map((question) => (
+                    <div key={question.id} className="diagnostic-question-card">
+                      <div className="diagnostic-question-copy">
+                        <h3>{question.prompt}</h3>
+                        <p>{question.help}</p>
+                      </div>
+                      <div className="diagnostic-scale" role="radiogroup" aria-label={question.prompt}>
+                        {[1, 2, 3, 4, 5].map((value) => (
+                          <button
+                            key={value}
+                            type="button"
+                            className={`diagnostic-scale-option ${ratings[question.id] === value ? 'active' : ''}`}
+                            onClick={() => handleRatingChange(question.id, value as Rating)}
+                            disabled={isSaving}
+                            aria-pressed={ratings[question.id] === value}
+                            aria-label={`${question.prompt} score ${value}`}
+                          >
+                            {value}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="diagnostic-note">
+                  <textarea
+                    id={`${activeLens.key}-notes`}
+                    rows={3}
+                    value={notes[activeLens.key]}
+                    onChange={(e) => setNotes((prev) => ({ ...prev, [activeLens.key]: e.target.value }))}
+                    onBlur={(e) => void handleLensNoteBlur(activeLens.key, e.target.value)}
+                    placeholder="Add anything that is not captured by the rating questions (optional)."
+                  />
+                </div>
+
+                <p className="diagnostic-pro-hint">Pro model includes more questions for deeper insights.</p>
+
+              </section>
+            </div>
           </div>
         </div>
         )}

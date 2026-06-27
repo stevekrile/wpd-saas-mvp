@@ -5,6 +5,7 @@ export interface WpdUser {
   subscriptionTierId: number;
   subscriptionTierName: string;
   defaultWorkspaceId?: number;
+  role: string;
 }
 
 export interface Process {
