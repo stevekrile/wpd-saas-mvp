@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { agencyApi } from '../../api/agencyApi';
 import { processApi } from '../../api/processApi';
+import type { DiagnosticLlmResultHistoryItem, LlmProvider } from '../../api/processApi';
+import { llmCredentialApi } from '../../api/llmCredentialApi';
 import { clearDraft, loadDraft, saveDraft } from '../../utils/draftStorage';
 import '../../components/styles/ProcessDiscoveryModal.css';
 
@@ -36,6 +41,13 @@ const LENS_TAB_ICONS: Record<LensKey, string> = {
   information: '/images/lens-information-tab-icon.svg',
   human: '/images/lens-human-tab-icon.svg',
   organizational: '/images/lens-organizational-tab-icon.svg',
+};
+
+const LENS_ADVICE_FOCUS: Record<LensKey, string> = {
+  business: 'governance clarity, policy consistency, ownership, and decision authority',
+  information: 'data model quality, data capture friction, validation, and reporting readiness',
+  human: 'skills, behavior readiness, capacity constraints, and motivation alignment',
+  organizational: 'role clarity, structural enablement, sponsorship, and resource commitment',
 };
 
 const LENS_STEPS: LensStep[] = [
@@ -176,6 +188,33 @@ function isMainTab(value: unknown): value is MainTab {
   return value === 'process' || value === 'diagnostic' || value === 'summary';
 }
 
+function isLlmProvider(value: string): value is LlmProvider {
+  return value === 'openai' || value === 'anthropic';
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    typeof (error as { response?: unknown }).response === 'object' &&
+    (error as { response?: unknown }).response !== null
+  ) {
+    const response = (error as { response: { data?: unknown } }).response;
+    const data = response.data;
+    if (typeof data === 'object' && data !== null && 'error' in data && typeof (data as { error?: unknown }).error === 'string') {
+      return (data as { error: string }).error;
+    }
+  }
+
+  return error instanceof Error ? error.message : fallback;
+}
+
+function formatPromptField(value: string | undefined | null): string {
+  const trimmed = value?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : 'Not provided';
+}
+
 export default function DiagnosticWizardPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -200,6 +239,17 @@ export default function DiagnosticWizardPage() {
   const [showHelp, setShowHelp] = useState(false);
   const [showProcessEditor, setShowProcessEditor] = useState(false);
   const [processFormError, setProcessFormError] = useState<string | null>(null);
+  const [promptBuildError, setPromptBuildError] = useState<string | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<LlmProvider>('openai');
+  const [llmResponse, setLlmResponse] = useState('');
+  const [isGeneratingResponse, setIsGeneratingResponse] = useState(false);
+  const [llmError, setLlmError] = useState<string | null>(null);
+  const [copiedMarkdownSection, setCopiedMarkdownSection] = useState<'current' | 'history' | null>(null);
+  const copyFeedbackTimerRef = useRef<number | null>(null);
+  const [selectedHistoryEntry, setSelectedHistoryEntry] = useState<DiagnosticLlmResultHistoryItem | null>(null);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [deletingHistoryItemId, setDeletingHistoryItemId] = useState<number | null>(null);
+  const [optimisticArchivedHistoryEntry, setOptimisticArchivedHistoryEntry] = useState<DiagnosticLlmResultHistoryItem | null>(null);
   const [processForm, setProcessForm] = useState({
     name: '',
     description: '',
@@ -212,6 +262,48 @@ export default function DiagnosticWizardPage() {
     queryFn: () => processApi.getProcess(processId),
     enabled: Number.isFinite(processId) && processId > 0,
   });
+
+  const {
+    data: agencyProfile,
+    isError: isAgencyProfileError,
+    isFetching: isAgencyProfileFetching,
+  } = useQuery({
+    queryKey: ['agency-profile'],
+    queryFn: agencyApi.getAgencyProfile,
+    retry: false,
+  });
+
+  const { data: credentialStatuses = [], isFetching: isCredentialStatusFetching } = useQuery({
+    queryKey: ['llm-credentials'],
+    queryFn: llmCredentialApi.getStatuses,
+  });
+
+  const { data: currentLlmResult } = useQuery({
+    queryKey: ['diagnostic-llm-result', processId],
+    queryFn: () => processApi.getDiagnosticLlmResult(processId),
+    enabled: Number.isFinite(processId) && processId > 0,
+  });
+
+  const { data: llmResultHistory } = useQuery({
+    queryKey: ['diagnostic-llm-result-history', processId],
+    queryFn: () => processApi.getDiagnosticLlmResultHistory(processId),
+    enabled: Number.isFinite(processId) && processId > 0,
+  });
+
+  const displayedHistoryItems = useMemo(() => {
+    const serverItems = llmResultHistory?.items ?? [];
+    if (!optimisticArchivedHistoryEntry) {
+      return serverItems;
+    }
+
+    const optimisticNormalized = optimisticArchivedHistoryEntry.resultMarkdown.trim();
+    const alreadyPersisted = serverItems.some((item) => item.resultMarkdown.trim() === optimisticNormalized);
+    if (alreadyPersisted) {
+      return serverItems;
+    }
+
+    return [optimisticArchivedHistoryEntry, ...serverItems];
+  }, [llmResultHistory?.items, optimisticArchivedHistoryEntry]);
 
   useEffect(() => {
     if (!Number.isFinite(processId) || processId <= 0) {
@@ -322,7 +414,7 @@ export default function DiagnosticWizardPage() {
   }, [process]);
 
   useEffect(() => {
-    if (!showHelp && !showProcessEditor) {
+    if (!showHelp && !showProcessEditor && !showHistoryModal) {
       return;
     }
 
@@ -333,7 +425,28 @@ export default function DiagnosticWizardPage() {
     return () => {
       body.style.overflow = previousOverflow;
     };
-  }, [showHelp, showProcessEditor]);
+  }, [showHelp, showProcessEditor, showHistoryModal]);
+
+  useEffect(() => {
+    if (isGeneratingResponse) {
+      return;
+    }
+
+    setLlmResponse(currentLlmResult?.resultMarkdown ?? '');
+  }, [currentLlmResult?.resultMarkdown, isGeneratingResponse]);
+
+  useEffect(() => {
+    if (!optimisticArchivedHistoryEntry) {
+      return;
+    }
+
+    const serverItems = llmResultHistory?.items ?? [];
+    const optimisticNormalized = optimisticArchivedHistoryEntry.resultMarkdown.trim();
+    const isPersisted = serverItems.some((item) => item.resultMarkdown.trim() === optimisticNormalized);
+    if (isPersisted) {
+      setOptimisticArchivedHistoryEntry(null);
+    }
+  }, [llmResultHistory?.items, optimisticArchivedHistoryEntry]);
 
   useEffect(() => {
     if (!showProcessEditor || !processEditorDraftKey) {
@@ -418,6 +531,84 @@ export default function DiagnosticWizardPage() {
     }
   };
 
+  useEffect(() => {
+    return () => {
+      if (copyFeedbackTimerRef.current !== null) {
+        window.clearTimeout(copyFeedbackTimerRef.current);
+      }
+    };
+  }, []);
+
+  const copyMarkdownToClipboard = async (content: string, section: 'current' | 'history') => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedMarkdownSection(section);
+      if (copyFeedbackTimerRef.current !== null) {
+        window.clearTimeout(copyFeedbackTimerRef.current);
+      }
+      copyFeedbackTimerRef.current = window.setTimeout(() => {
+        setCopiedMarkdownSection(null);
+        copyFeedbackTimerRef.current = null;
+      }, 2000);
+    } catch {
+      setLlmError('Failed to copy response. Please copy manually.');
+    }
+  };
+
+  const formatHistoryTimestamp = (createdAt: string) => {
+    const hasTimeZone = /z$|[+-]\d{2}:\d{2}$/i.test(createdAt);
+    const normalized = hasTimeZone ? createdAt : `${createdAt}Z`;
+    const date = new Date(normalized);
+    if (Number.isNaN(date.getTime())) {
+      return createdAt;
+    }
+
+    return new Intl.DateTimeFormat(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      timeZoneName: 'short',
+    }).format(date);
+  };
+
+  const formatHistoryProvider = (provider: string) => {
+    const normalized = provider.trim().toLowerCase();
+    if (normalized === 'openai') {
+      return 'OpenAI';
+    }
+    if (normalized === 'anthropic') {
+      return 'Anthropic';
+    }
+
+    return provider.trim() || 'Unknown';
+  };
+
+  const formatTokenCount = (totalTokens?: number) => {
+    if (typeof totalTokens !== 'number' || !Number.isFinite(totalTokens) || totalTokens < 0) {
+      return 'Unavailable';
+    }
+
+    const formatted = new Intl.NumberFormat().format(totalTokens);
+    return `${formatted} tokens`;
+  };
+
+  const openHistoryEntryModal = (entry: DiagnosticLlmResultHistoryItem) => {
+    setSelectedHistoryEntry(entry);
+    setShowHistoryModal(true);
+  };
+
+  const deleteHistoryEntry = (entry: DiagnosticLlmResultHistoryItem) => {
+    const confirmed = window.confirm('Delete this saved response from history?');
+    if (!confirmed) {
+      return;
+    }
+
+    deleteHistoryItemMutation.mutate(entry.id);
+  };
+
   const updateProcessMutation = useMutation({
     mutationFn: async () => {
       await processApi.updateProcess(processId, processForm);
@@ -433,6 +624,52 @@ export default function DiagnosticWizardPage() {
     },
     onError: () => {
       setProcessFormError('Failed to save process details. Please try again.');
+    },
+  });
+
+  const sendLlmMutation = useMutation({
+    mutationFn: async (prompt: string) => {
+      return processApi.sendLlmHarnessPrompt(processId, {
+        provider: selectedProvider,
+        prompt,
+      });
+    },
+    onSuccess: (data) => {
+      setIsGeneratingResponse(false);
+      setLlmError(null);
+      setLlmResponse(data.completion);
+      void queryClient.invalidateQueries({ queryKey: ['diagnostic-llm-result', processId] });
+      void queryClient.invalidateQueries({ queryKey: ['diagnostic-llm-result-history', processId] });
+    },
+    onError: (error) => {
+      setIsGeneratingResponse(false);
+      setLlmResponse('');
+      setLlmError(getErrorMessage(error, 'Failed to send prompt to LLM.'));
+      void queryClient.invalidateQueries({ queryKey: ['diagnostic-llm-result', processId] });
+      void queryClient.invalidateQueries({ queryKey: ['diagnostic-llm-result-history', processId] });
+    },
+  });
+
+  const deleteHistoryItemMutation = useMutation({
+    mutationFn: async (historyItemId: number) => {
+      await processApi.deleteDiagnosticLlmResultHistoryItem(processId, historyItemId);
+    },
+    onMutate: (historyItemId) => {
+      setDeletingHistoryItemId(historyItemId);
+    },
+    onSuccess: async (_, historyItemId) => {
+      if (selectedHistoryEntry?.id === historyItemId) {
+        setShowHistoryModal(false);
+        setSelectedHistoryEntry(null);
+      }
+      setLlmError(null);
+      await queryClient.invalidateQueries({ queryKey: ['diagnostic-llm-result-history', processId] });
+    },
+    onError: (error) => {
+      setLlmError(getErrorMessage(error, 'Failed to delete saved response.'));
+    },
+    onSettled: () => {
+      setDeletingHistoryItemId(null);
     },
   });
 
@@ -461,6 +698,114 @@ export default function DiagnosticWizardPage() {
     }
 
     updateProcessMutation.mutate();
+  };
+
+  const buildPrompt = (): string | null => {
+    if (!process) {
+      setPromptBuildError('Process details are still loading. Please try again in a moment.');
+      return null;
+    }
+
+    const lensSections = LENS_STEPS.map((lens) => {
+      const average = lensAverages.find((entry) => entry.key === lens.key)?.average ?? 0;
+      const formattedAverage = average > 0 ? average.toFixed(2) : 'No score yet';
+      const agencyLens = agencyProfile?.lenses.find((entry) => entry.lensKey === lens.key);
+      const agencyScore = agencyLens?.agencyScore !== null && agencyLens?.agencyScore !== undefined
+        ? agencyLens.agencyScore.toFixed(2)
+        : 'No agency score yet';
+      const agencyCoverage = agencyLens
+        ? `${agencyLens.answeredStatements}/${agencyLens.totalStatements}`
+        : 'No agency profile data available';
+      const lensNote = formatPromptField(notes[lens.key]);
+      const questionLines = lens.questions.map((question) => {
+        const rating = ratings[question.id];
+        const scoreText = typeof rating === 'number' ? `${rating}/5` : 'Unanswered';
+        return `- ${question.prompt}\n  Score: ${scoreText}\n  Diagnostic intent: ${question.help}`;
+      }).join('\n');
+
+      return `## ${lens.title}
+Lens key: ${lens.key}
+Diagnostic average: ${formattedAverage}
+User agency score: ${agencyScore}
+Agency response coverage: ${agencyCoverage}
+Lens observation note: ${lensNote}
+Advice focus for this lens: ${LENS_ADVICE_FOCUS[lens.key]}
+
+Question responses:
+${questionLines}`;
+    }).join('\n\n');
+
+    const prompt = `You are a WPD process-design analysis assistant. Produce a harnessed recommendation output that applies Whole Process Design (WPD) intellectual property and framing.
+
+WPD IP anchoring rules (non-negotiable):
+1. Use the four-lens structure exactly: Business Systems, Information Systems, People Systems, Organizational Systems.
+2. Keep process design recommendations grounded in system interactions, not generic productivity advice.
+3. Treat low-scoring lenses and low-agency lenses as design constraints that must change the sequence and intensity of recommendations.
+4. Provide process-specific actions for each lens with explicit rationale.
+
+Context: Process being designed
+- Process name: ${formatPromptField(process.name)}
+- Description: ${formatPromptField(process.description)}
+- Problem statement: ${formatPromptField(process.problemStatement)}
+- Context: ${formatPromptField(process.context)}
+
+Diagnostic and agency evidence
+${lensSections}
+
+Required output format:
+1. Executive synthesis (6-10 bullets) summarizing the core process risk pattern.
+2. Per-lens guidance (one section per lens in this order: Business, Information, People, Organizational). For each lens include:
+   - Current diagnosis (what the evidence says)
+   - Interaction with user agency score (how capability/readiness changes the plan)
+   - 3 concrete process design actions specific to this process
+   - 2 measurable checkpoints to validate progress
+3. Cross-lens integration plan:
+   - Highest-leverage sequence across lenses for the next 30 days
+   - Dependencies and tradeoffs
+4. Risk watchlist:
+   - Top 5 likely failure modes if recommendations are not followed
+5. Prompt-constrained language:
+   - Keep guidance practical, specific, and tied to the evidence above.
+   - Do not ask for more data unless absolutely essential; make best-evidence recommendations now.`;
+
+    setPromptBuildError(null);
+    setLlmError(null);
+    setLlmResponse('');
+    return prompt;
+  };
+
+  const selectedProviderStatus = credentialStatuses.find((status) => status.provider === selectedProvider);
+
+  const buildAndPrompt = () => {
+    if (!selectedProviderStatus?.isConfigured) {
+      setLlmError(`No ${selectedProvider === 'openai' ? 'OpenAI' : 'Anthropic'} key is connected. Open Settings → AI Accounts to connect one.`);
+      return;
+    }
+
+    const prompt = buildPrompt();
+    if (!prompt) {
+      return;
+    }
+
+    const responseToArchive = llmResponse.trim();
+    if (responseToArchive) {
+      setOptimisticArchivedHistoryEntry({
+        id: -Date.now(),
+        resultMarkdown: llmResponse,
+        provider: currentLlmResult?.provider ?? '',
+        model: currentLlmResult?.model ?? '',
+        promptTokens: currentLlmResult?.promptTokens,
+        completionTokens: currentLlmResult?.completionTokens,
+        totalTokens: currentLlmResult?.totalTokens,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    setLlmError(null);
+    setCopiedMarkdownSection(null);
+    setLlmResponse('');
+    setIsGeneratingResponse(true);
+    sendLlmMutation.mutate(prompt);
   };
 
   if (isLoading) {
@@ -602,6 +947,47 @@ export default function DiagnosticWizardPage() {
                 <button type="button" className="btn-primary" onClick={saveProcessDetails} disabled={updateProcessMutation.isPending}>
                   {updateProcessMutation.isPending ? 'Saving...' : 'Save Changes'}
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        modalRoot,
+      )}
+
+      {modalRoot && showHistoryModal && selectedHistoryEntry && createPortal(
+        <div className="modal-overlay" onClick={() => setShowHistoryModal(false)}>
+          <div className="modal-content process-edit-modal summary-history-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="summary-history-modal-header-segment">
+              <div className="summary-history-modal-close-row">
+                <button
+                  type="button"
+                  className="btn-icon summary-history-modal-close-button"
+                  onClick={() => setShowHistoryModal(false)}
+                  aria-label="Close saved response"
+                  title="Close"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="modal-header">
+                <h2>Saved Response</h2>
+                <span className="summary-history-modal-date">{formatHistoryTimestamp(selectedHistoryEntry.createdAt)}</span>
+              </div>
+            </div>
+            <div className="summary-history-modal-scroll">
+              <div className="summary-markdown-output" aria-label="Saved LLM history response">
+                <button
+                  type="button"
+                  className="summary-markdown-copy-button"
+                  aria-label={copiedMarkdownSection === 'history' ? 'Copied' : 'Copy markdown'}
+                  title={copiedMarkdownSection === 'history' ? 'Copied' : 'Copy'}
+                  onClick={() => void copyMarkdownToClipboard(selectedHistoryEntry.resultMarkdown, 'history')}
+                >
+                  {copiedMarkdownSection === 'history' ? '✓' : '⧉'}
+                </button>
+                <div className="summary-markdown-body">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedHistoryEntry.resultMarkdown}</ReactMarkdown>
+                </div>
               </div>
             </div>
           </div>
@@ -813,6 +1199,128 @@ export default function DiagnosticWizardPage() {
                   <p className="summary-placeholder">
                     Summary analysis will appear here after you complete the diagnostic. This will include key patterns, recommendations, and next steps based on your lens ratings.
                   </p>
+                </div>
+
+                <div className="summary-section">
+                  <h3>Analysis</h3>
+                  {isAgencyProfileError && (
+                    <p className="summary-prompt-warning">
+                      Agency profile data could not be loaded. The prompt will still build using process and diagnostic inputs.
+                    </p>
+                  )}
+                  {!isAgencyProfileError && isAgencyProfileFetching && (
+                    <p className="summary-prompt-warning">Refreshing agency profile data...</p>
+                  )}
+                  <div className="summary-llm-controls">
+                    <label htmlFor="summary-llm-provider">Provider</label>
+                    <select
+                      id="summary-llm-provider"
+                      value={selectedProvider}
+                      onChange={(e) => {
+                        if (isLlmProvider(e.target.value)) {
+                          setSelectedProvider(e.target.value);
+                          setLlmError(null);
+                        }
+                      }}
+                    >
+                      <option value="openai">OpenAI</option>
+                      <option value="anthropic">Anthropic</option>
+                    </select>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      onClick={buildAndPrompt}
+                      disabled={sendLlmMutation.isPending || isCredentialStatusFetching || !selectedProviderStatus?.isConfigured}
+                    >
+                      {sendLlmMutation.isPending ? 'Generating...' : 'Run Analysis'}
+                    </button>
+                  </div>
+                  {!isCredentialStatusFetching && !selectedProviderStatus?.isConfigured && (
+                    <p className="summary-prompt-warning">
+                      No {selectedProvider === 'openai' ? 'OpenAI' : 'Anthropic'} key connected. Connect one in{' '}
+                      <Link to="/settings/ai-accounts">Settings → AI Accounts</Link>.
+                    </p>
+                  )}
+                  {promptBuildError && <div className="error-message">{promptBuildError}</div>}
+                  {llmError && <div className="error-message">{llmError}</div>}
+                  {(isGeneratingResponse || llmResponse) && (
+                    <div className="summary-section">
+                      <div className="summary-markdown-output" aria-label="LLM harnessed response">
+                        {isGeneratingResponse ? (
+                          <div className="summary-generating-state" role="status" aria-live="polite">
+                            <span className="summary-generating-spinner" aria-hidden="true" />
+                            <span>Generating response...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              className="summary-markdown-copy-button"
+                              aria-label={copiedMarkdownSection === 'current' ? 'Copied' : 'Copy markdown'}
+                              title={copiedMarkdownSection === 'current' ? 'Copied' : 'Copy'}
+                              onClick={() => void copyMarkdownToClipboard(llmResponse, 'current')}
+                            >
+                              {copiedMarkdownSection === 'current' ? '✓' : '⧉'}
+                            </button>
+                            <div className="summary-markdown-body">
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>{llmResponse}</ReactMarkdown>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {displayedHistoryItems.length ? (
+                    <div className="summary-section">
+                      <h4>Saved Response History</h4>
+                      <div className="summary-history-table-wrap">
+                        <table className="summary-history-table">
+                          <thead>
+                            <tr>
+                              <th scope="col">Created</th>
+                              <th scope="col">AI / Tokens</th>
+                              <th scope="col">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {displayedHistoryItems.map((entry) => {
+                              const isOptimisticEntry = entry.id < 0;
+                              return (
+                                <tr key={entry.id}>
+                                  <td>{formatHistoryTimestamp(entry.createdAt)}</td>
+                                  <td>{`${formatHistoryProvider(entry.provider)} / ${formatTokenCount(entry.totalTokens)}`}</td>
+                                  <td>
+                                    <div className="summary-history-row-actions">
+                                      <button
+                                        type="button"
+                                        className="btn-icon summary-history-action-button"
+                                        onClick={() => openHistoryEntryModal(entry)}
+                                        disabled={deletingHistoryItemId === entry.id || isOptimisticEntry}
+                                        aria-label="View saved response"
+                                        title="View"
+                                      >
+                                        👁
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="btn-icon summary-history-action-button summary-history-delete-button"
+                                        onClick={() => deleteHistoryEntry(entry)}
+                                        disabled={deletingHistoryItemId === entry.id || isOptimisticEntry}
+                                        aria-label={deletingHistoryItemId === entry.id ? 'Deleting saved response' : 'Delete saved response'}
+                                        title={deletingHistoryItemId === entry.id ? 'Deleting...' : 'Delete'}
+                                      >
+                                        {deletingHistoryItemId === entry.id ? '…' : '🗑'}
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
 
               </div>

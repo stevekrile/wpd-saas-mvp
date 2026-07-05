@@ -6,6 +6,7 @@ using Wpd.Api.Middleware;
 using Wpd.Application.Services.Admin;
 using Wpd.Application.Services.Agency;
 using Wpd.Api.Security;
+using Wpd.Api.Services.Llm;
 using Wpd.Application.Services.Processes;
 using Wpd.Infrastructure.Data;
 using Wpd.Infrastructure.Data.SeedData;
@@ -14,6 +15,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddDataProtection();
 
 builder.Services.AddSwaggerGen(c =>
 {
@@ -88,6 +90,11 @@ builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<IAdminUsageService, AdminUsageService>();
 builder.Services.AddScoped<IAdminRecordAccessService, AdminRecordAccessService>();
 builder.Services.AddScoped<IAgencyProfileService, AgencyProfileService>();
+builder.Services.Configure<LlmHarnessOptions>(builder.Configuration.GetSection("LLM"));
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<ILlmApiKeyProtector, LlmApiKeyProtector>();
+builder.Services.AddScoped<ILlmCredentialService, LlmCredentialService>();
+builder.Services.AddScoped<ILlmHarnessService, LlmHarnessService>();
 
 var app = builder.Build();
 

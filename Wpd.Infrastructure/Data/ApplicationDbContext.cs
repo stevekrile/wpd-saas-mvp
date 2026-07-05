@@ -20,6 +20,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Diagnostic> Diagnostics { get; set; }
     public DbSet<DiagnosticResponse> DiagnosticResponses { get; set; }
     public DbSet<DiagnosticLensNote> DiagnosticLensNotes { get; set; }
+    public DbSet<DiagnosticLlmResult> DiagnosticLlmResults { get; set; }
     public DbSet<LensScore> LensScores { get; set; }
     public DbSet<SystemTension> SystemTensions { get; set; }
     public DbSet<UpgradeEvent> UpgradeEvents { get; set; }
@@ -29,6 +30,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<AdminRecordAccessEvent> AdminRecordAccessEvents { get; set; }
     public DbSet<AgencyProfile> AgencyProfiles { get; set; }
     public DbSet<AgencyLensAssessment> AgencyLensAssessments { get; set; }
+    public DbSet<UserLlmCredential> UserLlmCredentials { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -103,6 +105,35 @@ public class ApplicationDbContext : DbContext
             .WithMany(d => d.DiagnosticLensNotes)
             .HasForeignKey(n => n.DiagnosticId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DiagnosticLlmResult>()
+            .HasOne(r => r.Diagnostic)
+            .WithMany(d => d.DiagnosticLlmResults)
+            .HasForeignKey(r => r.DiagnosticId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DiagnosticLlmResult>()
+            .Property(r => r.ResultMarkdown)
+            .HasMaxLength(16000);
+
+        modelBuilder.Entity<DiagnosticLlmResult>()
+            .Property(r => r.Provider)
+            .HasMaxLength(50);
+
+        modelBuilder.Entity<DiagnosticLlmResult>()
+            .Property(r => r.Model)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<DiagnosticLlmResult>()
+            .HasIndex(r => new { r.DiagnosticId, r.CreatedAt });
+
+        modelBuilder.Entity<Diagnostic>()
+            .Property(d => d.CurrentLlmProvider)
+            .HasMaxLength(50);
+
+        modelBuilder.Entity<Diagnostic>()
+            .Property(d => d.CurrentLlmModel)
+            .HasMaxLength(120);
 
         modelBuilder.Entity<LensScore>()
             .HasOne(s => s.Diagnostic)
@@ -236,6 +267,32 @@ public class ApplicationDbContext : DbContext
             .HasOne(a => a.AgencyProfile)
             .WithMany(p => p.LensAssessments)
             .HasForeignKey(a => a.AgencyProfileId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<UserLlmCredential>()
+            .Property(c => c.UserId)
+            .HasMaxLength(450);
+
+        modelBuilder.Entity<UserLlmCredential>()
+            .Property(c => c.Provider)
+            .HasMaxLength(50);
+
+        modelBuilder.Entity<UserLlmCredential>()
+            .Property(c => c.EncryptedApiKey)
+            .HasMaxLength(4000);
+
+        modelBuilder.Entity<UserLlmCredential>()
+            .Property(c => c.KeyHint)
+            .HasMaxLength(32);
+
+        modelBuilder.Entity<UserLlmCredential>()
+            .HasIndex(c => new { c.UserId, c.Provider })
+            .IsUnique();
+
+        modelBuilder.Entity<UserLlmCredential>()
+            .HasOne(c => c.User)
+            .WithMany(u => u.LlmCredentials)
+            .HasForeignKey(c => c.UserId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

@@ -1,4 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { useAuth } from '@clerk/clerk-react';
+import { Link } from 'react-router-dom';
 import { type ThemeMode, useTheme } from '../../theme/useTheme';
 
 const THEME_OPTIONS: Array<{
@@ -32,6 +34,7 @@ function formatModeLabel(mode: ThemeMode, resolvedTheme: 'light' | 'dark') {
 }
 
 export default function ThemeMenu() {
+  const { isSignedIn } = useAuth();
   const { mode, resolvedTheme, setMode } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -107,6 +110,20 @@ export default function ThemeMenu() {
               </label>
             ))}
           </fieldset>
+
+          {isSignedIn && (
+            <>
+              <p className="theme-menu-title theme-menu-section-title">Settings</p>
+              <Link
+                to="/settings/ai-accounts"
+                className="theme-menu-settings-link"
+                onClick={() => setIsOpen(false)}
+              >
+                <span className="theme-menu-option-label">AI Accounts</span>
+                <span className="theme-menu-option-description">Manage your OpenAI and Anthropic connections.</span>
+              </Link>
+            </>
+          )}
         </div>
       )}
     </div>

@@ -245,4 +245,119 @@ public class ProcessService : IProcessService
         await _context.SaveChangesAsync();
         return true;
     }
+
+    public async Task<bool> ArchiveCurrentDiagnosticLlmResultAsync(int processId, string userId)
+    {
+        var diagnostic = await StartOrGetDiagnosticAsync(processId, userId);
+        if (diagnostic == null)
+        {
+            return false;
+        }
+
+        var currentResult = diagnostic.OverallSummary?.Trim();
+        if (string.IsNullOrEmpty(currentResult))
+        {
+            return true;
+        }
+
+        _context.DiagnosticLlmResults.Add(new DiagnosticLlmResult
+        {
+            DiagnosticId = diagnostic.Id,
+            ResultMarkdown = diagnostic.OverallSummary ?? string.Empty,
+            Provider = diagnostic.CurrentLlmProvider,
+            Model = diagnostic.CurrentLlmModel,
+            PromptTokens = diagnostic.CurrentLlmPromptTokens,
+            CompletionTokens = diagnostic.CurrentLlmCompletionTokens,
+            TotalTokens = diagnostic.CurrentLlmTotalTokens,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        diagnostic.OverallSummary = string.Empty;
+        diagnostic.CurrentLlmProvider = null;
+        diagnostic.CurrentLlmModel = null;
+        diagnostic.CurrentLlmPromptTokens = null;
+        diagnostic.CurrentLlmCompletionTokens = null;
+        diagnostic.CurrentLlmTotalTokens = null;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<DiagnosticLlmCurrentResult> GetDiagnosticLlmResultAsync(int processId, string userId)
+    {
+        var diagnostic = await StartOrGetDiagnosticAsync(processId, userId);
+        if (diagnostic == null)
+        {
+            return new DiagnosticLlmCurrentResult();
+        }
+
+        return new DiagnosticLlmCurrentResult
+        {
+            ResultMarkdown = diagnostic.OverallSummary ?? string.Empty,
+            Provider = diagnostic.CurrentLlmProvider ?? string.Empty,
+            Model = diagnostic.CurrentLlmModel ?? string.Empty,
+            PromptTokens = diagnostic.CurrentLlmPromptTokens,
+            CompletionTokens = diagnostic.CurrentLlmCompletionTokens,
+            TotalTokens = diagnostic.CurrentLlmTotalTokens
+        };
+    }
+
+    public async Task<List<DiagnosticLlmResult>> GetDiagnosticLlmResultHistoryAsync(int processId, string userId)
+    {
+        var diagnostic = await StartOrGetDiagnosticAsync(processId, userId);
+        if (diagnostic == null)
+        {
+            return new List<DiagnosticLlmResult>();
+        }
+
+        return await _context.DiagnosticLlmResults
+            .Where(result => result.DiagnosticId == diagnostic.Id)
+            .OrderByDescending(result => result.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<bool> DeleteDiagnosticLlmResultHistoryItemAsync(int processId, string userId, int historyItemId)
+    {
+        var diagnostic = await StartOrGetDiagnosticAsync(processId, userId);
+        if (diagnostic == null)
+        {
+            return false;
+        }
+
+        var historyItem = await _context.DiagnosticLlmResults
+            .FirstOrDefaultAsync(item => item.DiagnosticId == diagnostic.Id && item.Id == historyItemId);
+        if (historyItem == null)
+        {
+            return false;
+        }
+
+        _context.DiagnosticLlmResults.Remove(historyItem);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> SaveDiagnosticLlmResultAsync(
+        int processId,
+        string userId,
+        string resultMarkdown,
+        string provider,
+        string model,
+        int? promptTokens,
+        int? completionTokens,
+        int? totalTokens)
+    {
+        var diagnostic = await StartOrGetDiagnosticAsync(processId, userId);
+        if (diagnostic == null)
+        {
+            return false;
+        }
+
+        diagnostic.OverallSummary = resultMarkdown ?? string.Empty;
+        diagnostic.CurrentLlmProvider = (provider ?? string.Empty).Trim().ToLowerInvariant();
+        diagnostic.CurrentLlmModel = (model ?? string.Empty).Trim();
+        diagnostic.CurrentLlmPromptTokens = promptTokens;
+        diagnostic.CurrentLlmCompletionTokens = completionTokens;
+        diagnostic.CurrentLlmTotalTokens = totalTokens;
+        await _context.SaveChangesAsync();
+        return true;
+    }
 }

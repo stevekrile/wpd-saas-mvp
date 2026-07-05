@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Wpd.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using Wpd.Infrastructure.Data;
 namespace Wpd.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260705145538_AddDiagnosticLlmResultHistory")]
+    partial class AddDiagnosticLlmResultHistory
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -231,23 +234,6 @@ namespace Wpd.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<int?>("CurrentLlmCompletionTokens")
-                        .HasColumnType("int");
-
-                    b.Property<string>("CurrentLlmModel")
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.Property<int?>("CurrentLlmPromptTokens")
-                        .HasColumnType("int");
-
-                    b.Property<string>("CurrentLlmProvider")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<int?>("CurrentLlmTotalTokens")
-                        .HasColumnType("int");
-
                     b.Property<string>("OverallSummary")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -319,33 +305,16 @@ namespace Wpd.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("CompletionTokens")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<int>("DiagnosticId")
                         .HasColumnType("int");
 
-                    b.Property<string>("Model")
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.Property<int?>("PromptTokens")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Provider")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
                     b.Property<string>("ResultMarkdown")
                         .IsRequired()
                         .HasMaxLength(16000)
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("TotalTokens")
-                        .HasColumnType("int");
 
                     b.HasKey("Id");
 

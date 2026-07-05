@@ -70,3 +70,56 @@ public class DiagnosticLensNoteData
     public string NoteText { get; set; } = string.Empty;
     public DateTime? UpdatedAt { get; set; }
 }
+
+public class SendLlmHarnessRequest
+{
+    public string Provider { get; set; } = string.Empty;
+    public string Prompt { get; set; } = string.Empty;
+}
+
+public class SendLlmHarnessResponse
+{
+    public string Provider { get; set; } = string.Empty;
+    public string Model { get; set; } = string.Empty;
+    public string Completion { get; set; } = string.Empty;
+    public int? PromptTokens { get; set; }
+    public int? CompletionTokens { get; set; }
+    public int? TotalTokens { get; set; }
+}
+
+public class SaveDiagnosticLlmResultRequest
+{
+    public string ResultMarkdown { get; set; } = string.Empty;
+    public string Provider { get; set; } = string.Empty;
+    public string Model { get; set; } = string.Empty;
+    public int? PromptTokens { get; set; }
+    public int? CompletionTokens { get; set; }
+    public int? TotalTokens { get; set; }
+}
+
+public class GetDiagnosticLlmResultResponse
+{
+    public string ResultMarkdown { get; set; } = string.Empty;
+    public string Provider { get; set; } = string.Empty;
+    public string Model { get; set; } = string.Empty;
+    public int? PromptTokens { get; set; }
+    public int? CompletionTokens { get; set; }
+    public int? TotalTokens { get; set; }
+}
+
+public class GetDiagnosticLlmResultHistoryResponse
+{
+    public List<DiagnosticLlmResultHistoryItemResponse> Items { get; set; } = new();
+}
+
+public class DiagnosticLlmResultHistoryItemResponse
+{
+    public int Id { get; set; }
+    public string ResultMarkdown { get; set; } = string.Empty;
+    public string Provider { get; set; } = string.Empty;
+    public string Model { get; set; } = string.Empty;
+    public int? PromptTokens { get; set; }
+    public int? CompletionTokens { get; set; }
+    public int? TotalTokens { get; set; }
+    public DateTime CreatedAt { get; set; }
+}

@@ -71,8 +71,10 @@ The frontend dev server **should** use HTTPS:
 
 ```bash
 cd C:\Users\skril\source\repos\WPD\wpd-client
-npm run dev -- --https
+npm run dev
 ```
+
+The WPD Vite config already enforces HTTPS for local development; do not pass `--https` directly to Vite.
 
 Or update `vite.config.ts` to default to HTTPS:
 

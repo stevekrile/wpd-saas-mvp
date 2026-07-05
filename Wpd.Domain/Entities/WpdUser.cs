@@ -14,4 +14,5 @@ public class WpdUser
     // Navigation properties
     public SubscriptionTier? SubscriptionTier { get; set; }
     public Organization? Organization { get; set; }
+    public ICollection<UserLlmCredential> LlmCredentials { get; set; } = new List<UserLlmCredential>();
 }

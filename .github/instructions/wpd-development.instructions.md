@@ -21,7 +21,7 @@ The server listens on **`https://localhost:7193`** by default.
 
 ```bash
 cd C:\Users\skril\source\repos\WPD\wpd-client
-npm run dev -- --https
+npm run dev
 ```
 
 Frontend typically runs on **`https://localhost:5173`** (or next available port if in use).
@@ -56,3 +56,13 @@ Frontend typically runs on **`https://localhost:5173`** (or next available port 
 - Backend: `dotnet build` to verify no compilation errors
 - Frontend: `npm run build` for production build verification
 - Both: Run servers and manually test flow end-to-end
+
+## LLM Harness Configuration (Process Diagnostic)
+
+The Diagnostic Summary tab uses a BYOK (Bring Your Own Key) pattern:
+
+- Users save provider keys via `Connected AI Accounts` in the app UI.
+- Keys are encrypted server-side before storage.
+- Keys are never stored in frontend `.env` files or local storage.
+
+Server config under `LLM` in `Wpd.Api\appsettings*.json` is only for provider defaults such as `Model`, `BaseUrl`, and `MaxTokens`, not for shared API keys.

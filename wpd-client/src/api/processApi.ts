@@ -30,6 +30,55 @@ export interface SaveDiagnosticLensNoteRequest {
   noteText: string;
 }
 
+export type LlmProvider = 'openai' | 'anthropic';
+
+export interface SendLlmHarnessRequest {
+  provider: LlmProvider;
+  prompt: string;
+}
+
+export interface SendLlmHarnessResponse {
+  provider: string;
+  model: string;
+  completion: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+}
+
+export interface SaveDiagnosticLlmResultRequest {
+  resultMarkdown: string;
+  provider?: string;
+  model?: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+}
+
+export interface GetDiagnosticLlmResultResponse {
+  resultMarkdown: string;
+  provider: string;
+  model: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+}
+
+export interface DiagnosticLlmResultHistoryItem {
+  id: number;
+  resultMarkdown: string;
+  provider: string;
+  model: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  createdAt: string;
+}
+
+export interface GetDiagnosticLlmResultHistoryResponse {
+  items: DiagnosticLlmResultHistoryItem[];
+}
+
 export interface Process {
   id: number;
   name: string;
@@ -97,5 +146,34 @@ export const processApi = {
     request: SaveDiagnosticLensNoteRequest
   ): Promise<void> => {
     await apiClient.put(`/api/diagnostics/${processId}/lenses/${lensKey}/notes`, request);
+  },
+
+  sendLlmHarnessPrompt: async (
+    processId: number,
+    request: SendLlmHarnessRequest
+  ): Promise<SendLlmHarnessResponse> => {
+    const response = await apiClient.post<SendLlmHarnessResponse>(`/api/diagnostics/${processId}/llm-harness`, request);
+    return response.data;
+  },
+
+  getDiagnosticLlmResult: async (processId: number): Promise<GetDiagnosticLlmResultResponse> => {
+    const response = await apiClient.get<GetDiagnosticLlmResultResponse>(`/api/diagnostics/${processId}/llm-result`);
+    return response.data;
+  },
+
+  getDiagnosticLlmResultHistory: async (processId: number): Promise<GetDiagnosticLlmResultHistoryResponse> => {
+    const response = await apiClient.get<GetDiagnosticLlmResultHistoryResponse>(`/api/diagnostics/${processId}/llm-result-history`);
+    return response.data;
+  },
+
+  deleteDiagnosticLlmResultHistoryItem: async (processId: number, historyItemId: number): Promise<void> => {
+    await apiClient.delete(`/api/diagnostics/${processId}/llm-result-history/${historyItemId}`);
+  },
+
+  saveDiagnosticLlmResult: async (
+    processId: number,
+    request: SaveDiagnosticLlmResultRequest
+  ): Promise<void> => {
+    await apiClient.put(`/api/diagnostics/${processId}/llm-result`, request);
   },
 };

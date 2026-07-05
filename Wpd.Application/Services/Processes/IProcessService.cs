@@ -19,4 +19,27 @@ public interface IProcessService
     Task<Diagnostic?> StartOrGetDiagnosticAsync(int processId, string userId);
     Task<bool> SaveDiagnosticResponseAsync(int processId, string userId, int questionId, int numericResponse, string textResponse);
     Task<bool> SaveDiagnosticLensNoteAsync(int processId, string userId, string lensKey, string noteText);
+    Task<bool> ArchiveCurrentDiagnosticLlmResultAsync(int processId, string userId);
+    Task<DiagnosticLlmCurrentResult> GetDiagnosticLlmResultAsync(int processId, string userId);
+    Task<List<DiagnosticLlmResult>> GetDiagnosticLlmResultHistoryAsync(int processId, string userId);
+    Task<bool> DeleteDiagnosticLlmResultHistoryItemAsync(int processId, string userId, int historyItemId);
+    Task<bool> SaveDiagnosticLlmResultAsync(
+        int processId,
+        string userId,
+        string resultMarkdown,
+        string provider,
+        string model,
+        int? promptTokens,
+        int? completionTokens,
+        int? totalTokens);
+}
+
+public sealed class DiagnosticLlmCurrentResult
+{
+    public string ResultMarkdown { get; set; } = string.Empty;
+    public string Provider { get; set; } = string.Empty;
+    public string Model { get; set; } = string.Empty;
+    public int? PromptTokens { get; set; }
+    public int? CompletionTokens { get; set; }
+    public int? TotalTokens { get; set; }
 }
