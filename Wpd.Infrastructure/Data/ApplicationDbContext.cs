@@ -27,6 +27,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<AccountAdminState> AccountAdminStates { get; set; }
     public DbSet<AdminAuditEvent> AdminAuditEvents { get; set; }
     public DbSet<AdminRecordAccessEvent> AdminRecordAccessEvents { get; set; }
+    public DbSet<AgencyProfile> AgencyProfiles { get; set; }
+    public DbSet<AgencyLensAssessment> AgencyLensAssessments { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -205,5 +207,35 @@ public class ApplicationDbContext : DbContext
 
         modelBuilder.Entity<AdminRecordAccessEvent>()
             .HasIndex(e => new { e.ActorUserId, e.CreatedAt });
+
+        modelBuilder.Entity<AgencyProfile>()
+            .Property(p => p.UserId)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<AgencyProfile>()
+            .HasIndex(p => p.UserId)
+            .IsUnique();
+
+        modelBuilder.Entity<AgencyLensAssessment>()
+            .Property(a => a.LensKey)
+            .HasMaxLength(50);
+
+        modelBuilder.Entity<AgencyLensAssessment>()
+            .Property(a => a.LensName)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<AgencyLensAssessment>()
+            .Property(a => a.StatementText)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<AgencyLensAssessment>()
+            .HasIndex(a => new { a.AgencyProfileId, a.LensKey, a.StatementNumber })
+            .IsUnique();
+
+        modelBuilder.Entity<AgencyLensAssessment>()
+            .HasOne(a => a.AgencyProfile)
+            .WithMany(p => p.LensAssessments)
+            .HasForeignKey(a => a.AgencyProfileId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

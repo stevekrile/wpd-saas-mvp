@@ -1,9 +1,17 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { processApi } from '../../api/processApi';
+import { agencyApi } from '../../api/agencyApi';
 import { useWpdAuth } from '../../features/auth/AuthContext';
 import { useState } from 'react';
 import CreateProcessModal from '../../components/modals/CreateProcessModal';
+
+const LENS_TAB_ICONS: Record<string, string> = {
+  business: '/images/lens-business-tab-icon.svg',
+  information: '/images/lens-information-tab-icon.svg',
+  human: '/images/lens-human-tab-icon.svg',
+  organizational: '/images/lens-organizational-tab-icon.svg',
+};
 
 export default function DashboardPage() {
   const { wpdUser: user } = useWpdAuth();
@@ -20,6 +28,25 @@ export default function DashboardPage() {
   const { data: tierLimit } = useQuery({
     queryKey: ['tier-limit'],
     queryFn: processApi.checkTierLimit,
+  });
+  const { data: agencyProfile } = useQuery({
+    queryKey: ['agency-profile'],
+    queryFn: agencyApi.getAgencyProfile,
+  });
+  const latestProcess = processes && processes.length > 0 ? processes[0] : null;
+  const agencyLensScores = [
+    { lensKey: 'business', label: 'Business' },
+    { lensKey: 'information', label: 'Information' },
+    { lensKey: 'human', label: 'People' },
+    { lensKey: 'organizational', label: 'Organization' },
+  ].map((lens) => {
+    const matchingLens = agencyProfile?.lenses.find((item) => item.lensKey === lens.lensKey);
+    return {
+      ...lens,
+      scoreText: matchingLens?.agencyScore !== null && matchingLens?.agencyScore !== undefined
+        ? `${matchingLens.agencyScore.toFixed(1)}/5`
+        : '—/5',
+    };
   });
 
   const handleCreateProcess = () => {
@@ -63,18 +90,7 @@ export default function DashboardPage() {
         <div className="dashboard-header">
           <div>
             <h1>Welcome, {user?.displayName}</h1>
-            <p className="tier-badge">
-              {user?.subscriptionTierName} Tier
-              {tierLimit && (
-                <span className="tier-info">
-                  {' '}• {tierLimit.currentCount} of {tierLimit.maxAllowed} process(es)
-                </span>
-              )}
-            </p>
           </div>
-          <button onClick={handleCreateProcess} className="btn-primary">
-            Create Process
-          </button>
         </div>
 
         {tierLimitError && (
@@ -84,48 +100,89 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {processes && processes.length === 0 ? (
-          <div className="empty-state">
-            <h2>No processes yet</h2>
-            <p>Create your first process to start diagnosing with the Four System Lenses</p>
-            <button onClick={handleCreateProcess} className="btn-primary">
-              Create Process
-            </button>
-          </div>
-        ) : (
-          <div className="process-grid">
-            {processes?.map((process) => (
-              <div key={process.id} className="process-card">
-                <div className="process-card-header">
-                  <h3>{process.name}</h3>
-                  <span className={`status-badge status-${process.status.toLowerCase()}`}>
-                    {process.status}
+        <section className="dashboard-module-portal">
+          <div className="dashboard-module-grid">
+            <article className="dashboard-module-card">
+              <h3>Agency Profile</h3>
+              <p>Measure your agency across the four lenses to improve AI guidance context.</p>
+              <button
+                type="button"
+                onClick={() => navigate('/agency')}
+                className="dashboard-agency-score-row"
+                aria-label="Open Agency Profile questionnaire"
+              >
+                {agencyLensScores.map((lens) => (
+                  <span key={lens.lensKey} className="dashboard-agency-score-pill">
+                    <span className="dashboard-agency-score-icon-wrap" aria-hidden="true">
+                      <img
+                        src={LENS_TAB_ICONS[lens.lensKey]}
+                        alt=""
+                        className="dashboard-agency-score-icon"
+                      />
+                    </span>
+                    <strong>{lens.scoreText}</strong>
                   </span>
-                </div>
-                <p className="process-description">{process.description}</p>
-                {process.problemStatement && (
-                  <div className="process-problem">
-                    <strong>Problem:</strong> {process.problemStatement}
-                  </div>
-                )}
-                <div className="process-card-footer">
-                  <button
-                    onClick={() => navigate(`/processes/${process.id}/diagnostic`)}
-                    className="btn-secondary"
-                  >
-                    Open Diagnostic
-                  </button>
-                  <button
-                    onClick={() => handleDeleteProcess(process.id)}
-                    className="btn-danger"
-                  >
-                    Delete
-                  </button>
-                </div>
+                ))}
+              </button>
+            </article>
+
+            <article className="dashboard-module-card">
+              <div className="dashboard-module-card-header">
+                <h3>Process Diagnostic</h3>
+                <p className="tier-badge dashboard-module-tier-badge">
+                  {user?.subscriptionTierName} Tier
+                  {tierLimit && (
+                    <span className="tier-info">
+                      {' '}• {tierLimit.currentCount} of {tierLimit.maxAllowed} process(es)
+                    </span>
+                  )}
+                </p>
               </div>
-            ))}
+              <p>Create, run, and manage diagnostics across your active process portfolio.</p>
+              <div className="dashboard-module-card-footer">
+                <button onClick={handleCreateProcess} className="btn-secondary">
+                  New Diagnostic
+                </button>
+                <button
+                  onClick={() => latestProcess && navigate(`/processes/${latestProcess.id}/diagnostic`)}
+                  className="btn-secondary"
+                  disabled={!latestProcess}
+                >
+                  {latestProcess ? 'Continue Latest' : 'No Processes Yet'}
+                </button>
+              </div>
+              {processes && processes.length > 0 && (
+                <div className="dashboard-module-process-list">
+                  {processes.slice(0, 3).map((process) => (
+                    <div key={process.id} className="dashboard-module-process-item">
+                      <button
+                        onClick={() => navigate(`/processes/${process.id}/diagnostic`)}
+                        className="btn-text"
+                      >
+                        {process.name}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteProcess(process.id)}
+                        className="btn-text dashboard-module-delete"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </article>
           </div>
-        )}
+          {processes && processes.length === 0 && (
+            <div className="empty-state">
+              <h2>No processes yet</h2>
+              <p>Create your first process from the Process Diagnostic module.</p>
+              <button onClick={handleCreateProcess} className="btn-primary">
+                New Diagnostic
+              </button>
+            </div>
+          )}
+        </section>
       </div>
     </>
   );

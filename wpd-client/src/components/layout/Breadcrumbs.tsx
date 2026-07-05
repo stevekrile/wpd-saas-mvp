@@ -32,6 +32,14 @@ export default function Breadcrumbs() {
       ];
     }
 
+    if (path === '/agency') {
+      return [
+        { label: 'Home', href: '/', active: false },
+        { label: 'Dashboard', href: '/dashboard', active: false },
+        { label: 'Agency Profile', href: '/agency', active: true },
+      ];
+    }
+
     // Create process
     if (path === '/processes/create') {
       return [
@@ -47,7 +55,7 @@ export default function Breadcrumbs() {
         return [
           { label: 'Home', href: '/', active: false },
           { label: 'Dashboard', href: '/dashboard', active: false },
-          { label: 'WPD Lens Diagnostic', href: `/processes/${processId}/diagnostic`, active: true },
+          { label: 'Process Diagnostic', href: `/processes/${processId}/diagnostic`, active: true },
         ];
       }
 

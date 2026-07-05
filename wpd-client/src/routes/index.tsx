@@ -11,6 +11,7 @@ import CreateProcessPage from '../pages/app/CreateProcessPage';
 import ProcessDetailPage from '../pages/app/ProcessDetailPage';
 import DiagnosticWizardPage from '../pages/app/DiagnosticWizardPage';
 import AdminConsolePage from '../pages/app/AdminConsolePage';
+import AgencyProfilePage from '../pages/app/AgencyProfilePage';
 import { useWpdAuth } from '../features/auth/AuthContext';
 import type { ReactNode } from 'react';
 
@@ -61,6 +62,7 @@ export default function AppRoutes() {
           }
         >
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/agency" element={<AgencyProfilePage />} />
           <Route
             path="/admin"
             element={

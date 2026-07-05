@@ -485,6 +485,13 @@ export default function DiagnosticWizardPage() {
 
   return (
     <div className="diagnostic-page-v2">
+      <div className="diagnostic-page-header">
+        <div className="container">
+          <h1>Process Diagnostic</h1>
+          <p>Define your process, diagnose the four lenses, and consider your opportunity.</p>
+        </div>
+      </div>
+
       {/* Main tab navigation */}
       <div className="diagnostic-tab-nav">
         <div className="container">
@@ -658,10 +665,6 @@ export default function DiagnosticWizardPage() {
         <div className="diagnostic-tab-content diagnostic-tab-content-full">
           <div className="diagnostic-layout">
             <section className="diagnostic-mobile-lens-switcher" aria-label="Lens selector">
-              <div className="diagnostic-mobile-lens-switcher-header">
-                <h3>Choose a lens</h3>
-                <p>Tap a lens first, then answer the questions below.</p>
-              </div>
               <div className="diagnostic-mobile-lens-switcher-grid">
                 {LENS_STEPS.map((lens, index) => {
                   const average = lensAverages[index].average;

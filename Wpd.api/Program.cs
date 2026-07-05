@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Wpd.Api.Middleware;
 using Wpd.Application.Services.Admin;
+using Wpd.Application.Services.Agency;
 using Wpd.Api.Security;
 using Wpd.Application.Services.Processes;
 using Wpd.Infrastructure.Data;
@@ -86,6 +87,7 @@ builder.Services.AddScoped<IAdminAuditService, AdminAuditService>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<IAdminUsageService, AdminUsageService>();
 builder.Services.AddScoped<IAdminRecordAccessService, AdminRecordAccessService>();
+builder.Services.AddScoped<IAgencyProfileService, AgencyProfileService>();
 
 var app = builder.Build();
 

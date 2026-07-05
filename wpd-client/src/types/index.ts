@@ -52,3 +52,24 @@ export interface LandingContent {
   callToActionText: string;
   callToActionRoute: string;
 }
+
+export interface AgencyStatement {
+  statementNumber: number;
+  statementText: string;
+  score: number | null;
+}
+
+export interface AgencyLens {
+  lensKey: string;
+  lensName: string;
+  agencyScore: number | null;
+  answeredStatements: number;
+  totalStatements: number;
+  statements: AgencyStatement[];
+}
+
+export interface AgencyProfile {
+  userId: string;
+  updatedAt: string;
+  lenses: AgencyLens[];
+}
