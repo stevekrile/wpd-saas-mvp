@@ -5,16 +5,16 @@ A Practical Method for Fixing Systems You Don’t Fully Control
 Introduction — Who This Is for and What This Book Does
 
 In every business that is or ever was, there are people that take responsibility for delivering value. These people often manage other people, control major aspects of the business, and ensure quality service to their customers. These people are identified by many job titles, professions, backgrounds, and aspirations. But for our purposes, we will call them all by the much-maligned moniker: Middle Management.
-This group is expected to implement new information systems, adopt company policies, motivate their workers, meet operational deadlines, deliver high quality, and return value for the shareholders. How many of us have been told we are using some new software without proper training or alignment to how work really gets done. How often have we been handed a new KPI and wondered “what genius thought this up? Good luck making this number.” And don’t get me started on the new policy handed down from on-high that reflects a distinct misunderstanding of reality.
+This group is expected to implement new information systems, adopt company policies, motivate their workers, meet operational deadlines, deliver high quality, and return value for the shareholders. 
+How many of us have been told we are using some new software without proper training or alignment to how work really gets done. How often have we been handed a new KPI and wondered “what genius thought this up? Good luck making this number.” And don’t get me started on the new policy handed down from on high that reflects a distinct misunderstanding of reality.
 I love middle management. If you spend any time with any number of organizations, you realize that unlike our shared vision of success that culminates in occupying the corner office where all your dreams come true – the world is run by middle management. 
-Whether it feels like it or not, two things are always true: systems matter, and you are responsible for the system. 
+The best advice for any middle managers is: systems matter and you are responsible for the system. 
 You may not hold the keys (or the budget) to build the system of your dreams. It doesn’t matter. Perfect doesn’t exist. It never has. It never will. Waiting for someone else to fix it is how broken systems persist. 
 This book will teach you how to turn that uneasy feeling that something or someone is failing and turn it into precise diagnosis with a bias toward practical action. We will look at real-world examples that illustrate the most common weaknesses in business systems, a framework focusing on core aspects, and most importantly, practical guidance to move you toward solutions.
-In Part I, we identify why systems fail and start sharing language that can hone your thinking about the world you work in and where the most obvious weaknesses. We will look at the various types of failure from obvious mistakes to the more insidious system drift that sneak up on you often in times of most critical execution.
+In Part I, we identify why systems fail and start sharing language that can hone your thinking about the world you work in and where the most obvious weaknesses hide. We will look at the various types of failure from obvious mistakes to the more insidious system drift that sneak up on you often in times of most critical execution.
 Part II will lay out a framework that helps you put the problems you experience in the workplace into digestible chunks – separating out various signals you process every day into actionable categories. We will look at examples of how this framework expresses itself in the real world and work toward a model that can be used for every business process.
-Part III is when we roll our sleeves up and get to work. Spotting and naming the problem are good skills to have and worthy of focus, but now it’s time to move past flaws and conceive of a brighter future. We will look at techniques to break apart the systems you are looking to approve and determine which need attention, which are OK the way they are, which need to be completely reimagined.
-Part IV might be my favorite – this is when analysis and theory pay off. We will walk through the logic of designing a system that works. This is where the real power of a middle manager is exposed. You are confronted with so many overlapping aspects of any business, you hold the necessary insights to make the right decision about good system design – you just need the language to back up your instincts.
-Part V is where the rubber meets the road – execution. And here again is where Middle Management really shines. We are expected to build the plane while it’s flying – some might consider that crazy. We consider that just another Tuesday. We will discuss how to take the necessary steps to move from design to implementation. This involves consideration for sequencing, managing conflict, looking for signs of distress, and identifying the limits before it’s too late.
+Part III is when we roll our sleeves up and get to work. Spotting and naming the problem are good skills to have and worthy of focus, but now it’s time to move past flaws and conceive of a brighter future. We will look at techniques to break apart the systems you are looking to improve and determine which need attention, which are OK the way they are, which need to be completely reimagined.
+Part IV is where the rubber meets the road – execution. And here again is where Middle Management really shines. We are expected to build the plane while it’s flying – some might consider that crazy. We consider that just another Tuesday. We will discuss how to take the necessary steps to move from design to implementation. This involves consideration for sequencing, managing conflict, looking for signs of distress, and identifying the limits before it’s too late.
 When you are done with this book you will have the tools you need to make demonstrable changes in your organization. To the outsider, it will look like some kind of magic. People will wonder why your office always gets their work done on time, why your reports are reliable and accurate, why customer engagement scores are always the highest for your department, and why you have the lowest turnover in the company. With Whole Process Design in your pocket, you are limited by your imagination. There will always be constraints – time, money, people. Don’t let those constraints stand in your way.
 About the Author
 Steve Krile, CPE is a Certified Professional Ergonomist who has been working in the Health, Safety, and Environment fields for his entire career. He has consulted with the largest companies in the world focused on systemic risk management strategies. He lives in Ann Arbor, Michigan and is currently the Head of HSE for a tier-one automotive parts manufacturing company.
@@ -31,7 +31,7 @@ Large companies make money despite poor systems. Poor systems do not stop you fr
 Most businesses are cyclical and can experience highs and lows from factors beyond their control. With Whole Process Design you will be working to capitalize on the good times by investing in rational systems and weather the bad times by eliminating waste and inefficiencies.
 2. Nothing ever changes
 It is a rare company that isn’t trying to continuously improve. Initiatives for efficiency, quality, and profitability are an ever-present instinct. But some organizations find themselves captured by ideas that were good 20 years ago but are too ingrained to replace. 
-If you find yourself in this type of organization, it can be a self-fulfilling prophecy to think that change is not possible. Rather than focusing on the things about monolithic structures that cannot be changed, find improvements at the margins. Building success from small beginnings is a time-tested approach to breakthrough performance. And, if we are being honest with each other, building successful processes in any capacity is great for your resume. Whole Process Design is a muscle that will serve you well regardless of who you work for.
+If you find yourself in this type of organization, it can be a self-fulfilling prophecy to think that change is not possible. Rather than focusing on the things about monolithic structures that cannot be changed, find improvements at the margins. Building success from small beginnings is a time-tested approach to breakthrough performance. And, if we are honest with each other, building successful processes in any capacity is great for your resume. Whole Process Design is a muscle that will serve you well regardless of who you work for.
 3. System drift
 Have you ever completed a travel request form and wondered why you must answer four questions about citizenship every time? Did you know those questions were added to the system seven years ago when there was a proposed government regulation requiring proof of citizenship for all travel foreign or domestic? Did you know that rule never came in to being, and the person who proposed it be added no longer works for your company? If this sounds familiar, then you are already aware of system drift. 
 Systems are not static. There must be a balance between operational stability and continuous improvement. When we consider Whole Process Design, we will take careful consideration to line up the four System Lenses, but our work is not one-and-done. Good processes contain a built-in cadence for verification and self-improvement.
@@ -40,11 +40,11 @@ I am not an auto body expert. I don’t know how to repair a vehicle that has be
 How do they do that? They built an app that asks me to walk around my car (something I’ve been doing for years), film the car from every angle (something I know how to do and have the technology to accomplish), and answer simple questions about the color, make, and model of my car (something I can do by looking at the name plate on the bumper). 
 Many systems we encounter in our day-to-day work involve good intentions by experts in their fields but are overly prescriptive or rely on a deeper understanding of a topic for which the target actor is unable to deliver. You know you are working in this type of system when every field you interact with has a 20-page manual describing what that field means. Expansive help is often a signal of a system that was not designed for the person who needs to use it.
 5. Ghost in the machine
-A few years ago, a brilliant mind moved through our company inventing and imposing wonderful conceptual frameworks. They aligned each function to a shared purpose using consistent philosophy and expecting rational outcomes. We all knew what to do, and when we had questions, we got them answered immediately by this brilliant mind. That brilliant mind doesn’t work here anymore.
+A few years ago, a brilliant mind moved through our company, inventing and imposing wonderful conceptual frameworks. They aligned each function to a shared purpose using consistent philosophy and expecting rational outcomes. We all knew what to do, and when we had questions, we got them answered immediately by this brilliant mind. That brilliant mind doesn’t work here anymore.
 Now when we have questions, we are left to our own intuition to decide what’s right. Ownership over the frameworks has now been pieced out to three different functions, and none of them can agree on even simple principles. That brilliant mind is now a ghost in our machine – haunting execution and providing more drag than grease. 
 When you premise the design of your process on the talent of one exceptional individual, you are investing in future process debt should that person no longer be around. With Whole Process Design, we will be establishing processes that are reinforced by the alignment of shared principles across disciplines and embedded into the fabric of your organization – not revolutionary brilliance that can only be maintained by force of will.
 6. The river and the rock
-Imagine you are a large rock sitting in the middle of a river. Which statement is truer; “The river is changed by me”, or “I am changed by the river”. Of course, both are true during different conditions. When the water is rapid, the chance that you will be smooth and shaped increase, and when the water becomes more tranquil, you will stay the same while the water flows around you. 
+Imagine you are a large rock sitting in the middle of a river. Which statement is truer; “The river is changed by me”, or “I am changed by the river”. Of course, both are true during different conditions. When the water is rapid, the chance that you will be smoothed and shaped increases, and when the water becomes more tranquil, you will stay the same while the water flows around you. 
 Every process we design and participate in is necessarily shaped by the organization we work in – and simultaneously our organization is influenced by the processes we design. Without falling too far into navel-gazing, it’s worth noting that cause and effect for Whole Process Design flows in multiple directions.
 
  
@@ -52,63 +52,63 @@ PART II — SEEING SYSTEMS AS A WHOLE
 7. A Different Way to See Systems
 There are a lot of ways to enjoy music. For most people, music is a source of entertainment that can pick you up when feeling down, motivate you when you need a boost, challenge you when confronted with something new, or let you ease into a social situation with a shared familiarity. 
 Have you ever watched a “reaction video” on YouTube? This genre of content involves an expert watching or listening to some other content and giving their opinion. 
-One type of reaction video involves someone with deep theoretical music knowledge listening to a style of music they have little or no exposure to and making objective observations about what they are experiencing. What can be quite jarring is having a song you’ve known and loved your entire life be described as a 4/4 I-IV-V in D minor with a little break in the middle. How is it possible that the entirety of our emotional connection can be distilled into its constituent parts?
+One type of reaction video involves someone with deep theoretical music knowledge listening to a style of music they have little or no exposure to and making objective observations about what they are experiencing. What can be quite jarring is having a song you’ve known and loved your entire life be described as a 4/4 I-IV-V-IV in D minor with a little break in the middle. How is it possible that the entirety of our emotional connection can be distilled into its constituent parts? For the curious, that description applies to “Wild Thing” by the Troggs.
 The expert isn’t replacing your experience – they are revealing the structure that makes the experience possible. Music is an overlapping collection of simultaneous systems that need to work together to produce art. 
 Just as a musical expert is thinking about time signature, key, chord progression, and dynamics, we will focus on the simultaneous systems that are present in your everyday work. You will learn what those systems are, how they function independently, and most importantly, how they work together.
-We are moving from staring at a spreadsheet and cursing our bad luck that this is the system you are stuck with for monthly reporting and helping you see the bigger pattern of disfunction. When you encounter inefficiencies, misunderstandings, misalignment, and failed deliverables you will learn how to unpack all the possible causes to deliver a precise diagnosis. 
+We are moving from staring at a spreadsheet and cursing our bad luck that this is the system you are stuck with for monthly reporting to helping you see the bigger pattern of disfunction. When you encounter inefficiencies, misunderstandings, misalignment, and failed deliverables you will learn how to unpack all the possible causes to deliver a precise diagnosis. 
 Finally, we will cover an example that is well established in industry and show how the four elements must work together to provide a Whole Process Design. 
  
 8. The Four System Lenses
 At the heart of Whole Process Design are the following four system types. These systems act as a lens for us to consider when evaluating any system. In theory, we should be able to establish a business system, invest in logical information systems, align our people to execute efficiently, and fulfill the needs of our organization. 
 But reality is much more complicated. We don’t always have the means or opportunity to change all four systems when making improvements. The key is to recognize that they are always working together—even when we are constrained in what we can influence.
-Our mantra going forward is continuous improvement. We won’t always be able to fix everything, but we can fix something. The difference is that we will do so with awareness. By using these four lenses, we can make targeted changes that strengthen alignment rather than unintentionally creating new problems elsewhere.
+Our mantra going forward is continuous improvement. We won’t always be able to fix everything, but we can fix something. The difference is that we will do so with awareness. By using these four lenses, we can make targeted changes that strengthen alignment rather than unintentionally creating new problems.
  
 Figure 1. Four System Lenses
 Business Systems
-Business Systems refer to all the rules that describe how the business is to be run. Business Systems come in all shapes and sizes, offer varied structure and naming schemes, are governed by various management principles, and experience a wide array of adoption from company to company. 
+Business Systems refer to all the rules that describe how the business is run. Business Systems come in all shapes and sizes, offer varied structure and naming schemes, are governed by various management principles, and experience a wide array of adoption from company to company. 
 To get a better understanding of what a business system is and how it can be identified, we will consider a few levels of maturity. Most organizations will live in some combination of these levels. Try to see where you fit with these levels – it will have a strong influence on what you will do about it once we move to Design.
 Level I Business Systems – Personality
 There is a surprisingly large number of companies with no formal business system whatsoever. They rely on personalities throughout the leadership chain to identify patterns, make decisions, and hold each other accountable. Level I business systems are naturally chaotic and subject to whim. They result in either dramatic shifts in requirements or static working conditions incapable of adapting to new signals. These businesses can be successful, but they are brittle.
 Level II Business Systems – Documents
-Moving one step up the maturity ladder, this level of business has documents that describe fundamental elements of how they expect the business to be run. From a Whole Process Design perspective, this is better than nothing. However, at this level of maturity, these documents are often fragmented across functions, contain inconsistent structure and intent, and are used more for protection and enforcement than for alignment.
+Moving one step up the maturity ladder, this level of business has documents that describe fundamental elements of how they are run. From a Whole Process Design perspective, this is better than nothing. However, at this level of maturity, these documents are often fragmented across functions, contain inconsistent structure and intent, and are used more for protection and enforcement than for alignment.
 At this level of maturity, you may find documents in folders that are rarely read, don’t reflect operational reality, or describe an ideal that was supported by a management team that is no longer at the company. Companies at this level often know they should do something, but lack the operational discipline required to effectively implement the system.
 Level III Business Systems – Management Systems
 Management System organizations have recognized the complexity of their business functions and the need to integrate the way they are all designed into a singular structure. These companies require everyone to share each function’s business rules in a consistent structure, format, and with shared governance. 
 Organizations using this approach often overlay external management frameworks to ensure they are considering best practices for their work. The framework most used in large organizations is the ISO standards. These standards, segmented by the function they support, list a common management system structure to which companies must define their approach through documentation. 
 Where these systems tend to stop is at the level of scope for the business. Typical corporate management systems at this level will have clearly defined divisions between documents through the perspective of function and organizational scope but very little distinction of the purpose of each document. These management systems will have clear distinction between “Global”, “Regional”, and “Site” documents, but at each of those levels you will find a large clump of documents describing various business practices.
 Level IV Business Systems – Operating Systems
-At the highest level of sophistication, you will find organizations that have adopted a structured documentation approach for their management systems including a tighter framework where the documents themselves serve specific operational purposes. These types of systems have documents that are classified by their role in managing work. Documents like Process Maps, Procedures, Standards, and Work Instructions are distinguished by what layer of execution they are defined. By focusing more on lines of value rather than structural organization, Operating Systems serve to provide the cross-functional alignment needed to execute sophisticated lines of business value. 
+At the highest level of sophistication, you will find organizations that have adopted a structured documentation approach for their management systems including a tighter framework where the documents themselves serve specific operational purposes. These types of systems have documents that are classified by their role in managing work. Documents like Process Maps, Procedures, Standards, and Work Instructions are distinguished by what layer of execution they define. By focusing more on lines of value rather than structural organization, Operating Systems serve to provide the cross-functional alignment needed to execute sophisticated lines of business value. 
  
 Information Systems
-Information Systems are the pieces of technology that are used to manage the capture, flow, accuracy and patterns associated with a modern operation. Just as with Business Systems, you could consider Information systems based on a maturity curve from unstructured emails and spreadsheets to middle-tier systems that organize disorganized data, to fully enterprise-grade built-for-purpose systems. But the mistake made by most is thinking about information systems from the inside out. 
+Information Systems are the pieces of technology that are used to manage the capture, flow, accuracy and patterns associated with a modern operation. Just as with Business Systems, you could consider Information Systems based on a maturity curve from unstructured emails and spreadsheets to middle-tier systems that organize disorganized data, to fully enterprise-grade built-for-purpose systems. But the mistake made by most is thinking about information systems from the inside out. 
 For instance, if you wanted to modernize your travel booking process, you might consider commercial digital travel technology. There are plenty to choose from and they all have their strengths and weaknesses. But if you make that selection without a clear and documented process you wished to optimize with technology, you could quickly find your project to implement getting bogged down in details (sometimes sold as features) you hadn’t considered and are unprepared to manage.
 “Would you like our system to integrate with your HR system.?”
 “How do you want to manage expenses generated from travel booked?”
 “What is your process flow for travel approvals?”
-Each of these questions is perfectly reasonable, but if you didn’t have them as a key consideration when first evaluating a more-modern travel booking technology, you may begin to believe that Information Systems are more trouble than they are worth. The issue wasn’t Information Systems – the issue was expecting software to solve too many problems out of context of the Whole Process you are trying to design. 
+Each of these questions is perfectly reasonable, but if you didn’t have them as a key consideration when first evaluating a modern travel booking technology, you may begin to believe that Information Systems are more trouble than they are worth. The issue wasn’t Information Systems – the issue was expecting software to solve too many problems out of context of the Whole Process you are trying to design. 
 In this section we will look at the four pillars of any information system. Having this framing will allow you to decouple the marketing literature and grand promises of the tech industry and focus on what problem you are trying to solve and how information systems can be an ally in that journey.
 
 Model
 Every information, however simple (email server) or complex (enterprise software) has a data model as its core value proposition. When considering Information Systems in a Whole Process Design, you will want a firm understanding of the conceptually smallest piece of data you need to capture from the business and how that data needs to be stored to optimize retrieval, transformation, reporting, and analysis. 
 There are many philosophies about how to organize data for business systems, and you are not expected to understand that theory. But it is important to be ready for the types of questions that matter. When working with your information system partners, you will get questions about terminology, units of measure, dimensions of time and place, frequency of capture to name a few. 
-People who take on the task of building their own software often underestimate the difficulty of this endeavor. In fact, a large benefit of buying off-the-shelf software is that the makers have already considered that level of analysis and come to you with a pre-built data model. Your job will be to validate their model against your expectations. Validating a design is much simpler than generating the design yourself.
+People who take on the task of building their own software often grossly underestimate the task. In fact, a large benefit of buying off-the-shelf software is that the makers have already considered deep levels of analysis and come to you with a pre-built data model. Your job will be to validate their model against your expectations. Validating a design is much simpler than generating the design yourself.
 Acquisition and Transformation
 Models are great – but how does the data get in there? If you leave people to figure it out on their own – they will! But you may not get the results you need. For any information system, you need to consider who enters what data at what frequency. And on top of that consideration, can we use computers to assist in the transformation of that data to further reduce human burden. 
 When working with Information Systems, interface matters. Humans often are the only source of some types of information. That means we must consider how they are going to translate those experiences into our data model. Will they come to a system to provide information? Will they be prompted by a system to update data? Will the interface used to translate their data into our data model make sense to all users? 
 And there is another interface we will consider – machine to machine. How much information in one data model exists in part in another information system? How do we get those two systems to synchronize their data, so people do not have to perform redundant work? One natural outcome of a Whole Process Design is the clarification of a “source of truth” for information which can also lead to step-change optimization for data acquisition burden.
 Validation
-Well structured data that is easy to enter has no value if it is incorrect. Information systems must have a defined pattern for ensuring the data added is valid and worthy of making business decisions. Data validation can happen at many levels of a system.
+Well-structured data that is easy to enter has no value if it is incorrect. Information systems must have a defined pattern for ensuring the data added is valid and worthy of making business decisions. Data validation can happen at many levels of a system.
 •	Point of Entry – field-level validation of expected input
 •	Record-based – does the total amount of information in a record make sense and comply with our business rules?
 •	Record-set -based – does the set of information make sense and comply to our expected business outcomes?
 •	Time-based – does the comparison of data over time make sense and validate our observations of the business.
-In all these conditions, determining “correct” requires you have a firm understanding of the underlying principles governing the data itself. This implies a preference for business rules as a precurser to considering your Acquisition or Validation strategy. If you are forced to choose, think rules before tools.
-In practice, you will confront questions about validation at the form-field level (“what number is the user allowed to enter into this box”), record-level (“is the user allowed to submit this form in it’s current state”), record-set (“does another person agree this record is acceptable”), and time-based (“do the charts from this business unit confirm what we’ve observed?”).
+In all these conditions, determining “correct” requires you have a firm understanding of the underlying principles governing the data itself. This implies a preference for business rules as a precursor to considering your Acquisition or Validation strategy. If you are forced to choose, think “rules before tools”.
+In practice, you will confront questions about validation at the form-field level (“what number is the user allowed to enter into this box”), record-level (“is the user allowed to submit this form in its current state”), record-set (“does another person agree this record is acceptable”), and time-based (“do the charts from this business unit confirm what we’ve observed?”).
  
 Analysis and Intelligence
 Collapsing the data of your business model into a cohesive information system makes analysis and intelligence possible. Hopefully you can now see that taking a structured approach to data modelling, acquisition, transformation, and validation can leave you with a set of data from which you can glean reliable signals of system health and operational trends.
 Anyone who undertakes an Information System project has dreams of dashboards that reveal heretofore untold mysteries of the underlying structure of reality. Hopefully now you see that getting the confidence to make those leaps of insight for better decisions requires a strong reliable foundation. 
-In fact, you could argue that the expression of your business rules is not truly manifested until presented through analysis tools. Some simple signals to look for when evaluating your analysis and intelligence align directly to our Information System considerations.
+In fact, you could argue that the expression of your business rules is not truly manifested until presented through analysis tools. Below are some simple signals to look for when evaluating your analysis and intelligence align directly to our Information System considerations.
 •	If you struggle to produce meaningful or expected insights from your data, you likely don’t have a good model yet. Well-designed data models should deliver clear and predictable analytic data without much massaging.
 •	If you have trouble getting data in a timely fashion, or the time to prepare your data is too large, you could be constrained by an Acquisition and Transformation problem.
 •	If you find unexpected variance in your data over time or between segments of the business, you likely have a Validation issue.
@@ -116,8 +116,8 @@ Do not underestimate the time and care needed to properly design your output met
  
 Human Systems
 The role of humans in any business system is more critical than ever. As we look for ways to augment human effort, we are ironically elevating the importance of human decision-making. Put another way, the more we rely on automation to carry out the work of an organization, the more we amplify the importance of every human decision. Whole Process Design takes the role of humans as a cornerstone feature that must be considered for the system to be successful. 
-Clear and logical business rules along with rational information systems are a strong foundation for a whole process design but if you cannot engage with the people of your business, your design becomes theoretical rather than practical. Aligning people in your organization to adopt your process is what we will focus on now.
-In this section we will examine three aspects of Human Systems: Training, Change, and Incentives.
+Clear and logical business rules along with rational information systems are a strong foundation for a whole process design but if you cannot engage with the people of your business, your design becomes theoretical rather than practical. In this section we will examine three aspects of Human Systems: Training, Change, and Incentives that will be our focus when creating process alignment.
+
 Training
 When considering what type of training and who should be trained, we will consider four main elements: 
 •	Capability – what does the person need to know and be able to do?
@@ -142,7 +142,7 @@ Scale
 Moderate	Dependency
 Moderate
 As we move up levels, we are confronted with a group of process actors that will need to understand the principles of your business system in a way that will be remembered and can result in predictable behavior. Aligning the knowledge of our people is something that often can't be done in 10-minute self-paced training or e-mail communication. At this level, you should expect to spend a few hours with a person to ensure they understand the business rules, information systems, and expected business outcomes for the process you're designing.
-One other consideration for this level of alignment is the requirement that a person needing knowledge should be able to demonstrate the persistence of that knowledge over time. To appreciate the difference between Awareness and Knowledge, let’s consider our Phishing Scam example. For every email user in the company, you want them to be aware of the reporting mechanism and have a basic idea of how to activate that signal in your process. However, your IT technicians need more than awareness as they will likely triage your reported signals from your users. This group will need to reliably act on the reports they get and will need a deeper understanding of the principles of threat detection and mitigation.
+One other consideration for this level of alignment is the requirement that a person needing knowledge should be able to demonstrate the persistence of that knowledge over time. To appreciate the difference between Awareness and Knowledge, let’s consider our Phishing Scam example. For every email user in the company, you want them to be aware of the reporting mechanism and have a basic idea of how to activate that signal in your process. However, your IT technicians need more than awareness as they will likely triage reported signals from users. This group will need to reliably act on the reports they get and will need a deeper understanding of the principles of threat detection and mitigation.
 Skills
 Capability
 Reliable Execution	Cost
@@ -151,7 +151,7 @@ Scale
 Barrier	Dependency
 Elevated
 At the next level of human requirement, we encounter a more intensive alignment requirement. If our people have a complex set of rules they must follow to properly execute in our process, we are now considering a set of skills rather than knowledge or awareness. Skills transfer or validation is decidedly harder to execute and will require more resources to properly establish. Another way to think about a process that requires skills alignment is as a governor to scale. The more skills a person is required to properly execute your process, the harder it will be to scale your process across your business.
-Here is where we run into a conflict between systems that are simple to use but require high skill to use properly. All too often, a business invests in software that has the implication of highly skilled users, without the investment in those users. One example would be an event management system that includes root cause analysis capabilities. You cannot assume just because a certain software’s root cause analysis features are easy to use a person can supply the correct information. This is where we cross over from awareness of a business need (knowledge) to being able to provide good root cause analysis (skills). 
+Here is where we run into a conflict between systems that are simple to use but require high skill to use properly. All too often, a business invests in software that has the implication of highly skilled users, without the investment in those users. One example would be an event management system that includes root cause analysis capabilities. You cannot assume just because a certain software’s root cause analysis features are easy to use, a person can supply the correct information. This is where we cross over from awareness of a business need (knowledge) to being able to provide good root cause analysis (skills). 
  
 Expert
 Capability
@@ -164,18 +164,18 @@ At the highest level of sophistication for humans in your systems, consider the 
 Companies often make the mistake of buying expert systems but expecting awareness- or knowledge-level users to leverage the software capability. They sometimes make the faulty assumption that people with an understanding of the problem they're trying to solve can use expert systems as a proxy to expertise. This is not true. Worse, this is a trap.
 If you determine that an expert level of knowledge is required for your system to work properly, you are making a choice about the resources required to run your system. Specifically, you are choosing the need to hire experts to properly execute your work versus training your existing workforce with awareness, knowledge, and skills. This is an acceptable choice of course, but it's a choice you should make explicitly.
 One great example of this from the world of Environmental management is managing regulatory permitting. On its face, this seems like a simple exercise wherein your company applies for and receives an operating permit based on the expected impact of your operations on the environment. In steady-state, you could make the case that a knowledge- or skills-level user could be reminded to perform a sampling task, but the contextual complexity for this topic begs for expertise-level involvement.
-In practice, the more complex your Whole Process Design, the more likely you will need multiple layers of training. Being explicit about who needs to know what and to what level will be a game-changing differentiator when we get to design and execution.
+In practice, the more complex your Whole Process Design, the more likely you will need multiple layers of training. Being explicit about who needs to know what and to what level will be a strategic win when we get to design and execution.
 Change
 It is easy to conflate training with change management, but this is a mistake you need to avoid. Of course, training is a critical part of change management and is often the most visible part. However, change management has a broader context to consider when helping your people align to your business process.
 New Process
 The dynamics of a new process within a business offer their own challenges. Often you need to do multiple layers of training from awareness- through skills-based training along with coordinated communications, rollout schedules, and other techniques to ensure alignment. For new process change management, you will be relying both on information about the process as well as the timing of that information to ensure a logical transition to the new way of doing things.
 Changed Process
-Alternately, if you are changing a process that has existed for a while in business you have a different set of problems to consider. The largest barrier during a change process will be in realigning the expectations of your existing people. Anyone who has executed the process in the old way will now need to understand not only what is expected of them but why. When implementing a changed process, you should be ready to establish a framework of communication that allows for challenges from the people involved in the process to the changes that are being introduced. 
-We will be advocating taking an iterative approach to establishing these changes so you don't move too far in a direction that cannot be supported by business based on things you didn't understand before implementing. This means that once we have our plan for the process, business rules and information systems, we will be testing the design as we go rather than waiting until we think we have a perfect solution. We will go into much more detail on this topic in Part V – Starting the Change.
+Alternately, if you are changing a process that has existed for a while you have a different set of problems to consider. The largest barrier during a process change will be in realigning the expectations of your people. Anyone who has executed the process in the old way will now need to understand not only what is expected of them but why. When implementing a process change, you should be ready to establish a framework of communication that allows for challenges from the people involved in the process to the changes that are being introduced. 
+We will be advocating taking an iterative approach to establishing these changes so you don't move too far in a direction that cannot be supported by business based on things you didn't understand before implementing. This means that once we have our plan for the process, business rules and information systems, we will be testing the design as we go rather than waiting until we think we have a perfect solution. We will go into much more detail on this topic in Part IV – Starting the Change.
 Incentives
-Every person that needs to operate within the systems we're designing must have a reason to engage in that system. Obviously, some of those reasons will be related to receiving a paycheck or executing core job duties. But we should also consider and be explicit about “what’s in it for me?”. 
-Many of the tensions you are trying to resolve through Whole Process Design are focused on making things easier for people. You cannot hope that they see that difference, you must explicitly tell them why this is better. Here then is exactly where we can take this idea of incentives to change management and training and use it as a test for whether our systems are being properly designed.
-•	Are the business rules consistent with the culture of our company or will they be hard to explain and get everyone aligned? It is OK if that's true but acknowledging the introduction of a new concept or principle also forces us to think carefully about how important it is if there is friction to adoption.
+Every person that needs to operate within the systems we're designing must have a reason to engage in that system. Obviously, some of those reasons will be related to receiving a paycheck or executing core job duties. But we should be excited to share our answer to “what’s in it for me?”. 
+Many of the tensions you are trying to resolve through Whole Process Design are focused on making things easier for people. You cannot hope or assume they see that difference, you must explicitly tell them why this is better. This is exactly where we can establish incentives to change management and training and use it as a test for whether our systems are being properly designed.
+•	Are the business rules consistent with the culture of our company or will they be hard to explain and get everyone aligned? It is OK if that's true but acknowledging the introduction of a new concept or principle also forces us to think carefully about how important it is if there is adoption friction.
 •	Is our information system designed to logically flow from the intent of our process through the requirements of our people? It will not be lost on your people if you promise high levels of efficiency only to burden them with tasks that are not intuitive with no obvious benefit to them. Here is another place where we can reflect on the imposition on our business compared to the relative value of the process.
 •	Will the people required to interact with this process feel the measurement of the outcomes to be a fair representation of the quality of their work? This is the last piece of the puzzle. If we ask people to participate in a process that is misaligned with their sense of propriety, ethical standards, moral framework, or career goals, we are almost ensuring failure in design.
 
@@ -624,66 +624,34 @@ Lesson
 This example is a true middle manager puzzle. Balancing opportunity and risk will be the priority and iterative implementation will be critical to establishing a stable future state.
 
 
-PART IV — STARTING THE CHANGE
-(Step 5: Transformation Launch Plan)
-27. Why Implementation Fails
-•	Partial redesign 
-•	Over-focus on one dimension 
-•	Lack of ownership 
-28. Where to Start
-•	Selecting: 
-o	first unit 
-o	first intervention 
-•	Criteria for prioritization 
-29. Roles in System Transformation
-•	Who owns: 
-o	design 
-o	execution 
-o	validation 
-•	Working across boundaries without authority 
-30. Sequencing the Work
-•	Dependencies 
-•	Parallel vs. sequential work 
-•	Managing complexity 
-31. Early Signals and Feedback Loops
-•	What to measure early 
-•	Detecting failure quickly 
-32. The Transformation Launch Plan
-•	Introduction to final artifact: 
-o	scope 
-o	roles 
-o	sequencing 
-o	signals 
-33. Starting Without Perfect Clarity
-•	Acting under constraint 
-•	Iterating while implementing 
+ 
+PART IV — BECOMING A PROCESS ARCHITECT
 
-Conclusion — From One System to Many
-•	Event Management as a model, not a limit 
-•	Applying the method to: 
-o	Quality 
-o	HR 
-o	Engineering 
-o	Operations 
-•	What remains consistent: 
-o	the four-system model 
-o	the decomposition pattern 
-o	the need for alignment 
-•	What changes: 
-o	domain specifics 
-o	terminology 
-o	constraints 
-•	Where to go next: 
-o	deeper system design 
-o	broader system integration 
+Asking the right questions is as important as answering them.
+Whole Process Design is a framework to use when considering how process runs in your organization. The people using this framework think and respond differently than others and that difference takes time to develop. 
+You may have been used to a style of leadership and planning that started with results as the premise, considered plans to achieve those results, and then tried to establish a method that everyone followed to get there. Some of you have even gone to the lowest level of this pattern and considered a system or two that need to be put in place to ensure success. 
+Let’s be explicit about this goal-first pattern:
+•	Design a desired outcome or KPI 
+•	Establish a plan to achieve that goal
+•	Adopt a method to achieve those plans
+•	Consider systems required to more reliably execute.
+While having a broad understanding of where you want to be is a reasonable first step, we propose that following the flow of this pattern is exactly the wrong way around. Whole Process Design is premised on the idea that until you understand the systems that will deliver reliable value, you cannot honestly expect to achieve your goals. 
+As a Whole Process Design architect, when faced with tensions or gaps in your team’s ability to deliver, you will run the following logical flow:
+•	What systems (Business, Information, People, Organization) need to be in place to create predictable value?
+•	Once aligned, what is the Method we have established, and how do we take steps to make that method durable?
+•	With durable methods, what plans can we make for our team / group / function / organization to leverage this operating consistency?
+•	Once we have plans, what metrics will reliably signal system health and reinforce organizational decision-making consistent with our goals?
+The first pattern (Goals -> Plans -> Methods -> Systems) leads to fractured execution, drifting priorities, and open-ended decision making. Taking this approach is not so much a problem for defining and trying to achieve your goals, the problem is that you cannot trust that you know how to meet your goals. In short – you trade speed of execution for reliability of result.
+The Whole Process Design approach (Systems -> Methods -> Plans -> Goals) leads to consistent execution, focused priorities, and decisions made from reliable signals. Ensuring aligned system architecture creates methods that are consistent and reliable. This means that any plan you make from these methods can now be considered credible. From this, we can now conclude that our metrics are a real reflection of performance and not an artifact of shadowy forces.
+But be warned: this approach is different. It will be perceived as different by those around you. It may be considered too slow or ponderous by some motivated by cycles of improvement measured in days and weeks. 
+To be fair, when a house is on fire, getting a bucket of water is better than debating the best material choice for framing. Emergencies require action. But problems that build up over time are best solved with deliberate effort. And even in an emergency, it can be helpful to have a solid understanding of the systems that led to the trouble, so your reflexive mitigation doesn’t make it worse.
+In this section we will unpack some of the most common pitfalls of this approach and examine the personal habits you can build to give your systems a chance to align. 
+12. Patience
+
+13. Curiosity
+14. Teamwork
+15. Humility
+16. Persistence
+17. Creativity
+18. Audacity
 ________________________________________
-Appendix
-A. Artifact Templates (Lightweight)
-•	System Tension Map 
-•	Whole System Model 
-•	Design Decomposition 
-•	System Blueprint 
-•	Transformation Launch Plan 
-B. Quick Reference: The 5-Step Method
-•	One-page summary for practical use
-
