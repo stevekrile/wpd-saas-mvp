@@ -1,0 +1,160 @@
+.rogue-brick-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.rogue-brick-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.rogue-brick-subtitle {
+  color: var(--secondary);
+  margin-top: 0.35rem;
+}
+
+.rogue-brick-sync-status {
+  font-size: 0.9rem;
+  color: var(--secondary);
+}
+
+.rogue-brick-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 1rem;
+}
+
+.rogue-brick-canvas-wrap {
+  position: relative;
+  background: var(--surface-bg, #fff);
+  border-radius: 0.75rem;
+  box-shadow: var(--surface-shadow, 0 1px 3px rgb(0 0 0 / 0.12));
+  padding: 0.75rem;
+  display: flex;
+  justify-content: center;
+}
+
+.rogue-board-overlay {
+  position: absolute;
+  inset: 0.75rem;
+  border-radius: 0.5rem;
+  background: rgb(7 12 24 / 82%);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.rogue-board-overlay-content {
+  width: min(100%, 520px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  color: #f8fafc;
+}
+
+.rogue-board-overlay-content h2 {
+  color: #f8fafc;
+  font-size: 1rem;
+}
+
+.rogue-brick-canvas {
+  width: min(100%, 420px);
+  border-radius: 0.5rem;
+  touch-action: none;
+}
+
+.rogue-brick-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.rogue-brick-panel {
+  border-radius: 0.75rem;
+  background: var(--surface-bg, #fff);
+  box-shadow: var(--surface-shadow, 0 1px 3px rgb(0 0 0 / 0.12));
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.rogue-brick-panel h2 {
+  font-size: 1rem;
+}
+
+.rogue-stat-list {
+  list-style: none;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.rogue-progress-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.rogue-progress-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--gray-200);
+  overflow: hidden;
+}
+
+.rogue-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22d3ee, #2563eb);
+  transition: width 180ms ease;
+}
+
+.rogue-progress-fill-climb {
+  background: linear-gradient(90deg, #34d399, #10b981);
+}
+
+.rogue-choice-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.6rem;
+}
+
+.rogue-choice-card,
+.rogue-upgrade-card {
+  border: 1px solid var(--gray-200);
+  border-radius: 0.55rem;
+  background: var(--gray-50);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  text-align: left;
+}
+
+.rogue-choice-card {
+  cursor: pointer;
+}
+
+.rogue-upgrade-actions {
+  margin-top: 0.35rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.rogue-hub-message {
+  color: var(--secondary);
+}
+
+@media (max-width: 1100px) {
+  .rogue-brick-layout {
+    grid-template-columns: 1fr;
+  }
+}

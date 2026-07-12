@@ -13,6 +13,7 @@ import DiagnosticWizardPage from '../pages/app/DiagnosticWizardPage';
 import AdminConsolePage from '../pages/app/AdminConsolePage';
 import AgencyProfilePage from '../pages/app/AgencyProfilePage';
 import SettingsAiAccountsPage from '../pages/app/SettingsAiAccountsPage';
+import RogueBrickPage from '../pages/app/RogueBrickPage';
 import { useWpdAuth } from '../features/auth/AuthContext';
 import type { ReactNode } from 'react';
 
@@ -76,6 +77,7 @@ export default function AppRoutes() {
           <Route path="/processes/:id" element={<ProcessDetailPage />} />
           <Route path="/processes/:id/diagnostic" element={<DiagnosticWizardPage />} />
           <Route path="/settings/ai-accounts" element={<SettingsAiAccountsPage />} />
+          <Route path="/vault/rogue-brick" element={<RogueBrickPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

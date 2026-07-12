@@ -31,6 +31,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<AgencyProfile> AgencyProfiles { get; set; }
     public DbSet<AgencyLensAssessment> AgencyLensAssessments { get; set; }
     public DbSet<UserLlmCredential> UserLlmCredentials { get; set; }
+    public DbSet<UserGameProgress> UserGameProgressEntries { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -293,6 +294,24 @@ public class ApplicationDbContext : DbContext
             .HasOne(c => c.User)
             .WithMany(u => u.LlmCredentials)
             .HasForeignKey(c => c.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<UserGameProgress>()
+            .Property(p => p.UserId)
+            .HasMaxLength(450);
+
+        modelBuilder.Entity<UserGameProgress>()
+            .Property(p => p.ProgressJson)
+            .HasMaxLength(64000);
+
+        modelBuilder.Entity<UserGameProgress>()
+            .HasIndex(p => p.UserId)
+            .IsUnique();
+
+        modelBuilder.Entity<UserGameProgress>()
+            .HasOne(p => p.User)
+            .WithMany(u => u.GameProgressEntries)
+            .HasForeignKey(p => p.UserId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }
