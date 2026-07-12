@@ -63,8 +63,8 @@ body.rogue-brick-focus-mode {
 }
 
 .rogue-brick-focus-exit {
-  width: 1.65rem;
-  height: 1.65rem;
+  width: 2em;
+  height: 2em;
   border: 0;
   background: transparent;
   color: rgb(125 211 252 / 78%);
@@ -75,8 +75,7 @@ body.rogue-brick-focus-mode {
   font-size: 1rem;
   line-height: 1;
   cursor: pointer;
-  margin-right: -0.28rem;
-  margin-top: -0.15rem;
+  flex-shrink: 0;
 }
 
 .rogue-brick-focus-exit:hover {
@@ -90,8 +89,8 @@ body.rogue-brick-focus-mode {
 }
 
 .rogue-brick-focus-exit-icon {
-  width: 1rem;
-  height: 1rem;
+  width: 2em;
+  height: 2em;
   display: block;
 }
 
@@ -668,31 +667,48 @@ body.rogue-brick-focus-mode {
 
 .rogue-path-tree-warden-legend {
   display: flex;
-  gap: 0.3rem;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgb(251 191 36 / 25%);
+  background: rgb(24 23 5 / 35%);
+}
+
+.rogue-path-tree-warden-legend h3 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: rgb(251 191 36 / 90%);
+}
+
+.rogue-path-tree-warden-legend-items {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .rogue-path-tree-warden-legend-item {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.1rem 0.35rem;
+  gap: 0.4rem;
+  padding: 0.3rem 0.5rem;
   border-radius: 999px;
-  border: 1px solid rgb(148 163 184 / 35%);
-  background: rgb(2 6 23 / 42%);
-  color: rgb(226 232 240 / 95%);
-  font-size: 0.68rem;
+  border: 1px solid rgb(251 191 36 / 50%);
+  background: rgb(120 53 15 / 55%);
+  color: rgb(254 240 138 / 95%);
+  font-size: 0.75rem;
   font-weight: 700;
   line-height: 1;
 }
-
 .rogue-path-tree-warden-legend-item::before {
   content: '';
-  width: 0.46rem;
-  height: 0.46rem;
+  content: '';
+  width: 0.4rem;
   border-radius: 999px;
-  border: 1px solid rgb(251 191 36 / 80%);
-  background: rgb(202 138 4 / 98%);
-  box-shadow: 0 0 8px rgb(251 191 36 / 45%);
+  border-radius: 999px;
+  background: rgb(251 191 36 / 85%);
+  box-shadow: 0 0 6px rgb(251 191 36 / 60%);
 }
 
 .rogue-path-tree-graph {

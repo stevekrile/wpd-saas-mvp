@@ -64,16 +64,27 @@ const BALANCE = {
   objectiveHpLevelScale: 2.4,
   powerOfferMinManaCost: 16,
   powerOfferLevelStepBoards: 3,
-  powerOfferLevelScalePerStep: 0.2,
+  powerOfferLevelScalePerStep: 0.35,
   objectiveManaRewardCrit: 1.2,
   objectiveManaRewardNormal: 0.8,
   brickManaRewardCrit: 0.55,
   brickManaRewardNormal: 0.35,
 } as const;
 
-const FIRST_WARDEN_TRIGGER_LEVEL = 4;
-const FIRST_WARDEN_TRIGGER_DOMAIN: DeepwoodDomainKey = 'thorn-keep';
-const FIRST_WARDEN_TRIGGER_ID = 'bramble-warden';
+const WARDEN_TRIGGERS: Array<{
+  level: number;
+  domain: DeepwoodDomainKey;
+  wardenIndex: number;
+}> = [
+  { level: 4, domain: 'thorn-keep', wardenIndex: 0 },
+  { level: 12, domain: 'black-bog', wardenIndex: 0 },
+  { level: 18, domain: 'crow-spire', wardenIndex: 0 },
+  { level: 24, domain: 'ash-castle', wardenIndex: 0 },
+  { level: 32, domain: 'thorn-keep', wardenIndex: 0 },
+  { level: 40, domain: 'black-bog', wardenIndex: 0 },
+  { level: 48, domain: 'crow-spire', wardenIndex: 0 },
+  { level: 56, domain: 'ash-castle', wardenIndex: 0 },
+];
 
 type RunStage = 'board' | 'hub' | 'powerup' | 'warden';
 type PathChallengeKey = 'balanced' | 'swarm' | 'fortified' | 'gauntlet';
@@ -1207,37 +1218,42 @@ function getFirstWardenTrigger(
   run: RogueRunState,
   clearedChallenge: PathChallengeDefinition
 ): DeepwoodWardenDefinition | null {
-  if (run.level !== FIRST_WARDEN_TRIGGER_LEVEL) {
+  const trigger = WARDEN_TRIGGERS.find((t) => t.level === run.level);
+  if (!trigger) {
     return null;
   }
-  if (clearedChallenge.domain !== FIRST_WARDEN_TRIGGER_DOMAIN) {
+  if (clearedChallenge.domain !== trigger.domain) {
     return null;
   }
-  if (run.wardensDefeated.includes(FIRST_WARDEN_TRIGGER_ID)) {
+  const domain = getDeepwoodDomainDefinition(trigger.domain);
+  const warden = domain.wardens[trigger.wardenIndex];
+  if (!warden) {
     return null;
   }
-  const firstWarden = getFirstWardenDefinition();
-  return firstWarden;
-}
-
-function getFirstWardenDefinition(): DeepwoodWardenDefinition | null {
-  const domain = getDeepwoodDomainDefinition(FIRST_WARDEN_TRIGGER_DOMAIN);
-  return domain.wardens.find((warden) => warden.id === FIRST_WARDEN_TRIGGER_ID) ?? null;
+  if (run.wardensDefeated.includes(warden.id)) {
+    return null;
+  }
+  return warden;
 }
 
 function getPathNodeWardenForecast(run: RogueRunState, node: PathNodeState): DeepwoodWardenDefinition | null {
-  if (node.level !== FIRST_WARDEN_TRIGGER_LEVEL) {
+  const trigger = WARDEN_TRIGGERS.find((t) => t.level === node.level);
+  if (!trigger) {
     return null;
   }
   const challenge = getPathChallengeDefinition(node.challenge);
-  if (challenge.domain !== FIRST_WARDEN_TRIGGER_DOMAIN) {
+  if (challenge.domain !== trigger.domain) {
     return null;
   }
-  if (run.wardensDefeated.includes(FIRST_WARDEN_TRIGGER_ID)) {
+  const domain = getDeepwoodDomainDefinition(trigger.domain);
+  const warden = domain.wardens[trigger.wardenIndex];
+  if (!warden) {
     return null;
   }
-  const domain = getDeepwoodDomainDefinition(FIRST_WARDEN_TRIGGER_DOMAIN);
-  return domain.wardens.find((warden) => warden.id === FIRST_WARDEN_TRIGGER_ID) ?? null;
+  if (run.wardensDefeated.includes(warden.id)) {
+    return null;
+  }
+  return warden;
 }
 
 function makePathNodeId(
@@ -1577,6 +1593,17 @@ function getCoreVariantFlashShadow(coreVariant?: CoreVariant): string {
       return 'rgb(22 101 52 / 0.68)';
     default:
       return 'rgb(245 158 11 / 0.65)';
+  }
+}
+
+function getCoreDestructionMessage(coreVariant?: CoreVariant): string {
+  switch (coreVariant) {
+    case 'blue':
+      return 'SHIELD SHATTERED';
+    case 'green':
+      return 'POWER SUBDUED';
+    default:
+      return 'ESSENCE CONSUMED';
   }
 }
 
@@ -2286,8 +2313,14 @@ export default function RogueBrickPage() {
     manaEarned: 0,
     remainingBricks: 0,
   });
+  const [frameUpdateTrigger, setFrameUpdateTrigger] = useState(0);
 
   const run = profile?.run ?? null;
+  
+  // Ensure component re-renders when HP updates during shots
+  useEffect(() => {
+    // This effect just ensures frameUpdateTrigger causes re-renders
+  }, [frameUpdateTrigger]);
   const storageKey = useMemo(
     () => (wpdUser ? `${LOCAL_STORAGE_PREFIX}${wpdUser.userId}` : ''),
     [wpdUser]
@@ -2322,7 +2355,7 @@ export default function RogueBrickPage() {
     }
 
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    ctx.fillStyle = '#0d111d';
+    ctx.fillStyle = '#1a1410';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     const now = performance.now();
 
@@ -2374,57 +2407,57 @@ export default function RogueBrickPage() {
       const styleByKind = (() => {
         if (kind === 'objective') {
           return {
-            top: { r: 86, g: 52, b: 16 },
-            bottom: { r: 38, g: 22, b: 6 },
-            edge: 'rgba(255, 210, 120, 0.5)',
+            top: { r: 101, g: 67, b: 33 },
+            bottom: { r: 62, g: 39, b: 20 },
+            edge: 'rgba(214, 88, 38, 0.6)',
           };
         }
         if (kind === 'unbreakable') {
           return {
-            top: { r: 58, g: 72, b: 96 },
-            bottom: { r: 28, g: 37, b: 56 },
-            edge: 'rgba(210, 224, 240, 0.5)',
+            top: { r: 78, g: 52, b: 35 },
+            bottom: { r: 44, g: 29, b: 19 },
+            edge: 'rgba(167, 107, 65, 0.6)',
           };
         }
         if (kind === 'oneway') {
           return {
-            top: { r: 42, g: 62, b: 88 },
-            bottom: { r: 20, g: 34, b: 52 },
-            edge: 'rgba(124, 212, 255, 0.46)',
+            top: { r: 74, g: 105, b: 47 },
+            bottom: { r: 42, g: 62, b: 26 },
+            edge: 'rgba(148, 173, 92, 0.55)',
           };
         }
         if (kind === 'exploding') {
           return {
-            top: { r: 88, g: 40, b: 34 },
-            bottom: { r: 44, g: 20, b: 18 },
-            edge: 'rgba(255, 163, 137, 0.46)',
+            top: { r: 127, g: 29, b: 29 },
+            bottom: { r: 76, g: 17, b: 17 },
+            edge: 'rgba(239, 68, 68, 0.55)',
           };
         }
         if (kind === 'prism') {
           return {
-            top: { r: 58, g: 46, b: 96 },
-            bottom: { r: 30, g: 24, b: 58 },
-            edge: 'rgba(196, 181, 253, 0.44)',
+            top: { r: 152, g: 117, b: 68 },
+            bottom: { r: 92, g: 71, b: 40 },
+            edge: 'rgba(215, 158, 89, 0.55)',
           };
         }
         if (kind === 'reinforced') {
           return {
-            top: { r: 64, g: 58, b: 86 },
-            bottom: { r: 34, g: 29, b: 52 },
-            edge: 'rgba(203, 213, 225, 0.45)',
+            top: { r: 67, g: 44, b: 29 },
+            bottom: { r: 39, g: 26, b: 17 },
+            edge: 'rgba(140, 92, 59, 0.6)',
           };
         }
         if (kind === 'splinter') {
           return {
-            top: { r: 48, g: 72, b: 54 },
-            bottom: { r: 24, g: 40, b: 30 },
-            edge: 'rgba(167, 243, 208, 0.42)',
+            top: { r: 132, g: 157, b: 74 },
+            bottom: { r: 91, g: 110, b: 48 },
+            edge: 'rgba(187, 211, 102, 0.55)',
           };
         }
         return {
-          top: { r: 46, g: 66, b: 94 },
-          bottom: { r: 20, g: 33, b: 55 },
-          edge: 'rgba(186, 230, 253, 0.42)',
+          top: { r: 92, g: 64, b: 51 },
+          bottom: { r: 55, g: 38, b: 30 },
+          edge: 'rgba(180, 124, 89, 0.55)',
         };
       })();
       const hpBoost = Math.round(hpPct * 14);
@@ -4057,6 +4090,12 @@ export default function RogueBrickPage() {
             manaEarned: rewards.mana,
             remainingBricks: bricksRef.current.length,
           });
+          // Sync HP changes back to profile state to keep UI in sync during shots
+          if (profileRef.current?.run) {
+            profileRef.current.run.board.bricks = bricksRef.current.map((brick) => ({ ...brick }));
+          }
+          // Trigger UI re-render to update orb indicators
+          setFrameUpdateTrigger((t) => t + 1);
         } else {
           noHitElapsedMs += dtSeconds * 1000;
           speedMultiplier = noHitElapsedMs >= 3000 ? 2 : 1;
@@ -4646,16 +4685,15 @@ export default function RogueBrickPage() {
       : 'No active orb';
   const coreProgressSlots = CORE_VARIANTS.map((variant) => {
     const variantBricks = objectiveBricks.filter((brick) => (brick.coreVariant ?? 'yellow') === variant);
-    const progressPct = variantBricks.length
-      ? Math.round(
-          Math.max(
-            ...variantBricks.map((brick) => Math.max(0, Math.min(1, 1 - brick.hp / Math.max(1, brick.maxHp))))
-          ) * 100
-        )
-      : 0;
+    const brick = variantBricks.length > 0 ? variantBricks[0] : null;
+    const maxHp = brick?.maxHp ?? 1;
+    const currentHp = brick?.hp ?? 0;
+    const hpPct = Math.max(0, Math.min(1, currentHp / Math.max(1, maxHp)));
     return {
       variant,
-      progressPct,
+      currentHp: Math.max(0, Math.round(currentHp)),
+      maxHp: Math.round(maxHp),
+      hpPct,
       hasCore: variantBricks.length > 0,
     };
   });
@@ -5057,40 +5095,36 @@ export default function RogueBrickPage() {
       <section className={`rogue-brick-layout-shell${isFocusMode ? ' is-focus-mode' : ''}`}>
         <div className="rogue-brick-top-hud" aria-label="Current score and progress">
           <div className="rogue-brick-top-hud-row">
-            <span className="rogue-brick-top-hud-label">
-              Progress {overallProgressPct}%
-              {hasActiveRun ? ` - Level ${run?.level}/${run?.maxLevels}` : ''}
-            </span>
             <div className="rogue-brick-top-hud-score-group">
               <strong className="rogue-brick-top-hud-score">{overallScore.toLocaleString()}</strong>
-              {isFocusMode && (
-                <button
-                  type="button"
-                  className="rogue-brick-focus-exit"
-                  onClick={() => setIsFocusMode(false)}
-                  aria-label="Exit lock mode"
-                  title="Exit lock mode"
-                >
-                  <svg
-                    className="rogue-brick-focus-exit-icon"
-                    viewBox="0 0 24 24"
-                    role="img"
-                    aria-hidden="true"
-                  >
-                    <path d="M4 3.5h8.5v17H4z" fill="none" stroke="currentColor" strokeWidth="1.6" />
-                    <path d="M9.1 12h.01" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-                    <path
-                      d="M16.5 7.6l1.35 2.1m-1.35-2.1L14.7 9m2.8.85-.95 3.05m.95-3.05 1.9 1.45m-2.85 1.6L14 14.85m2.55-1.95 2.35 1.55m-4.9.4L12.45 18"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-              )}
             </div>
+            {isFocusMode && (
+              <button
+                type="button"
+                className="rogue-brick-focus-exit"
+                onClick={() => setIsFocusMode(false)}
+                aria-label="Exit lock mode"
+                title="Exit lock mode"
+              >
+                <svg
+                  className="rogue-brick-focus-exit-icon"
+                  viewBox="0 0 24 24"
+                  role="img"
+                  aria-hidden="true"
+                >
+                  <path d="M4 3.5h8.5v17H4z" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                  <path d="M9.1 12h.01" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+                  <path
+                    d="M16.5 7.6l1.35 2.1m-1.35-2.1L14.7 9m2.8.85-.95 3.05m.95-3.05 1.9 1.45m-2.85 1.6L14 14.85m2.55-1.95 2.35 1.55m-4.9.4L12.45 18"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            )}
           </div>
           <div
             className="rogue-progress-track rogue-progress-track-compact"
@@ -5109,21 +5143,23 @@ export default function RogueBrickPage() {
             <div className={`rogue-brick-board-frame${isBetweenLevelHub ? ' is-between-level' : ''}`}>
               {hasActiveRun && run?.stage === 'board' && (
                 <div className="rogue-core-progress-board" aria-label="Orb progress (Yellow left, Blue middle, Green right)">
-                  {coreProgressSlots.map((slot) => {
-                    const variantColor = getCoreVariantColor(slot.variant);
-                    return (
-                      <span
-                        key={slot.variant}
-                        className={`rogue-core-progress-ring${slot.hasCore ? '' : ' is-inactive'}`}
-                        style={{
-                          background: `conic-gradient(${variantColor} ${slot.progressPct * 3.6}deg, rgb(51 65 85 / 0.9) 0deg)`,
-                        }}
-                        aria-label={`${getCoreVariantLabel(slot.variant)} ${slot.progressPct}% complete`}
-                      >
-                        <span className="rogue-core-progress-ring-value">{slot.progressPct}%</span>
-                      </span>
-                    );
-                  })}
+                  {coreProgressSlots
+                    .filter((slot) => slot.hasCore)
+                    .map((slot) => {
+                      const variantColor = getCoreVariantColor(slot.variant);
+                      return (
+                        <span
+                          key={slot.variant}
+                          className="rogue-core-progress-ring"
+                          style={{
+                            background: `conic-gradient(${variantColor} ${slot.hpPct * 360}deg, rgb(51 65 85 / 0.9) 0deg)`,
+                          }}
+                          aria-label={`${getCoreVariantLabel(slot.variant)} ${slot.currentHp}/${slot.maxHp} HP`}
+                        >
+                          <span className="rogue-core-progress-ring-value">{slot.currentHp}</span>
+                        </span>
+                      );
+                    })}
                 </div>
               )}
               {showBoardOverlay && (
@@ -5493,7 +5529,7 @@ export default function RogueBrickPage() {
                   }
                   aria-hidden="true"
                 >
-                  <span>CORE BREACHED</span>
+                  <span>{getCoreDestructionMessage(coreBreachFlashVariant)}</span>
                 </div>
               )}
               <canvas
