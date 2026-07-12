@@ -5093,7 +5093,10 @@ export default function RogueBrickPage() {
       </header>
 
       <section className={`rogue-brick-layout-shell${isFocusMode ? ' is-focus-mode' : ''}`}>
-        <div className="rogue-brick-top-hud" aria-label="Current score and progress">
+        <div 
+          className={`rogue-brick-top-hud${shouldGateBoardChoices && boardSummary ? ' is-hidden' : ''}`} 
+          aria-label="Current score and progress"
+        >
           <div className="rogue-brick-top-hud-row">
             <div className="rogue-brick-top-hud-score-group">
               <strong className="rogue-brick-top-hud-score">{overallScore.toLocaleString()}</strong>
