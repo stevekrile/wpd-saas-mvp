@@ -132,6 +132,13 @@ interface TurnRewards {
   coins: number;
 }
 
+interface LiveHudState {
+  destroyedBricks: number;
+  manaEarned: number;
+  coinsEarned: number;
+  remainingBricks: number;
+}
+
 interface BrickVisualState {
   hitUntil: number;
 }
@@ -529,6 +536,40 @@ function upgradeCost(def: PermanentUpgradeDefinition, rank: number): number {
   return Math.round(def.baseCost * Math.pow(def.costScale, rank));
 }
 
+function calculateOverallScore(run: RogueRunState | null, liveHud: LiveHudState): number {
+  if (!run) {
+    return 0;
+  }
+
+  const destroyedBricks = (run.levelBricksDestroyed ?? 0) + liveHud.destroyedBricks;
+  const mana = Math.floor(run.mana + liveHud.manaEarned);
+  const coins = Math.floor(run.coins + liveHud.coinsEarned);
+
+  return (
+    run.boardsCleared * 1200 +
+    Math.max(0, run.level - 1) * 650 +
+    destroyedBricks * 40 +
+    mana * 4 +
+    coins * 5 +
+    run.ballCount * 18 +
+    run.damage * 90
+  );
+}
+
+function calculateOverallProgress(run: RogueRunState | null, liveHud: LiveHudState): number {
+  if (!run) {
+    return 0;
+  }
+
+  const destroyedBricks = (run.levelBricksDestroyed ?? 0) + liveHud.destroyedBricks;
+  const boardProgress = Math.min(1, destroyedBricks / Math.max(1, run.levelGoalBricks ?? 1));
+
+  return Math.min(
+    100,
+    Math.round((((Math.max(1, run.level) - 1) + boardProgress) / Math.max(1, run.maxLevels)) * 100)
+  );
+}
+
 function parseProgress(json: string): RogueBrickProfile | null {
   try {
     const parsed = JSON.parse(json) as RogueBrickProfile;
@@ -575,6 +616,13 @@ export default function RogueBrickPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [aimPoint, setAimPoint] = useState<{ x: number; y: number } | null>(null);
   const [shotInProgress, setShotInProgress] = useState(false);
+  const [isFocusMode, setIsFocusMode] = useState(false);
+  const [liveHud, setLiveHud] = useState<LiveHudState>({
+    destroyedBricks: 0,
+    manaEarned: 0,
+    coinsEarned: 0,
+    remainingBricks: 0,
+  });
 
   const run = profile?.run ?? null;
   const storageKey = useMemo(
@@ -881,6 +929,18 @@ export default function RogueBrickPage() {
   }, []);
 
   useEffect(() => {
+    if (!isFocusMode) {
+      return;
+    }
+
+    document.body.classList.add('rogue-brick-focus-mode');
+
+    return () => {
+      document.body.classList.remove('rogue-brick-focus-mode');
+    };
+  }, [isFocusMode]);
+
+  useEffect(() => {
     if (!storageKey) {
       return;
     }
@@ -1020,6 +1080,12 @@ export default function RogueBrickPage() {
 
   const finalizeTurn = useCallback(() => {
     setShotInProgress(false);
+    setLiveHud({
+      destroyedBricks: 0,
+      manaEarned: 0,
+      coinsEarned: 0,
+      remainingBricks: 0,
+    });
     shotInFlightRef.current = false;
     brickVisualRef.current.clear();
     breakParticlesRef.current = [];
@@ -1110,6 +1176,12 @@ export default function RogueBrickPage() {
       setAimPoint(null);
       shotInFlightRef.current = true;
       setShotInProgress(true);
+      setLiveHud({
+        destroyedBricks: 0,
+        manaEarned: 0,
+        coinsEarned: 0,
+        remainingBricks: currentRun.board.bricks.length,
+      });
       ballsRef.current = [];
       bricksRef.current = currentRun.board.bricks.map((brick) => ({ ...brick }));
       launchQueueRef.current = Array.from({ length: currentRun.ballCount }, (_, index) => ({
@@ -1310,6 +1382,12 @@ export default function RogueBrickPage() {
         if (touchedBrickThisFrame) {
           noHitElapsedMs = 0;
           speedMultiplier = 1;
+          setLiveHud({
+            destroyedBricks: pendingDestroyedBricksRef.current,
+            manaEarned: rewards.mana,
+            coinsEarned: rewards.coins,
+            remainingBricks: bricksRef.current.length,
+          });
         } else {
           noHitElapsedMs += dtSeconds * 1000;
           speedMultiplier = noHitElapsedMs >= 3000 ? 2 : 1;
@@ -1382,6 +1460,12 @@ export default function RogueBrickPage() {
       draft.run = runState;
       draft.lastRunSummary = null;
     }, true);
+    setLiveHud({
+      destroyedBricks: 0,
+      manaEarned: 0,
+      coinsEarned: 0,
+      remainingBricks: 0,
+    });
   }, [commitProfile]);
 
   const continueToBoard = useCallback(() => {
@@ -1400,6 +1484,12 @@ export default function RogueBrickPage() {
       draft.run.pendingStoreOffers = [];
       draft.run.hubMessage = `Entering board ${draft.run.level} of ${draft.run.maxLevels}.`;
     }, true);
+    setLiveHud({
+      destroyedBricks: 0,
+      manaEarned: 0,
+      coinsEarned: 0,
+      remainingBricks: 0,
+    });
   }, [commitProfile]);
 
   const visitStore = useCallback(() => {
@@ -1524,6 +1614,9 @@ export default function RogueBrickPage() {
   const buyPermanentUpgrade = useCallback(
     (key: PermanentUpgradeKey) => {
       commitProfile((draft) => {
+        if (draft.run) {
+          return;
+        }
         const def = PERMANENT_UPGRADES.find((item) => item.key === key);
         if (!def) {
           return;
@@ -1546,6 +1639,9 @@ export default function RogueBrickPage() {
   const togglePermanentUpgrade = useCallback(
     (key: PermanentUpgradeKey) => {
       commitProfile((draft) => {
+        if (draft.run) {
+          return;
+        }
         const current = draft.permanentUpgrades[key];
         if (current.rank === 0) {
           return;
@@ -1647,18 +1743,23 @@ export default function RogueBrickPage() {
   const runProgressPct = run
     ? Math.round((Math.max(0, run.level - 1) / Math.max(1, run.maxLevels)) * 100)
     : 0;
-  const climbProgressPct = run
-    ? Math.min(
-        100,
-        Math.round(
-          ((run.levelBricksDestroyed ?? 0) / Math.max(1, run.levelGoalBricks ?? 1)) * 100
-        )
-      )
-    : 0;
   const boardBricksRemaining = run?.board.bricks.length ?? 0;
+  const displayBricksRemaining =
+    shotInProgress && hasActiveRun ? liveHud.remainingBricks : boardBricksRemaining;
   const boardHpRemaining = run
     ? Math.round(run.board.bricks.reduce((sum, brick) => sum + Math.max(0, brick.hp), 0))
     : 0;
+  const displayMana = hasActiveRun ? Math.floor((run?.mana ?? 0) + liveHud.manaEarned) : 0;
+  const displayCoins = hasActiveRun ? Math.floor((run?.coins ?? 0) + liveHud.coinsEarned) : 0;
+  const displayDestroyedBricks = (run?.levelBricksDestroyed ?? 0) + liveHud.destroyedBricks;
+  const displayClimbProgressPct = run
+    ? Math.min(
+        100,
+        Math.round((displayDestroyedBricks / Math.max(1, run.levelGoalBricks ?? 1)) * 100)
+      )
+    : 0;
+  const overallScore = calculateOverallScore(run, liveHud);
+  const overallProgressPct = calculateOverallProgress(run, liveHud);
   const showBoardOverlay = !hasActiveRun || run?.stage !== 'board';
 
   return (
@@ -1670,24 +1771,70 @@ export default function RogueBrickPage() {
             Hidden mode: rogue-like brick breaker. Drag to aim and release to fire.
           </p>
         </div>
-        <div className="rogue-brick-sync-status">{syncLabel}</div>
+        <div className="rogue-brick-header-actions">
+          <div className="rogue-brick-sync-status">{syncLabel}</div>
+          <button type="button" className="btn-secondary" onClick={() => setIsFocusMode(true)}>
+            Lock In Full Screen
+          </button>
+        </div>
       </header>
 
-      <section className="rogue-brick-layout">
-        <div className="rogue-brick-canvas-wrap">
-          {showBoardOverlay && (
-            <div className="rogue-board-overlay">
-              <section className="rogue-board-overlay-content">
-                {!hasActiveRun && (
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    onClick={startRun}
-                    disabled={!canStartRun}
-                  >
-                    Start New Run
-                  </button>
-                )}
+      <section className={`rogue-brick-layout-shell${isFocusMode ? ' is-focus-mode' : ''}`}>
+        {isFocusMode && (
+          <div className="rogue-brick-focus-exit-wrap">
+            <button
+              type="button"
+              className="btn-secondary rogue-brick-focus-exit"
+              onClick={() => setIsFocusMode(false)}
+            >
+              Exit
+            </button>
+          </div>
+        )}
+
+        <div className="rogue-brick-top-hud" aria-label="Current score and progress">
+          <div className="rogue-brick-top-hud-row">
+            <span className="rogue-brick-top-hud-label">Overall Score</span>
+            <strong className="rogue-brick-top-hud-score">{overallScore.toLocaleString()}</strong>
+          </div>
+          <div className="rogue-brick-top-hud-row">
+            <span className="rogue-brick-top-hud-label">
+              Progress {overallProgressPct}%
+              {hasActiveRun ? ` - Level ${run?.level}/${run?.maxLevels}` : ''}
+            </span>
+            {hasActiveRun && (
+              <span className="rogue-brick-top-hud-meta">
+                {displayDestroyedBricks}/{run?.levelGoalBricks ?? 0} bricks
+              </span>
+            )}
+          </div>
+          <div
+            className="rogue-progress-track rogue-progress-track-compact"
+            role="progressbar"
+            aria-label="Overall run progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={overallProgressPct}
+          >
+            <div className="rogue-progress-fill" style={{ width: `${overallProgressPct}%` }} />
+          </div>
+        </div>
+
+        <div className={`rogue-brick-layout${isFocusMode ? ' is-focus-mode' : ''}`}>
+          <div className="rogue-brick-canvas-wrap">
+            {showBoardOverlay && (
+              <div className="rogue-board-overlay">
+                <section className="rogue-board-overlay-content">
+                  {!hasActiveRun && (
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      onClick={startRun}
+                      disabled={!canStartRun}
+                    >
+                      Start New Run
+                    </button>
+                  )}
 
                 {run?.stage === 'hub' && (
                   <div className="rogue-choice-grid">
@@ -1780,18 +1927,18 @@ export default function RogueBrickPage() {
                 </div>
                 <div className="rogue-progress-label">
                   <span>Climb to Next Level</span>
-                  <strong>{run?.levelBricksDestroyed ?? 0}/{run?.levelGoalBricks ?? 0} bricks</strong>
+                  <strong>{displayDestroyedBricks}/{run?.levelGoalBricks ?? 0} bricks</strong>
                 </div>
-                <div className="rogue-progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={climbProgressPct}>
-                  <div className="rogue-progress-fill rogue-progress-fill-climb" style={{ width: `${climbProgressPct}%` }} />
+                <div className="rogue-progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={displayClimbProgressPct}>
+                  <div className="rogue-progress-fill rogue-progress-fill-climb" style={{ width: `${displayClimbProgressPct}%` }} />
                 </div>
                 <ul className="rogue-stat-list">
                   <li>Level: {run?.level}/{run?.maxLevels}</li>
                   <li>Boards Cleared: {run?.boardsCleared}</li>
-                  <li>Bricks Remaining: {boardBricksRemaining}</li>
+                  <li>Bricks Remaining: {displayBricksRemaining}</li>
                   <li>Board HP Remaining: {boardHpRemaining}</li>
-                  <li>Mana: {Math.floor(run?.mana ?? 0)}</li>
-                  <li>Coins: {Math.floor(run?.coins ?? 0)}</li>
+                  <li>Mana: {displayMana}</li>
+                  <li>Coins: {displayCoins}</li>
                   <li>Balls: {run?.ballCount}</li>
                   <li>Damage: {run?.damage}</li>
                   <li>Crit: {Math.round((run?.critChance ?? 0) * 100)}%</li>
@@ -1819,43 +1966,46 @@ export default function RogueBrickPage() {
             </section>
           )}
         </aside>
-      </section>
-
-      <section className="rogue-brick-panel">
-        <h2>Permanent Upgrades</h2>
-        <div className="rogue-choice-grid">
-          {PERMANENT_UPGRADES.map((upgrade) => {
-            const state = profile.permanentUpgrades[upgrade.key];
-            const cost = upgradeCost(upgrade, state.rank);
-            const atMax = state.rank >= upgrade.maxRank;
-            return (
-              <div key={upgrade.key} className="rogue-upgrade-card">
-                <strong>{upgrade.name}</strong>
-                <span>{upgrade.description}</span>
-                <span>Rank: {state.rank}/{upgrade.maxRank}</span>
-                <div className="rogue-upgrade-actions">
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => buyPermanentUpgrade(upgrade.key)}
-                    disabled={atMax || profile.metaCurrency < cost}
-                  >
-                    {atMax ? 'Maxed' : `Buy (${cost})`}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-text"
-                    onClick={() => togglePermanentUpgrade(upgrade.key)}
-                    disabled={state.rank === 0}
-                  >
-                    {state.enabled ? 'Enabled' : 'Disabled'}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
         </div>
       </section>
+
+      {!hasActiveRun && (
+        <section className="rogue-brick-panel">
+          <h2>Permanent Upgrades</h2>
+          <div className="rogue-choice-grid">
+            {PERMANENT_UPGRADES.map((upgrade) => {
+              const state = profile.permanentUpgrades[upgrade.key];
+              const cost = upgradeCost(upgrade, state.rank);
+              const atMax = state.rank >= upgrade.maxRank;
+              return (
+                <div key={upgrade.key} className="rogue-upgrade-card">
+                  <strong>{upgrade.name}</strong>
+                  <span>{upgrade.description}</span>
+                  <span>Rank: {state.rank}/{upgrade.maxRank}</span>
+                  <div className="rogue-upgrade-actions">
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => buyPermanentUpgrade(upgrade.key)}
+                      disabled={atMax || profile.metaCurrency < cost}
+                    >
+                      {atMax ? 'Maxed' : `Buy (${cost})`}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-text"
+                      onClick={() => togglePermanentUpgrade(upgrade.key)}
+                      disabled={state.rank === 0}
+                    >
+                      {state.enabled ? 'Enabled' : 'Disabled'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

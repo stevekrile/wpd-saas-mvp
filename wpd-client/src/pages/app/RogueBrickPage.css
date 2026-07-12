@@ -1,7 +1,13 @@
+body.rogue-brick-focus-mode {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 .rogue-brick-page {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  width: 100%;
 }
 
 .rogue-brick-header {
@@ -16,15 +22,99 @@
   margin-top: 0.35rem;
 }
 
+.rogue-brick-header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
 .rogue-brick-sync-status {
   font-size: 0.9rem;
   color: var(--secondary);
+}
+
+.rogue-brick-layout-shell {
+  position: relative;
+}
+
+.rogue-brick-layout-shell.is-focus-mode {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  padding:
+    max(0.75rem, env(safe-area-inset-top))
+    max(0.75rem, env(safe-area-inset-right))
+    max(0.75rem, env(safe-area-inset-bottom))
+    max(0.75rem, env(safe-area-inset-left));
+  background: #08111f;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.rogue-brick-focus-exit-wrap {
+  position: absolute;
+  top: max(0.75rem, env(safe-area-inset-top));
+  right: max(0.75rem, env(safe-area-inset-right));
+  z-index: 4;
+}
+
+.rogue-brick-focus-exit {
+  min-width: 4.5rem;
+}
+
+.rogue-brick-top-hud {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  right: 0.75rem;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.75rem;
+  background: rgb(7 12 24 / 82%);
+  color: #f8fafc;
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+}
+
+.rogue-brick-layout-shell.is-focus-mode .rogue-brick-top-hud {
+  right: 5.75rem;
+}
+
+.rogue-brick-top-hud-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.rogue-brick-top-hud-label,
+.rogue-brick-top-hud-meta {
+  font-size: 0.85rem;
+}
+
+.rogue-brick-top-hud-score {
+  font-size: 1rem;
 }
 
 .rogue-brick-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: 1rem;
+  width: 100%;
+}
+
+.rogue-brick-layout.is-focus-mode {
+  flex: 1;
+  min-height: 0;
+}
+
+.rogue-brick-layout.is-focus-mode .rogue-brick-sidebar {
+  display: none;
 }
 
 .rogue-brick-canvas-wrap {
@@ -32,21 +122,36 @@
   background: var(--surface-bg, #fff);
   border-radius: 0.75rem;
   box-shadow: var(--surface-shadow, 0 1px 3px rgb(0 0 0 / 0.12));
-  padding: 0.75rem;
+  padding: 0;
   display: flex;
   justify-content: center;
+  align-items: center;
+  width: 100%;
+  overflow: hidden;
+  touch-action: none;
+  overscroll-behavior: contain;
+  max-width: 720px;
+  margin-inline: auto;
+}
+
+.rogue-brick-layout.is-focus-mode .rogue-brick-canvas-wrap {
+  flex: 1;
+  min-height: 0;
+  background: #08111f;
+  box-shadow: none;
+  max-width: none;
 }
 
 .rogue-board-overlay {
   position: absolute;
-  inset: 0.75rem;
-  border-radius: 0.5rem;
+  inset: 0;
+  border-radius: 0.75rem;
   background: rgb(7 12 24 / 82%);
   z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  padding: 5.5rem 1rem 1rem;
 }
 
 .rogue-board-overlay-content {
@@ -63,8 +168,12 @@
 }
 
 .rogue-brick-canvas {
-  width: min(100%, 420px);
-  border-radius: 0.5rem;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 420 / 720;
+  display: block;
+  border-radius: 0.75rem;
   touch-action: none;
 }
 
@@ -107,6 +216,10 @@
   border-radius: 999px;
   background: var(--gray-200);
   overflow: hidden;
+}
+
+.rogue-progress-track-compact {
+  height: 6px;
 }
 
 .rogue-progress-fill {
@@ -156,5 +269,26 @@
 @media (max-width: 1100px) {
   .rogue-brick-layout {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .rogue-brick-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rogue-brick-header-actions {
+    align-items: stretch;
+  }
+
+  .rogue-brick-top-hud {
+    top: 0.5rem;
+    left: 0.5rem;
+    right: 0.5rem;
+  }
+
+  .rogue-board-overlay {
+    padding-top: 5rem;
   }
 }
