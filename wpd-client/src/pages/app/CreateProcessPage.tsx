@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
+import axios from 'axios';
 import { processApi } from '../../api/processApi';
 import ProcessDiscoveryModal, { type ProcessCategory, PROCESS_CATEGORIES } from '../../components/modals/ProcessDiscoveryModal';
 import { clearDraft, loadDraft, saveDraft } from '../../utils/draftStorage';
@@ -98,10 +99,14 @@ export default function CreateProcessPage() {
       return;
     }
 
-    setName(draft.name ?? '');
-    setDescription(draft.description ?? '');
-    setProblemStatement(draft.problemStatement ?? '');
-    setContext(draft.context ?? '');
+    const timer = window.setTimeout(() => {
+      setName(draft.name ?? '');
+      setDescription(draft.description ?? '');
+      setProblemStatement(draft.problemStatement ?? '');
+      setContext(draft.context ?? '');
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, []);
 
   // Load category from URL on mount
@@ -109,13 +114,19 @@ export default function CreateProcessPage() {
     const categoryParam = searchParams.get('category');
     if (categoryParam) {
       const found = PROCESS_CATEGORIES.find((c) => c.id === categoryParam);
-      if (found) {
-        setSelectedCategory(found);
-      } else {
-        setShowDiscoveryModal(true);
-      }
+      const timer = window.setTimeout(() => {
+        if (found) {
+          setSelectedCategory(found);
+        } else {
+          setShowDiscoveryModal(true);
+        }
+      }, 0);
+      return () => window.clearTimeout(timer);
     } else {
-      setShowDiscoveryModal(true);
+      const timer = window.setTimeout(() => {
+        setShowDiscoveryModal(true);
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
   }, [searchParams]);
 
@@ -144,9 +155,10 @@ export default function CreateProcessPage() {
       clearDraft(CREATE_PROCESS_DRAFT_KEY);
       navigate(`/processes/${process.id}/diagnostic`);
     },
-    onError: (err: any) => {
-      if (err.response?.status === 403) {
-        setError(err.response.data.upgradePrompt || 'Process limit reached.');
+    onError: (err: unknown) => {
+      if (axios.isAxiosError(err) && err.response?.status === 403) {
+        const upgradePrompt = (err.response.data as { upgradePrompt?: string } | undefined)?.upgradePrompt;
+        setError(upgradePrompt ?? 'Process limit reached.');
       } else {
         setError('Failed to create process. Please try again.');
       }

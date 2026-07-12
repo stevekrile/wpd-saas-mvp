@@ -36,7 +36,7 @@ export const LensRadarChart: React.FC<LensRadarChartProps> = ({ lenses, size = 2
         distance,
       };
     });
-  }, [lenses, angleSlice, radius]);
+  }, [lenses, angleSlice, radius, centerX, centerY]);
 
   const gridLines = useMemo(() => {
     const lines = [];

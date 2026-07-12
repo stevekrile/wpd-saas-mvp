@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import axios from 'axios';
 import { processApi } from '../../api/processApi';
 import { PROCESS_CATEGORIES, type ProcessCategory } from './ProcessDiscoveryModal';
 import '../styles/ProcessDiscoveryModal.css';
@@ -75,13 +76,16 @@ export default function CreateProcessModal({ isOpen, onClose, onSuccess }: Props
     const draftCategory = draft.selectedCategoryId
       ? PROCESS_CATEGORIES.find((category) => category.id === draft.selectedCategoryId) ?? null
       : null;
+    const timer = window.setTimeout(() => {
+      setSelectedCategory(draftCategory);
+      setStep(draft.step === 'form' && draftCategory ? 'form' : 'category');
+      setName(draft.name ?? '');
+      setDescription(draft.description ?? '');
+      setProblemStatement(draft.problemStatement ?? '');
+      setContext(draft.context ?? '');
+    }, 0);
 
-    setSelectedCategory(draftCategory);
-    setStep(draft.step === 'form' && draftCategory ? 'form' : 'category');
-    setName(draft.name ?? '');
-    setDescription(draft.description ?? '');
-    setProblemStatement(draft.problemStatement ?? '');
-    setContext(draft.context ?? '');
+    return () => window.clearTimeout(timer);
   }, [isOpen]);
 
   useEffect(() => {
@@ -109,9 +113,10 @@ export default function CreateProcessModal({ isOpen, onClose, onSuccess }: Props
       clearDraft(CREATE_PROCESS_MODAL_DRAFT_KEY);
       onSuccess(process.id);
     },
-    onError: (err: any) => {
-      if (err.response?.status === 403) {
-        setFormError(err.response.data.upgradePrompt || 'Process limit reached.');
+    onError: (err: unknown) => {
+      if (axios.isAxiosError(err) && err.response?.status === 403) {
+        const upgradePrompt = (err.response.data as { upgradePrompt?: string } | undefined)?.upgradePrompt;
+        setFormError(upgradePrompt ?? 'Process limit reached.');
       } else {
         setFormError('Failed to create process. Please try again.');
       }

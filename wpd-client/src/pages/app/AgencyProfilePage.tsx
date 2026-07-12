@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { agencyApi } from '../../api/agencyApi';
@@ -47,17 +47,10 @@ export default function AgencyProfilePage() {
       .filter((lens): lens is NonNullable<typeof lens> => Boolean(lens));
   }, [profile]);
 
-  useEffect(() => {
-    if (orderedLenses.length === 0) {
-      return;
-    }
-
-    if (currentLensIndex >= orderedLenses.length) {
-      setCurrentLensIndex(0);
-    }
-  }, [currentLensIndex, orderedLenses.length]);
-
-  const activeLens = orderedLenses[currentLensIndex] ?? null;
+  const clampedLensIndex = orderedLenses.length > 0
+    ? Math.min(currentLensIndex, orderedLenses.length - 1)
+    : 0;
+  const activeLens = orderedLenses[clampedLensIndex] ?? null;
 
   const saveMutation = useMutation({
     mutationFn: async (params: { lensKey: string; statementNumber: number; score: number }) => {
@@ -128,11 +121,11 @@ export default function AgencyProfilePage() {
                   <button
                     key={lens.lensKey}
                     type="button"
-                    className={`diagnostic-mobile-lens-button ${index === currentLensIndex ? 'active' : ''}`}
+                    className={`diagnostic-mobile-lens-button ${index === clampedLensIndex ? 'active' : ''}`}
                     onClick={() => setCurrentLensIndex(index)}
                     aria-label={`Select ${lens.lensName}`}
                   >
-                    <span className={`diagnostic-mobile-lens-icon ${index === currentLensIndex ? 'active' : ''}`}>
+                    <span className={`diagnostic-mobile-lens-icon ${index === clampedLensIndex ? 'active' : ''}`}>
                       <span className="diagnostic-mobile-lens-icon-mask">
                         <img src={LENS_TAB_ICONS[lensKey]} alt="" className="diagnostic-mobile-lens-image" />
                       </span>
@@ -156,10 +149,10 @@ export default function AgencyProfilePage() {
                 const fillPercent = lens.agencyScore !== null ? (lens.agencyScore / 5) * 100 : 0;
 
                 return (
-                  <div key={lens.lensKey} className={`diagnostic-score-row ${index === currentLensIndex ? 'active' : ''}`}>
+                  <div key={lens.lensKey} className={`diagnostic-score-row ${index === clampedLensIndex ? 'active' : ''}`}>
                     <button
                       type="button"
-                      className={`diagnostic-lens-tab diagnostic-score-lens-button ${index === currentLensIndex ? 'active' : ''}`}
+                      className={`diagnostic-lens-tab diagnostic-score-lens-button ${index === clampedLensIndex ? 'active' : ''}`}
                       onClick={() => setCurrentLensIndex(index)}
                       aria-label={`Select ${lens.lensName}`}
                     >

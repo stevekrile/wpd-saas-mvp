@@ -324,7 +324,7 @@ export default function DiagnosticWizardPage() {
         const loadedNotes: Record<LensKey, string> = getEmptyNotes();
 
         diagnostic.questions.forEach((q) => {
-          const localId = Object.entries(QUESTION_ID_MAP).find(([_, id]) => id === q.questionId)?.[0];
+          const localId = Object.entries(QUESTION_ID_MAP).find(([, id]) => id === q.questionId)?.[0];
           if (localId && q.numericResponse > 0) {
             loadedRatings[localId] = q.numericResponse as Rating;
           }
@@ -404,13 +404,15 @@ export default function DiagnosticWizardPage() {
     if (!process) {
       return;
     }
-
-    setProcessForm({
-      name: process.name ?? '',
-      description: process.description ?? '',
-      problemStatement: process.problemStatement ?? '',
-      context: process.context ?? '',
-    });
+    const timer = window.setTimeout(() => {
+      setProcessForm({
+        name: process.name ?? '',
+        description: process.description ?? '',
+        problemStatement: process.problemStatement ?? '',
+        context: process.context ?? '',
+      });
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [process]);
 
   useEffect(() => {
@@ -431,8 +433,10 @@ export default function DiagnosticWizardPage() {
     if (isGeneratingResponse) {
       return;
     }
-
-    setLlmResponse(currentLlmResult?.resultMarkdown ?? '');
+    const timer = window.setTimeout(() => {
+      setLlmResponse(currentLlmResult?.resultMarkdown ?? '');
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [currentLlmResult?.resultMarkdown, isGeneratingResponse]);
 
   useEffect(() => {
@@ -444,7 +448,10 @@ export default function DiagnosticWizardPage() {
     const optimisticNormalized = optimisticArchivedHistoryEntry.resultMarkdown.trim();
     const isPersisted = serverItems.some((item) => item.resultMarkdown.trim() === optimisticNormalized);
     if (isPersisted) {
-      setOptimisticArchivedHistoryEntry(null);
+      const timer = window.setTimeout(() => {
+        setOptimisticArchivedHistoryEntry(null);
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
   }, [llmResultHistory?.items, optimisticArchivedHistoryEntry]);
 

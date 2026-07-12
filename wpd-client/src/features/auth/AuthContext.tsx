@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
@@ -31,8 +32,10 @@ export const WpdAuthProvider = ({ children }: { children: ReactNode }) => {
     if (!clerkLoaded) return;
 
     if (!clerkUser) {
-      setWpdUser(null);
-      setIsLoading(false);
+      queueMicrotask(() => {
+        setWpdUser(null);
+        setIsLoading(false);
+      });
       return;
     }
 

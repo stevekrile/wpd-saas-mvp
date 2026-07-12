@@ -34,9 +34,10 @@ export default function SettingsAiAccountsPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    const timerMap = successTimersRef.current;
     return () => {
       for (const provider of ['openai', 'anthropic'] as LlmProvider[]) {
-        const timer = successTimersRef.current[provider];
+        const timer = timerMap[provider];
         if (timer) {
           clearTimeout(timer);
         }
