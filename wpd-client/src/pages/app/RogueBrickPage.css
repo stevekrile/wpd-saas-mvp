@@ -45,6 +45,8 @@ body.rogue-brick-focus-mode {
   position: relative;
   display: flex;
   flex-direction: column;
+  background: url('/src/assets/spooky-forest-wallpaper.png') center / cover no-repeat;
+  background-attachment: fixed;
 }
 
 .rogue-brick-layout-shell.is-focus-mode {
@@ -56,7 +58,7 @@ body.rogue-brick-focus-mode {
     max(0.75rem, env(safe-area-inset-right))
     max(0.75rem, env(safe-area-inset-bottom))
     max(0.75rem, env(safe-area-inset-left));
-  background: #08111f;
+  background: url('/src/assets/spooky-forest-wallpaper.png') center / cover no-repeat fixed;
   overflow: visible;
   display: flex;
   flex-direction: column;
@@ -102,7 +104,7 @@ body.rogue-brick-focus-mode {
   padding: 0.75rem 0.9rem;
   border-radius: 0;
   border: 0;
-  background: rgb(7 12 24 / 82%);
+  background: transparent;
   color: #f8fafc;
   backdrop-filter: blur(10px);
   margin-bottom: 0.75rem;
@@ -110,7 +112,7 @@ body.rogue-brick-focus-mode {
 }
 
 .rogue-brick-layout-shell.is-focus-mode .rogue-brick-top-hud {
-  background: #08111f;
+  background: transparent;
   border: 0;
 }
 
@@ -215,9 +217,9 @@ body.rogue-brick-focus-mode {
 
 .rogue-brick-canvas-wrap {
   position: relative;
-  background: var(--surface-bg, #fff);
+  background: transparent;
   border-radius: 0.75rem;
-  box-shadow: var(--surface-shadow, 0 1px 3px rgb(0 0 0 / 0.12));
+  box-shadow: none;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -235,7 +237,7 @@ body.rogue-brick-focus-mode {
 .rogue-brick-layout.is-focus-mode .rogue-brick-canvas-wrap {
   flex: 1;
   min-height: 0;
-  background: #08111f;
+  background: transparent;
   box-shadow: none;
   max-width: none;
   justify-content: space-between;
@@ -265,7 +267,7 @@ body.rogue-brick-focus-mode {
   position: absolute;
   inset: 0;
   border-radius: 0.75rem;
-  background: rgb(7 12 24 / 82%);
+  background: transparent;
   z-index: 2;
   display: flex;
   align-items: center;
@@ -653,6 +655,9 @@ body.rogue-brick-focus-mode {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  backdrop-filter: blur(8px);
+  padding: 0.5rem;
+  border-radius: 0.5rem;
 }
 
 .rogue-path-tree-heading strong {
@@ -716,9 +721,7 @@ body.rogue-brick-focus-mode {
   height: 37.8rem;
   border-radius: 0.85rem;
   border: 1px solid rgb(148 163 184 / 30%);
-  background:
-    linear-gradient(180deg, rgb(15 23 42 / 70%), rgb(15 23 42 / 88%)),
-    radial-gradient(circle at top, rgb(30 41 59 / 60%), rgb(2 6 23 / 100%));
+  background: transparent !important;
   overflow: hidden;
 }
 
@@ -727,7 +730,7 @@ body.rogue-brick-focus-mode {
   inset: 0 auto 0 0;
   width: 3.15rem;
   border-right: 1px solid rgb(148 163 184 / 20%);
-  background: linear-gradient(180deg, rgb(2 6 23 / 44%), rgb(2 6 23 / 62%));
+  background: transparent;
   z-index: 1;
 }
 
@@ -761,6 +764,7 @@ body.rogue-brick-focus-mode {
   inset: 0;
   width: 100%;
   height: 100%;
+  background: transparent;
 }
 
 .rogue-path-tree-line {
@@ -1518,8 +1522,8 @@ button.rogue-path-tree-node.is-playable:focus-visible {
 
 .rogue-brick-panel {
   border-radius: 0.75rem;
-  background: var(--surface-bg, #fff);
-  box-shadow: var(--surface-shadow, 0 1px 3px rgb(0 0 0 / 0.12));
+  background: transparent;
+  box-shadow: none;
   padding: 1rem;
   display: flex;
   flex-direction: column;
@@ -1547,7 +1551,7 @@ button.rogue-path-tree-node.is-playable:focus-visible {
   width: 100%;
   height: 8px;
   border-radius: 999px;
-  background: var(--gray-200);
+  background: rgb(71 85 105 / 25%);
   overflow: hidden;
 }
 
