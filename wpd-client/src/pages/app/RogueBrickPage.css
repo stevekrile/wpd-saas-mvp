@@ -502,7 +502,7 @@ body.rogue-brick-focus-mode {
 .rogue-board-summary {
   border: 1px solid rgb(148 163 184 / 28%);
   border-radius: 0.55rem;
-  background: rgb(15 23 42 / 96%);
+  background: rgba(26, 20, 16, 0.62);
   padding: 0.55rem 0.65rem;
   display: flex;
   flex-direction: column;
@@ -528,7 +528,7 @@ body.rogue-brick-focus-mode {
   position: relative;
   border: 0;
   border-radius: 0.52rem;
-  background: rgb(30 41 59 / 44%);
+  background: rgba(26, 20, 16, 0.45);
   padding: 0.5rem 0.72rem;
   display: flex;
   align-items: center;
