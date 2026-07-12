@@ -740,6 +740,44 @@ export default function RogueBrickPage() {
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
+      } else if (kind === 'unbreakable') {
+        const metalGradient = ctx.createLinearGradient(x, y, x, y + BRICK_HEIGHT);
+        metalGradient.addColorStop(0, 'rgba(248, 250, 252, 1)');
+        metalGradient.addColorStop(0.22, 'rgba(148, 163, 184, 1)');
+        metalGradient.addColorStop(0.5, 'rgba(71, 85, 105, 1)');
+        metalGradient.addColorStop(0.78, 'rgba(148, 163, 184, 1)');
+        metalGradient.addColorStop(1, 'rgba(30, 41, 59, 1)');
+        ctx.fillStyle = metalGradient;
+        ctx.fillRect(x, y, brickWidth, BRICK_HEIGHT);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x + 1, y + 1, brickWidth - 2, BRICK_HEIGHT - 2);
+        ctx.clip();
+        ctx.strokeStyle = 'rgba(15, 23, 42, 0.42)';
+        ctx.lineWidth = 4;
+        for (let stripe = -BRICK_HEIGHT; stripe < brickWidth + BRICK_HEIGHT; stripe += 12) {
+          ctx.beginPath();
+          ctx.moveTo(x + stripe, y + BRICK_HEIGHT);
+          ctx.lineTo(x + stripe + BRICK_HEIGHT, y);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+        ctx.lineWidth = 1.2;
+        ctx.strokeRect(x + 1, y + 1, brickWidth - 2, BRICK_HEIGHT - 2);
+
+        ctx.fillStyle = 'rgba(226, 232, 240, 0.95)';
+        const rivetOffsetX = Math.max(8, brickWidth * 0.14);
+        const rivetOffsetY = Math.max(7, BRICK_HEIGHT * 0.24);
+        for (const rivetX of [x + rivetOffsetX, x + brickWidth - rivetOffsetX]) {
+          for (const rivetY of [y + rivetOffsetY, y + BRICK_HEIGHT - rivetOffsetY]) {
+            ctx.beginPath();
+            ctx.arc(rivetX, rivetY, 2.2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
       } else {
         ctx.fillRect(x, y, brickWidth, BRICK_HEIGHT);
         ctx.strokeRect(x + 0.5, y + 0.5, brickWidth - 1, BRICK_HEIGHT - 1);
@@ -804,8 +842,8 @@ export default function RogueBrickPage() {
         ctx.stroke();
       }
 
-      const label = kind === 'unbreakable' ? '∞' : String(Math.max(0, Math.ceil(brick.hp)));
-      ctx.font = 'bold 14px sans-serif';
+      const label = kind === 'unbreakable' ? 'LOCK' : String(Math.max(0, Math.ceil(brick.hp)));
+      ctx.font = kind === 'unbreakable' ? 'bold 11px monospace' : 'bold 14px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#f8fafc';
@@ -1780,22 +1818,21 @@ export default function RogueBrickPage() {
       </header>
 
       <section className={`rogue-brick-layout-shell${isFocusMode ? ' is-focus-mode' : ''}`}>
-        {isFocusMode && (
-          <div className="rogue-brick-focus-exit-wrap">
-            <button
-              type="button"
-              className="btn-secondary rogue-brick-focus-exit"
-              onClick={() => setIsFocusMode(false)}
-            >
-              Exit
-            </button>
-          </div>
-        )}
-
         <div className="rogue-brick-top-hud" aria-label="Current score and progress">
           <div className="rogue-brick-top-hud-row">
             <span className="rogue-brick-top-hud-label">Overall Score</span>
-            <strong className="rogue-brick-top-hud-score">{overallScore.toLocaleString()}</strong>
+            <div className="rogue-brick-top-hud-score-group">
+              <strong className="rogue-brick-top-hud-score">{overallScore.toLocaleString()}</strong>
+              {isFocusMode && (
+                <button
+                  type="button"
+                  className="btn-secondary rogue-brick-focus-exit"
+                  onClick={() => setIsFocusMode(false)}
+                >
+                  Exit
+                </button>
+              )}
+            </div>
           </div>
           <div className="rogue-brick-top-hud-row">
             <span className="rogue-brick-top-hud-label">

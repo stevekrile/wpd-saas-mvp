@@ -53,23 +53,11 @@ body.rogue-brick-focus-mode {
   flex-direction: column;
 }
 
-.rogue-brick-focus-exit-wrap {
-  position: absolute;
-  top: max(0.75rem, env(safe-area-inset-top));
-  right: max(0.75rem, env(safe-area-inset-right));
-  z-index: 4;
-}
-
 .rogue-brick-focus-exit {
   min-width: 4.5rem;
 }
 
 .rogue-brick-top-hud {
-  position: absolute;
-  top: 0.75rem;
-  left: 0.75rem;
-  right: 0.75rem;
-  z-index: 3;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -78,16 +66,19 @@ body.rogue-brick-focus-mode {
   background: rgb(7 12 24 / 82%);
   color: #f8fafc;
   backdrop-filter: blur(10px);
-  pointer-events: none;
-}
-
-.rogue-brick-layout-shell.is-focus-mode .rogue-brick-top-hud {
-  right: 5.75rem;
+  margin-bottom: 0.75rem;
+  flex-shrink: 0;
 }
 
 .rogue-brick-top-hud-row {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.rogue-brick-top-hud-score-group {
+  display: flex;
   align-items: center;
   gap: 0.75rem;
 }
@@ -151,7 +142,7 @@ body.rogue-brick-focus-mode {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 5.5rem 1rem 1rem;
+  padding: 1rem;
 }
 
 .rogue-board-overlay-content {
@@ -283,12 +274,12 @@ body.rogue-brick-focus-mode {
   }
 
   .rogue-brick-top-hud {
-    top: 0.5rem;
-    left: 0.5rem;
-    right: 0.5rem;
+    margin-bottom: 0.5rem;
   }
 
-  .rogue-board-overlay {
-    padding-top: 5rem;
+  .rogue-brick-top-hud-row,
+  .rogue-brick-top-hud-score-group {
+    align-items: flex-start;
+    flex-wrap: wrap;
   }
 }
