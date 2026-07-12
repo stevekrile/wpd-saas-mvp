@@ -1447,6 +1447,16 @@ export default function RogueBrickPage() {
     [draw, finalizeTurn, spawnBreakParticles]
   );
 
+  const reclaimShot = useCallback(() => {
+    if (!shotInFlightRef.current) {
+      return;
+    }
+
+    launchQueueRef.current = [];
+    ballsRef.current = [];
+    finalizeTurn();
+  }, [finalizeTurn]);
+
   useEffect(() => {
     return () => {
       if (animationRef.current !== null) {
@@ -1859,95 +1869,107 @@ export default function RogueBrickPage() {
 
         <div className={`rogue-brick-layout${isFocusMode ? ' is-focus-mode' : ''}`}>
           <div className="rogue-brick-canvas-wrap">
-            {showBoardOverlay && (
-              <div className="rogue-board-overlay">
-                <section className="rogue-board-overlay-content">
-                  {!hasActiveRun && (
-                    <button
-                      type="button"
-                      className="btn-primary"
-                      onClick={startRun}
-                      disabled={!canStartRun}
-                    >
-                      Start New Run
-                    </button>
-                  )}
+            <div className="rogue-brick-board-frame">
+              {showBoardOverlay && (
+                <div className="rogue-board-overlay">
+                  <section className="rogue-board-overlay-content">
+                    {!hasActiveRun && (
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={startRun}
+                        disabled={!canStartRun}
+                      >
+                        Start New Run
+                      </button>
+                    )}
 
-                {run?.stage === 'hub' && (
-                  <div className="rogue-choice-grid">
-                    <button type="button" className="btn-primary" onClick={continueToBoard}>
-                      Face Next Board
-                    </button>
-                    <button type="button" className="btn-secondary" onClick={gambleForPower}>
-                      Gamble for Power (20 coins)
-                    </button>
-                    <button type="button" className="btn-secondary" onClick={visitStore}>
-                      Visit Store
-                    </button>
-                  </div>
-                )}
-
-                {run?.stage === 'powerup' && (
-                  <>
-                    <h2>Choose a Power-Up (Mana)</h2>
-                    <div className="rogue-choice-grid">
-                      {run.pendingPowerOffers.map((offer) => (
-                        <button
-                          type="button"
-                          key={offer.id}
-                          className="rogue-choice-card"
-                          onClick={() => choosePowerUp(offer.id)}
-                        >
-                          <strong>{offer.name}</strong>
-                          <span>{offer.description}</span>
-                          <span>Cost: {offer.manaCost} mana</span>
+                    {run?.stage === 'hub' && (
+                      <div className="rogue-choice-grid">
+                        <button type="button" className="btn-primary" onClick={continueToBoard}>
+                          Face Next Board
                         </button>
-                      ))}
-                    </div>
-                    <button type="button" className="btn-text" onClick={skipPowerUp}>
-                      Skip choice
-                    </button>
-                  </>
-                )}
-
-                {run?.stage === 'store' && (
-                  <>
-                    <h2>Store</h2>
-                    <div className="rogue-choice-grid">
-                      {run.pendingStoreOffers.map((offer) => (
-                        <button
-                          type="button"
-                          key={offer.id}
-                          className="rogue-choice-card"
-                          onClick={() => buyStoreOffer(offer.id)}
-                          disabled={offer.purchased}
-                        >
-                          <strong>{offer.name}</strong>
-                          <span>{offer.description}</span>
-                          <span>{offer.purchased ? 'Purchased' : `Cost: ${offer.coinCost} coins`}</span>
+                        <button type="button" className="btn-secondary" onClick={gambleForPower}>
+                          Gamble for Power (20 coins)
                         </button>
-                      ))}
-                    </div>
-                    <button type="button" className="btn-primary" onClick={leaveStore}>
-                      Return
-                    </button>
-                  </>
-                )}
+                        <button type="button" className="btn-secondary" onClick={visitStore}>
+                          Visit Store
+                        </button>
+                      </div>
+                    )}
 
-                {run?.hubMessage && <p className="rogue-hub-message">{run.hubMessage}</p>}
-              </section>
+                    {run?.stage === 'powerup' && (
+                      <>
+                        <h2>Choose a Power-Up (Mana)</h2>
+                        <div className="rogue-choice-grid">
+                          {run.pendingPowerOffers.map((offer) => (
+                            <button
+                              type="button"
+                              key={offer.id}
+                              className="rogue-choice-card"
+                              onClick={() => choosePowerUp(offer.id)}
+                            >
+                              <strong>{offer.name}</strong>
+                              <span>{offer.description}</span>
+                              <span>Cost: {offer.manaCost} mana</span>
+                            </button>
+                          ))}
+                        </div>
+                        <button type="button" className="btn-text" onClick={skipPowerUp}>
+                          Skip choice
+                        </button>
+                      </>
+                    )}
+
+                    {run?.stage === 'store' && (
+                      <>
+                        <h2>Store</h2>
+                        <div className="rogue-choice-grid">
+                          {run.pendingStoreOffers.map((offer) => (
+                            <button
+                              type="button"
+                              key={offer.id}
+                              className="rogue-choice-card"
+                              onClick={() => buyStoreOffer(offer.id)}
+                              disabled={offer.purchased}
+                            >
+                              <strong>{offer.name}</strong>
+                              <span>{offer.description}</span>
+                              <span>{offer.purchased ? 'Purchased' : `Cost: ${offer.coinCost} coins`}</span>
+                            </button>
+                          ))}
+                        </div>
+                        <button type="button" className="btn-primary" onClick={leaveStore}>
+                          Return
+                        </button>
+                      </>
+                    )}
+
+                    {run?.hubMessage && <p className="rogue-hub-message">{run.hubMessage}</p>}
+                  </section>
+                </div>
+              )}
+              <canvas
+                ref={canvasRef}
+                width={CANVAS_WIDTH}
+                height={CANVAS_HEIGHT}
+                className="rogue-brick-canvas"
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerCancel={handlePointerCancel}
+              />
             </div>
-          )}
-          <canvas
-            ref={canvasRef}
-            width={CANVAS_WIDTH}
-            height={CANVAS_HEIGHT}
-            className="rogue-brick-canvas"
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerCancel}
-          />
+            <div className="rogue-brick-board-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={reclaimShot}
+                disabled={!shotInProgress || run?.stage !== 'board'}
+              >
+                Reclaim Balls
+              </button>
+            </div>
         </div>
 
         <aside className="rogue-brick-sidebar">

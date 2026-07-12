@@ -115,8 +115,10 @@ body.rogue-brick-focus-mode {
   box-shadow: var(--surface-shadow, 0 1px 3px rgb(0 0 0 / 0.12));
   padding: 0;
   display: flex;
+  flex-direction: column;
   justify-content: center;
-  align-items: center;
+  align-items: stretch;
+  gap: 0.75rem;
   width: 100%;
   overflow: hidden;
   touch-action: none;
@@ -131,6 +133,12 @@ body.rogue-brick-focus-mode {
   background: #08111f;
   box-shadow: none;
   max-width: none;
+}
+
+.rogue-brick-board-frame {
+  position: relative;
+  width: 100%;
+  display: flex;
 }
 
 .rogue-board-overlay {
@@ -166,6 +174,16 @@ body.rogue-brick-focus-mode {
   display: block;
   border-radius: 0.75rem;
   touch-action: none;
+}
+
+.rogue-brick-board-actions {
+  display: flex;
+  justify-content: center;
+  padding: 0 0.75rem 0.75rem;
+}
+
+.rogue-brick-board-actions .btn-secondary {
+  min-width: 10rem;
 }
 
 .rogue-brick-sidebar {
