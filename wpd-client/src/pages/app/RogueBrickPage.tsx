@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { rogueBrickApi } from '../../api/rogueBrickApi';
 import { useWpdAuth } from '../../features/auth/AuthContext';
 import './RogueBrickPage.css';
@@ -8,7 +9,9 @@ const CANVAS_WIDTH = 420;
 const CANVAS_HEIGHT = 720;
 const BRICK_COLUMNS = 7;
 const BRICK_GAP = 3;
-const BRICK_HEIGHT = 22;
+const BRICK_HEIGHT = 44;
+const BRICK_SIZE_SCALE = 0.7;
+const STANDARD_BRICK_MIN_SCALE = 0.58;
 const BRICK_ROW_STEP = BRICK_HEIGHT + BRICK_GAP;
 const BRICK_TOP = 70;
 const LAUNCHER_Y = CANVAS_HEIGHT - 42;
@@ -16,15 +19,24 @@ const BALL_RADIUS = 6.5;
 const BALL_SPEED = 630;
 const MAX_ACTIVE_BALLS = 280;
 const MIN_LAUNCH_UPWARD_COMPONENT = -0.08;
-const LOSE_ROW = 22;
+const LOSE_Y = LAUNCHER_Y - 14;
 const LOCAL_STORAGE_PREFIX = 'wpd:rogue-brick:';
 const HOMING_BULLET_TIME_SCALE = 0.34;
 const POWER_POPOVER_WIDTH_PX = 272;
 const CORE_MIN_SCALE = 0.42;
 const BLUE_CORE_MIN_SCALE = 0.92;
-const BOARD_ROW_ADVANCE_ANIMATION_MS = 390;
+const BLUE_CORE_FORCE_FIELD_SIZE_MULTIPLIER = 1.5;
+const BOARD_ROW_ADVANCE_ANIMATION_MS = 360;
+const BOARD_ROW_ADVANCE_STEP_ROWS = 0.62;
 const CORE_BREACH_FLASH_MS = 1400;
 const CORE_VARIANTS = ['yellow', 'blue', 'green'] as const;
+const UNBREAKABLE_INTRO_BOARD = 16;
+const UNBREAKABLE_HALF_BOARD = 48;
+const UNBREAKABLE_MAX_SHARE = 0.5;
+const PATH_PREVIEW_VISIBLE_LEVELS = 5;
+const PATH_MAX_LANE_ABS = 8;
+const STORE_INTERACTION_MESSAGE_PREFIXES = ['Purchased ', 'Gamble resolved.', 'Left the store.', 'Board cleared.'] as const;
+const RUN_POWERUP_MESSAGE_SUFFIX = ' acquired.';
 
 const BALANCE_TARGETS = {
   runDurationMinutes: 20,
@@ -67,6 +79,8 @@ const BALANCE = {
 } as const;
 
 type RunStage = 'board' | 'hub' | 'powerup' | 'store';
+type PathChallengeKey = 'balanced' | 'swarm' | 'fortified' | 'gauntlet';
+type PathStoreType = 'mana' | 'money' | null;
 type BrickKind =
   | 'standard'
   | 'reinforced'
@@ -163,6 +177,48 @@ interface RogueRunState {
   boardBounceCount: number;
   lastBoardSummary: BoardSummary | null;
   boardSummaryAcknowledged: boolean;
+  pathCurrentNodeId: string;
+  pathNodesByLevel: Record<number, PathNodeState>;
+}
+
+interface PathNodeState {
+  id: string;
+  parentId: string | null;
+  level: number;
+  lane: number;
+  challenge: PathChallengeKey;
+  storeType: PathStoreType;
+}
+
+interface PathChallengeDefinition {
+  key: PathChallengeKey;
+  label: string;
+  description: string;
+  boardPoolShift: number;
+  hpMultiplier: number;
+  objectiveHpMultiplier: number;
+  objectiveCountBonus: number;
+  unbreakableShareMultiplier: number;
+}
+
+interface PathPreviewNode extends PathNodeState {
+  relation: 'past' | 'current' | 'future';
+  isSelected: boolean;
+  isPlayable: boolean;
+}
+
+interface PathPreviewEdge {
+  fromId: string;
+  toId: string;
+}
+
+interface PathPreview {
+  startLevel: number;
+  endLevel: number;
+  minLane: number;
+  maxLane: number;
+  nodes: PathPreviewNode[];
+  edges: PathPreviewEdge[];
 }
 
 type PermanentUpgradeKey = 'startingBalls' | 'startingMana' | 'startingCoins' | 'startingDamage';
@@ -219,9 +275,10 @@ interface BrickVisualState {
 }
 
 interface BoardAdvanceAnimationState {
-  startedAt: number;
   durationMs: number;
-  offsetPx: number;
+  startsAtTurn: number;
+  startedAtMs: number | null;
+  startingBrickRows: Record<string, number>;
 }
 
 interface BreakParticle {
@@ -427,10 +484,61 @@ const STORE_POOL: StoreTemplate[] = [
   },
 ];
 
+const PATH_CHALLENGES: PathChallengeDefinition[] = [
+  {
+    key: 'balanced',
+    label: 'Balanced Route',
+    description: 'Stable climb with mixed threats.',
+    boardPoolShift: 0,
+    hpMultiplier: 1,
+    objectiveHpMultiplier: 1,
+    objectiveCountBonus: 0,
+    unbreakableShareMultiplier: 1,
+  },
+  {
+    key: 'swarm',
+    label: 'Swarm Route',
+    description: 'More cores and denser objective pressure.',
+    boardPoolShift: 8,
+    hpMultiplier: 0.95,
+    objectiveHpMultiplier: 1,
+    objectiveCountBonus: 1,
+    unbreakableShareMultiplier: 1.08,
+  },
+  {
+    key: 'fortified',
+    label: 'Fortified Route',
+    description: 'Heavier HP scaling and durable core targets.',
+    boardPoolShift: 12,
+    hpMultiplier: 1.22,
+    objectiveHpMultiplier: 1.35,
+    objectiveCountBonus: 0,
+    unbreakableShareMultiplier: 1.25,
+  },
+  {
+    key: 'gauntlet',
+    label: 'Gauntlet Route',
+    description: 'Late-tier board patterns with oppressive armor.',
+    boardPoolShift: 20,
+    hpMultiplier: 1.12,
+    objectiveHpMultiplier: 1.22,
+    objectiveCountBonus: 1,
+    unbreakableShareMultiplier: 1.38,
+  },
+];
+
+const PATH_CHALLENGE_BY_KEY: Record<PathChallengeKey, PathChallengeDefinition> = {
+  balanced: PATH_CHALLENGES[0],
+  swarm: PATH_CHALLENGES[1],
+  fortified: PATH_CHALLENGES[2],
+  gauntlet: PATH_CHALLENGES[3],
+};
+
 interface ActivePowerIndicator {
   id: string;
   name: string;
   description: string;
+  category: 'permanent' | 'run';
   currentLevel: number;
   barSlots: number;
   baseColor: string;
@@ -551,6 +659,14 @@ function normalizeProfile(profile: RogueBrickProfile): RogueBrickProfile {
     if (typeof normalized.run.boardSummaryAcknowledged !== 'boolean') {
       normalized.run.boardSummaryAcknowledged = normalized.run.lastBoardSummary ? false : true;
     }
+    if (
+      normalized.run.stage === 'hub' &&
+      normalized.run.pendingStoreOffers.length > 0 &&
+      normalized.run.pendingPowerOffers.length === 0
+    ) {
+      normalized.run.stage = 'store';
+    }
+    ensureRunPathState(normalized.run);
   }
   return normalized;
 }
@@ -568,6 +684,280 @@ function randomInt(run: RogueRunState, min: number, max: number): number {
   return min + Math.floor(nextRandom(run) * (max - min + 1));
 }
 
+function hashStringToUint32(value: string): number {
+  let hash = 2166136261 >>> 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  return hash >>> 0;
+}
+
+function clampPathLane(lane: number): number {
+  return Math.max(-PATH_MAX_LANE_ABS, Math.min(PATH_MAX_LANE_ABS, lane));
+}
+
+function toPathChallengeKey(value: unknown): PathChallengeKey {
+  if (typeof value === 'string' && value in PATH_CHALLENGE_BY_KEY) {
+    return value as PathChallengeKey;
+  }
+  return 'balanced';
+}
+
+function getPathChallengeDefinition(challenge: PathChallengeKey): PathChallengeDefinition {
+  return PATH_CHALLENGE_BY_KEY[challenge] ?? PATH_CHALLENGE_BY_KEY.balanced;
+}
+
+function toPathStoreType(value: unknown): PathStoreType {
+  if (value === 'mana' || value === 'money') {
+    return value;
+  }
+  return null;
+}
+
+function getPathStoreTypeLabel(storeType: PathStoreType): string | null {
+  if (storeType === 'mana') {
+    return 'Mana Store';
+  }
+  if (storeType === 'money') {
+    return 'Money Store';
+  }
+  return null;
+}
+
+function makePathNodeId(
+  seed: number,
+  level: number,
+  lane: number,
+  parentId: string | null,
+  challenge: PathChallengeKey,
+  storeType: PathStoreType
+): string {
+  const token = hashStringToUint32(`${seed}|${level}|${lane}|${parentId ?? 'root'}|${challenge}|${storeType ?? 'none'}`)
+    .toString(16)
+    .padStart(8, '0');
+  return `path-${level}-${lane}-${challenge}-${token.slice(0, 8)}`;
+}
+
+function createRootPathNode(seed: number): PathNodeState {
+  return {
+    id: makePathNodeId(seed, 0, 0, null, 'balanced', null),
+    parentId: null,
+    level: 0,
+    lane: 0,
+    challenge: 'balanced',
+    storeType: null,
+  };
+}
+
+function ensureRunPathState(run: RogueRunState): void {
+  if (!run.pathNodesByLevel || typeof run.pathNodesByLevel !== 'object') {
+    run.pathNodesByLevel = {};
+  }
+
+  const sanitizedByLevel: Record<number, PathNodeState> = {};
+  for (const [levelKey, rawNode] of Object.entries(run.pathNodesByLevel as Record<string, unknown>)) {
+    const level = Number(levelKey);
+    if (!Number.isFinite(level) || level < 0 || !rawNode || typeof rawNode !== 'object') {
+      continue;
+    }
+    const node = rawNode as Partial<PathNodeState>;
+    const nodeLevel = Math.max(0, Math.floor(typeof node.level === 'number' ? node.level : level));
+    const lane = clampPathLane(Math.round(typeof node.lane === 'number' ? node.lane : 0));
+    const challenge = toPathChallengeKey(node.challenge);
+    const storeType = toPathStoreType(node.storeType);
+    const parentId = typeof node.parentId === 'string' ? node.parentId : null;
+    const id =
+      typeof node.id === 'string' && node.id.length > 0
+        ? node.id
+        : makePathNodeId(run.seed, nodeLevel, lane, parentId, challenge, storeType);
+    sanitizedByLevel[nodeLevel] = {
+      id,
+      parentId,
+      level: nodeLevel,
+      lane,
+      challenge,
+      storeType,
+    };
+  }
+  run.pathNodesByLevel = sanitizedByLevel;
+
+  if (!run.pathNodesByLevel[0]) {
+    run.pathNodesByLevel[0] = createRootPathNode(run.seed);
+  }
+
+  const inferredCurrentLevel = run.stage === 'board' ? Math.max(1, run.level) : Math.max(0, run.level - 1);
+  for (let level = 1; level <= inferredCurrentLevel; level += 1) {
+    if (run.pathNodesByLevel[level]) {
+      continue;
+    }
+    const parentNode = run.pathNodesByLevel[level - 1] ?? run.pathNodesByLevel[0];
+    run.pathNodesByLevel[level] = {
+      id: makePathNodeId(run.seed, level, parentNode.lane, parentNode.id, 'balanced', null),
+      parentId: parentNode.id,
+      level,
+      lane: parentNode.lane,
+      challenge: 'balanced',
+      storeType: null,
+    };
+  }
+
+  const knownNodes = Object.values(run.pathNodesByLevel);
+  const currentNode =
+    knownNodes.find((node) => node.id === run.pathCurrentNodeId) ??
+    run.pathNodesByLevel[inferredCurrentLevel] ??
+    run.pathNodesByLevel[1] ??
+    run.pathNodesByLevel[0];
+  run.pathCurrentNodeId = currentNode.id;
+}
+
+function getCurrentPathNode(run: RogueRunState): PathNodeState {
+  const nodeById = Object.values(run.pathNodesByLevel ?? {}).find((item) => item.id === run.pathCurrentNodeId);
+  if (nodeById) {
+    return nodeById;
+  }
+  const inferredLevel = run.stage === 'board' ? Math.max(1, run.level) : Math.max(0, run.level - 1);
+  return run.pathNodesByLevel?.[inferredLevel] ?? run.pathNodesByLevel?.[1] ?? run.pathNodesByLevel?.[0] ?? createRootPathNode(run.seed);
+}
+
+function derivePathChildren(run: RogueRunState, parentNode: PathNodeState): PathNodeState[] {
+  const level = parentNode.level + 1;
+  if (level > run.maxLevels) {
+    return [];
+  }
+
+  const branchSeed = hashStringToUint32(`${run.seed}|${parentNode.id}|${level}`);
+  const branchCount = 2 + (branchSeed % 2);
+  const offsets = branchCount === 2 ? [-1, 1] : [-1, 0, 1];
+  const usedLanes = new Set<number>();
+  const storeRowRoll = hashStringToUint32(`${branchSeed}|${level}|store-row`) % 100;
+  const hasStoreOnRow = level >= 3 && storeRowRoll < 34;
+  const rowStoreType: PathStoreType = hasStoreOnRow ? (storeRowRoll % 2 === 0 ? 'mana' : 'money') : null;
+  const rowStoreIndex = hasStoreOnRow
+    ? hashStringToUint32(`${branchSeed}|${level}|store-index`) % offsets.length
+    : -1;
+  const children: PathNodeState[] = [];
+
+  for (let index = 0; index < offsets.length; index += 1) {
+    let lane = clampPathLane(parentNode.lane + offsets[index]);
+    if (usedLanes.has(lane)) {
+      lane = clampPathLane(parentNode.lane + offsets[index] + (index % 2 === 0 ? -1 : 1));
+    }
+    usedLanes.add(lane);
+
+    const challengeIndex =
+      (hashStringToUint32(`${branchSeed}|${index}|${lane}`) + level + index) %
+      PATH_CHALLENGES.length;
+    const challenge = PATH_CHALLENGES[challengeIndex].key;
+    const storeType: PathStoreType = index === rowStoreIndex ? rowStoreType : null;
+
+    children.push({
+      id: makePathNodeId(run.seed, level, lane, parentNode.id, challenge, storeType),
+      parentId: parentNode.id,
+      level,
+      lane,
+      challenge,
+      storeType,
+    });
+  }
+
+  children.sort((left, right) => left.lane - right.lane);
+  return children;
+}
+
+function buildPathPreview(run: RogueRunState, shouldGateBoardChoices: boolean): PathPreview {
+  const anchorNode = getCurrentPathNode(run);
+  const startLevel = Math.max(0, anchorNode.level);
+  const endLevel = Math.min(run.maxLevels, startLevel + (PATH_PREVIEW_VISIBLE_LEVELS - 1));
+  const nodesById = new Map<string, PathPreviewNode>();
+  const edges: PathPreviewEdge[] = [];
+
+  const addNode = (node: PathNodeState, relation: PathPreviewNode['relation']) => {
+    const selectedNodeAtLevel = run.pathNodesByLevel[node.level];
+    const isSelected = selectedNodeAtLevel?.id === node.id;
+    const isPlayable =
+      run.stage === 'hub' &&
+      !shouldGateBoardChoices &&
+      node.level === run.level &&
+      node.parentId === anchorNode.id;
+    const existing = nodesById.get(node.id);
+    if (existing) {
+      existing.isPlayable = existing.isPlayable || isPlayable;
+      if (relation === 'current') {
+        existing.relation = 'current';
+      } else if (relation === 'past' && existing.relation === 'future') {
+        existing.relation = 'past';
+      }
+      existing.isSelected = existing.isSelected || isSelected;
+      return;
+    }
+    nodesById.set(node.id, {
+      ...node,
+      relation,
+      isSelected,
+      isPlayable,
+    });
+  };
+
+  addNode(anchorNode, 'current');
+
+  let frontier: PathNodeState[] = [anchorNode];
+  for (let level = anchorNode.level + 1; level <= endLevel; level += 1) {
+    const generated: PathNodeState[] = [];
+    for (const parentNode of frontier) {
+      const children = derivePathChildren(run, parentNode);
+      let previewChildren = children;
+      if (level > run.level) {
+        previewChildren = children.filter((child) => {
+          const visibilityRoll = hashStringToUint32(`${parentNode.id}|${child.id}|preview-edge`) % 100;
+          return visibilityRoll < 68;
+        });
+        if (previewChildren.length === 0 && children.length > 0) {
+          const fallbackIndex = hashStringToUint32(`${parentNode.id}|${level}|preview-fallback`) % children.length;
+          previewChildren = [children[fallbackIndex]];
+        }
+      }
+      for (const child of previewChildren) {
+        generated.push(child);
+        addNode(child, 'future');
+        edges.push({ fromId: parentNode.id, toId: child.id });
+      }
+    }
+
+    const selectedNode = run.pathNodesByLevel[level];
+    if (selectedNode && selectedNode.parentId) {
+      addNode(selectedNode, selectedNode.level < anchorNode.level ? 'past' : 'future');
+    }
+    if (level < run.level && selectedNode) {
+      frontier = [selectedNode];
+    } else {
+      frontier = generated;
+    }
+  }
+
+  const nodes = Array.from(nodesById.values())
+    .filter((node) => node.level >= startLevel && node.level <= endLevel)
+    .sort((left, right) => {
+      if (left.level !== right.level) {
+        return right.level - left.level;
+      }
+      return left.lane - right.lane;
+    });
+
+  const laneValues = nodes.map((node) => node.lane);
+  const minLane = laneValues.length ? Math.min(...laneValues) : -1;
+  const maxLane = laneValues.length ? Math.max(...laneValues) : 1;
+
+  return {
+    startLevel,
+    endLevel,
+    minLane,
+    maxLane,
+    nodes,
+    edges,
+  };
+}
+
 function getBrickWidth(): number {
   return (CANVAS_WIDTH - BRICK_GAP * (BRICK_COLUMNS + 1)) / BRICK_COLUMNS;
 }
@@ -583,8 +973,23 @@ function getObjectiveSizeScale(brick: Brick): number {
   return CORE_MIN_SCALE + hpPct * (1 - CORE_MIN_SCALE);
 }
 
+function getBrickSizeScale(brick: Brick): number {
+  if (brick.kind === 'objective') {
+    return getObjectiveSizeScale(brick);
+  }
+  const hpPct = Math.max(0, Math.min(1, brick.hp / Math.max(1, brick.maxHp)));
+  return STANDARD_BRICK_MIN_SCALE + hpPct * (1 - STANDARD_BRICK_MIN_SCALE);
+}
+
 function getObjectiveDimensions(brick: Brick, brickWidth: number): { width: number; height: number } {
-  const scale = getObjectiveSizeScale(brick);
+  if (brick.kind !== 'objective') {
+    const scale = getBrickSizeScale(brick);
+    return {
+      width: brickWidth * scale,
+      height: BRICK_HEIGHT * scale,
+    };
+  }
+  const scale = BRICK_SIZE_SCALE * getBrickSizeScale(brick);
   const coreVariant = brick.coreVariant ?? 'yellow';
   if (coreVariant === 'blue') {
     const diameter = Math.min(brickWidth, BRICK_HEIGHT) * 1.45 * scale;
@@ -658,10 +1063,10 @@ function getCoreVariantFlashShadow(coreVariant?: CoreVariant): string {
 }
 
 function getObjectiveCountForLevel(level: number): number {
-  if (level <= 30) {
+  if (level < 10) {
     return 1;
   }
-  if (level <= 45) {
+  if (level < 45) {
     return 2;
   }
   return 3;
@@ -681,12 +1086,34 @@ function getBrickBounds(
   brickWidth: number
 ): { x: number; y: number; width: number; height: number } {
   const { width, height } = getObjectiveDimensions(brick, brickWidth);
+  const baseX = brickX + (brickWidth - width) * 0.5;
+  const baseY = brickY + (BRICK_HEIGHT - height) * 0.5;
+  if (brick.kind === 'objective' && (brick.coreVariant ?? 'yellow') === 'green') {
+    return {
+      x: clampCoordinate(baseX, 0, CANVAS_WIDTH - width),
+      y: baseY,
+      width,
+      height,
+    };
+  }
   return {
-    x: brickX + (brickWidth - width) * 0.5,
-    y: brickY + (BRICK_HEIGHT - height) * 0.5,
+    x: baseX,
+    y: baseY,
     width,
     height,
   };
+}
+
+function doBrickBoundsOverlap(
+  left: { x: number; y: number; width: number; height: number },
+  right: { x: number; y: number; width: number; height: number }
+): boolean {
+  return !(
+    left.x + left.width <= right.x ||
+    right.x + right.width <= left.x ||
+    left.y + left.height <= right.y ||
+    right.y + right.height <= left.y
+  );
 }
 
 type CuratedCellSymbol = '.' | 's' | 'r' | 'o' | 'p' | 'u' | 'C';
@@ -877,6 +1304,26 @@ function clampCoordinate(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
+function hasBrickCrossedThreshold(brick: Brick): boolean {
+  const brickBottomY = BRICK_TOP + brick.row * BRICK_ROW_STEP + BRICK_HEIGHT;
+  return brickBottomY >= LOSE_Y;
+}
+
+function getTargetUnbreakableShare(boardsCleared: number): number {
+  const boardNumber = boardsCleared + 1;
+  if (boardNumber < UNBREAKABLE_INTRO_BOARD) {
+    return 0;
+  }
+  if (boardNumber >= UNBREAKABLE_HALF_BOARD) {
+    return UNBREAKABLE_MAX_SHARE;
+  }
+
+  const progress =
+    (boardNumber - UNBREAKABLE_INTRO_BOARD) /
+    Math.max(1, UNBREAKABLE_HALF_BOARD - UNBREAKABLE_INTRO_BOARD);
+  return Math.max(0.08, UNBREAKABLE_MAX_SHARE * progress);
+}
+
 function getImpactSideFromVelocity(ball: BallRuntime, normal?: { x: number; y: number }): OneWaySide {
   if (normal) {
     if (Math.abs(normal.x) > Math.abs(normal.y)) {
@@ -891,6 +1338,9 @@ function getImpactSideFromVelocity(ball: BallRuntime, normal?: { x: number; y: n
 }
 
 function generateBoard(run: RogueRunState): BoardState {
+  ensureRunPathState(run);
+  const activePathNode = run.pathNodesByLevel[run.level] ?? getCurrentPathNode(run);
+  const challengeDefinition = getPathChallengeDefinition(activePathNode.challenge);
   const progress = (Math.max(1, run.level) - 1) / Math.max(1, run.maxLevels - 1);
   let poolStart = 0;
   let poolSize = 40;
@@ -902,19 +1352,34 @@ function generateBoard(run: RogueRunState): BoardState {
     poolSize = 40;
   }
   const selectedIndex =
-    poolStart +
-    ((run.boardsCleared + run.level + randomInt(run, 0, poolSize - 1)) % poolSize);
+    (poolStart +
+      challengeDefinition.boardPoolShift +
+      ((run.boardsCleared + run.level + randomInt(run, 0, poolSize - 1)) % poolSize)) %
+    CURATED_BOARD_CATALOG.length;
   const design = CURATED_BOARD_CATALOG[selectedIndex];
   const coreLaneOffset = pickCoreLaneOffset(design.rows, run);
   const boardRows = enforceIndirectCorePath(shiftCuratedRows(design.rows, coreLaneOffset));
 
-  const bricks: Brick[] = [];
-  const hpBase = Math.max(2, 2 + Math.floor(run.level * 0.55));
+  let bricks: Brick[] = [];
+  const hpBase = Math.max(2, Math.round((2 + Math.floor(run.level * 0.55)) * challengeDefinition.hpMultiplier));
   let objectiveRow = Math.floor(boardRows.length / 2);
   let objectiveCol = Math.floor(BRICK_COLUMNS / 2);
-  let objectiveMaxHp = Math.max(8, Math.round(BALANCE.objectiveHpBase + run.level * 2.4));
-  const objectiveCount = getObjectiveCountForLevel(run.level);
-  const objectiveCoreVariant = CORE_VARIANTS[randomInt(run, 0, CORE_VARIANTS.length - 1)];
+  let objectiveMaxHp = Math.max(
+    8,
+    Math.round((BALANCE.objectiveHpBase + run.level * 2.4) * challengeDefinition.objectiveHpMultiplier)
+  );
+  const objectiveCount = getObjectiveCountForLevel(run.level) + challengeDefinition.objectiveCountBonus;
+  const targetObjectiveCount = Math.max(1, Math.min(objectiveCount, CORE_VARIANTS.length));
+  const remainingVariants = [...CORE_VARIANTS];
+  const objectiveVariants: CoreVariant[] = [];
+  while (objectiveVariants.length < targetObjectiveCount && remainingVariants.length > 0) {
+    const nextVariantIndex = randomInt(run, 0, remainingVariants.length - 1);
+    const nextVariant = remainingVariants.splice(nextVariantIndex, 1)[0];
+    if (nextVariant) {
+      objectiveVariants.push(nextVariant);
+    }
+  }
+  const objectiveCoreVariant = objectiveVariants[0] ?? 'yellow';
 
   for (let row = 0; row < boardRows.length; row += 1) {
     const rowPattern = boardRows[row];
@@ -930,7 +1395,11 @@ function generateBoard(run: RogueRunState): BoardState {
         const coreHpMultiplier = objectiveCoreVariant === 'green' ? 3.5 : 1;
         objectiveMaxHp = Math.max(
           Math.round((design.difficulty === 'easy' ? 10 : design.difficulty === 'medium' ? 14 : 20) * coreHpMultiplier),
-          Math.round((BALANCE.objectiveHpBase + run.level * BALANCE.objectiveHpPerLevel) * coreHpMultiplier)
+          Math.round(
+            (BALANCE.objectiveHpBase + run.level * BALANCE.objectiveHpPerLevel) *
+            coreHpMultiplier *
+            challengeDefinition.objectiveHpMultiplier
+          )
         );
         continue;
       }
@@ -972,6 +1441,40 @@ function generateBoard(run: RogueRunState): BoardState {
     }
   }
 
+  const targetUnbreakableShare = Math.min(
+    0.8,
+    getTargetUnbreakableShare(run.boardsCleared) * challengeDefinition.unbreakableShareMultiplier
+  );
+  if (targetUnbreakableShare > 0 && bricks.length > 0) {
+    const targetUnbreakableCount = Math.max(1, Math.round(bricks.length * targetUnbreakableShare));
+    const unbreakableCount = bricks.reduce(
+      (count, brick) => count + ((brick.kind ?? 'standard') === 'unbreakable' ? 1 : 0),
+      0
+    );
+    const additionalUnbreakableCount = Math.max(0, targetUnbreakableCount - unbreakableCount);
+    if (additionalUnbreakableCount > 0) {
+      const candidateIndexes = bricks
+        .map((brick, index) => ({ brick, index }))
+        .filter(({ brick }) => {
+          const kind = brick.kind ?? 'standard';
+          return kind === 'standard' || kind === 'reinforced' || kind === 'prism';
+        })
+        .map(({ index }) => index);
+      let converted = 0;
+      while (converted < additionalUnbreakableCount && candidateIndexes.length > 0) {
+        const nextCandidate = candidateIndexes.splice(randomInt(run, 0, candidateIndexes.length - 1), 1)[0];
+        if (typeof nextCandidate !== 'number') {
+          break;
+        }
+        const candidate = bricks[nextCandidate];
+        candidate.kind = 'unbreakable';
+        candidate.hp = 999;
+        candidate.maxHp = 999;
+        converted += 1;
+      }
+    }
+  }
+
   const objectiveId = `${design.id}-objective-${run.level}-${objectiveRow}-${objectiveCol}-${Math.round(nextRandom(run) * 1_000_000)}`;
   bricks.push({
     id: objectiveId,
@@ -984,11 +1487,11 @@ function generateBoard(run: RogueRunState): BoardState {
   });
 
   const objectiveBrickIds = [objectiveId];
-  if (objectiveCount > 1 && bricks.length > 1) {
+  if (targetObjectiveCount > 1 && bricks.length > 1) {
     const candidateIndexes = bricks
       .map((_, index) => index)
       .filter((index) => bricks[index].kind !== 'objective');
-    const extraCount = Math.min(objectiveCount - 1, candidateIndexes.length);
+    const extraCount = Math.min(targetObjectiveCount - 1, candidateIndexes.length);
     const selectedIndexes: number[] = [];
     while (selectedIndexes.length < extraCount) {
       const nextIndex = candidateIndexes.splice(randomInt(run, 0, candidateIndexes.length - 1), 1)[0];
@@ -1002,13 +1505,18 @@ function generateBoard(run: RogueRunState): BoardState {
       const coreHpMultiplier = variant === 'green' ? 3.5 : 1;
       return Math.max(
         Math.round((design.difficulty === 'easy' ? 10 : design.difficulty === 'medium' ? 14 : 20) * coreHpMultiplier),
-        Math.round((BALANCE.objectiveHpBase + run.level * BALANCE.objectiveHpPerLevel) * coreHpMultiplier)
+        Math.round(
+          (BALANCE.objectiveHpBase + run.level * BALANCE.objectiveHpPerLevel) *
+          coreHpMultiplier *
+          challengeDefinition.objectiveHpMultiplier
+        )
       );
     };
 
-    for (const index of selectedIndexes) {
+    for (let selectedIndex = 0; selectedIndex < selectedIndexes.length; selectedIndex += 1) {
+      const index = selectedIndexes[selectedIndex];
       const objectiveBrick = bricks[index];
-      const variant = CORE_VARIANTS[randomInt(run, 0, CORE_VARIANTS.length - 1)];
+      const variant = objectiveVariants[selectedIndex + 1] ?? objectiveCoreVariant;
       const extraObjectiveHp = buildObjectiveHp(variant);
       objectiveBrick.kind = 'objective';
       objectiveBrick.coreVariant = variant;
@@ -1016,6 +1524,27 @@ function generateBoard(run: RogueRunState): BoardState {
       objectiveBrick.maxHp = extraObjectiveHp;
       objectiveBrickIds.push(objectiveBrick.id);
     }
+  }
+
+  const greenObjectives = bricks.filter(
+    (brick) => brick.kind === 'objective' && (brick.coreVariant ?? 'yellow') === 'green'
+  );
+  if (greenObjectives.length > 0) {
+    const brickWidth = getBrickWidth();
+    const greenObjectiveBounds = greenObjectives.map((objectiveBrick) => {
+      const objectiveX = BRICK_GAP + objectiveBrick.col * (brickWidth + BRICK_GAP);
+      const objectiveY = BRICK_TOP + objectiveBrick.row * (BRICK_HEIGHT + BRICK_GAP);
+      return getBrickBounds(objectiveBrick, objectiveX, objectiveY, brickWidth);
+    });
+    bricks = bricks.filter((brick) => {
+      if (brick.kind === 'objective') {
+        return true;
+      }
+      const brickX = BRICK_GAP + brick.col * (brickWidth + BRICK_GAP);
+      const brickY = BRICK_TOP + brick.row * (BRICK_HEIGHT + BRICK_GAP);
+      const bounds = getBrickBounds(brick, brickX, brickY, brickWidth);
+      return !greenObjectiveBounds.some((objectiveBounds) => doBrickBoundsOverlap(bounds, objectiveBounds));
+    });
   }
 
   return {
@@ -1030,9 +1559,13 @@ function calculateLevelGoal(initialBrickCount: number): number {
   return Math.max(1, initialBrickCount);
 }
 
+function easeInOutSine(progress: number): number {
+  return -(Math.cos(Math.PI * progress) - 1) / 2;
+}
+
 function advanceBoardRows(board: BoardState): void {
   for (const brick of board.bricks) {
-    brick.row += 1;
+    brick.row += BOARD_ROW_ADVANCE_STEP_ROWS;
   }
   board.turn += 1;
 }
@@ -1060,6 +1593,20 @@ function makePowerOffers(run: RogueRunState): PowerOffer[] {
   return offers;
 }
 
+function buildStartingRunPowerChoices(): string[] {
+  const pool = [...POWER_POOL];
+  const picked: string[] = [];
+  const choiceCount = Math.min(3, pool.length);
+  while (picked.length < choiceCount && pool.length > 0) {
+    const index = Math.floor(Math.random() * pool.length);
+    const [template] = pool.splice(index, 1);
+    if (template) {
+      picked.push(template.id);
+    }
+  }
+  return picked;
+}
+
 function makeStoreOffers(run: RogueRunState): StoreOffer[] {
   const offers: StoreOffer[] = [];
   const picked = new Set<string>();
@@ -1085,13 +1632,9 @@ function makeStoreOffers(run: RogueRunState): StoreOffer[] {
 }
 
 function completeStoreStop(runState: RogueRunState, message: string): void {
-  runState.nextStoreBoard =
-    runState.boardsCleared +
-    randomInt(runState, BALANCE.storeIntervalMinBoards, BALANCE.storeIntervalMaxBoards);
   runState.pendingStoreOffers = [];
   runState.stage = 'hub';
-  const boardsUntilStore = Math.max(1, runState.nextStoreBoard - runState.boardsCleared);
-  runState.hubMessage = `${message} Next store in ${boardsUntilStore} board${boardsUntilStore === 1 ? '' : 's'}.`;
+  runState.hubMessage = message;
 }
 
 function toMetaEarned(run: RogueRunState, victory: boolean): number {
@@ -1164,7 +1707,7 @@ function parseProgress(json: string): RogueBrickProfile | null {
     }
     const normalized = normalizeProfile(parsed);
     if (normalized.run && (typeof normalized.run.nextStoreBoard !== 'number' || Number.isNaN(normalized.run.nextStoreBoard))) {
-      normalized.run.nextStoreBoard = normalized.run.boardsCleared + 4;
+      normalized.run.nextStoreBoard = 0;
     }
     return normalized;
   } catch {
@@ -1189,7 +1732,6 @@ export default function RogueBrickPage() {
   const homingBarrageUsedRef = useRef(false);
   const homingBulletTimeHitsRef = useRef(0);
   const finalBrickCinematicUntilRef = useRef(0);
-  const coreShakeUntilRef = useRef(0);
   const gambleRevealTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const brickVisualRef = useRef<Map<string, BrickVisualState>>(new Map());
   const breakParticlesRef = useRef<BreakParticle[]>([]);
@@ -1216,14 +1758,21 @@ export default function RogueBrickPage() {
   const [aimPoint, setAimPoint] = useState<{ x: number; y: number } | null>(null);
   const [shotInProgress, setShotInProgress] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
+  const [isPowerDrawerExpanded, setIsPowerDrawerExpanded] = useState(false);
+  const [previewStartingPowerId, setPreviewStartingPowerId] = useState<string | null>(null);
+  const [pendingStartingRunPowerId, setPendingStartingRunPowerId] = useState<string | null>(null);
   const [selectedPowerId, setSelectedPowerId] = useState<string | null>(null);
   const [selectedResourceHelp, setSelectedResourceHelp] = useState<ResourceHelpKey | null>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showGambleConfirm, setShowGambleConfirm] = useState(false);
   const [isGambleRevealing, setIsGambleRevealing] = useState(false);
   const [gambleOutcome, setGambleOutcome] = useState<GambleOutcome | null>(null);
+  const [dismissedDefeatSummaryCompletedAt, setDismissedDefeatSummaryCompletedAt] = useState<number | null>(null);
+  const [hiddenHubMessageKey, setHiddenHubMessageKey] = useState<string | null>(null);
   const [autoHomingLaunchPending, setAutoHomingLaunchPending] = useState(false);
   const [isCoreBreachFlashing, setIsCoreBreachFlashing] = useState(false);
   const [coreBreachFlashVariant, setCoreBreachFlashVariant] = useState<CoreVariant>('yellow');
+  const [startingRunPowerChoices, setStartingRunPowerChoices] = useState<string[]>([]);
   const [powerPopoverLayout, setPowerPopoverLayout] = useState({ left: 8, arrow: 136 });
   const [liveHud, setLiveHud] = useState<LiveHudState>({
     destroyedBricks: 0,
@@ -1238,6 +1787,19 @@ export default function RogueBrickPage() {
     [wpdUser]
   );
 
+  useEffect(() => {
+    if (run) {
+      if (startingRunPowerChoices.length > 0) {
+        setStartingRunPowerChoices([]);
+      }
+      setPendingStartingRunPowerId(null);
+      return;
+    }
+    if (startingRunPowerChoices.length === 0) {
+      setStartingRunPowerChoices(buildStartingRunPowerChoices());
+    }
+  }, [run, startingRunPowerChoices]);
+
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) {
@@ -1251,15 +1813,11 @@ export default function RogueBrickPage() {
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     ctx.fillStyle = '#0d111d';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    const now = frameNowRef.current || performance.now();
+    const now = performance.now();
 
     const profileSnapshot = profileRef.current;
     const runSnapshot = profileSnapshot?.run ?? null;
     if (!runSnapshot) {
-      ctx.fillStyle = '#9ca3af';
-      ctx.font = '16px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('Start a run to begin.', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
       return;
     }
 
@@ -1272,12 +1830,14 @@ export default function RogueBrickPage() {
       ? Math.max(0, Math.min(1, 1 - objectiveBrickInView.hp / Math.max(1, objectiveBrickInView.maxHp)))
       : runSnapshot.coreCharge ?? 1;
     const boardAdvanceAnimation = boardAdvanceAnimationRef.current;
-    let boardAdvanceOffset = 0;
-    if (boardAdvanceAnimation) {
-      const elapsedMs = Math.max(0, now - boardAdvanceAnimation.startedAt);
-      const progress = Math.min(1, elapsedMs / boardAdvanceAnimation.durationMs);
-      const easedProgress = progress * progress * (3 - 2 * progress);
-      boardAdvanceOffset = boardAdvanceAnimation.offsetPx * (1 - easedProgress);
+    let boardAdvanceProgress = 1;
+    if (boardAdvanceAnimation && runSnapshot.board.turn >= boardAdvanceAnimation.startsAtTurn) {
+      if (boardAdvanceAnimation.startedAtMs === null) {
+        boardAdvanceAnimation.startedAtMs = now;
+      }
+      const elapsedMs = Math.max(0, now - boardAdvanceAnimation.startedAtMs);
+      const progress = Math.min(1, elapsedMs / Math.max(1, boardAdvanceAnimation.durationMs));
+      boardAdvanceProgress = easeInOutSine(progress);
       if (progress >= 1) {
         boardAdvanceAnimationRef.current = null;
       }
@@ -1291,9 +1851,15 @@ export default function RogueBrickPage() {
       }
 
       const x = BRICK_GAP + brick.col * (brickWidth + BRICK_GAP);
-      const y = BRICK_TOP + brick.row * BRICK_ROW_STEP - boardAdvanceOffset;
+      const startingRow = boardAdvanceAnimation?.startingBrickRows[brick.id];
+      const renderRow =
+        typeof startingRow === 'number'
+          ? startingRow + (brick.row - startingRow) * boardAdvanceProgress
+          : brick.row;
+      const y = BRICK_TOP + renderRow * BRICK_ROW_STEP;
       const kind = brick.kind ?? 'standard';
       const hpPct = Math.max(0, Math.min(1, brick.hp / Math.max(1, brick.maxHp)));
+      const brickSizeScale = getBrickSizeScale(brick);
       const styleByKind = (() => {
         if (kind === 'objective') {
           return {
@@ -1364,10 +1930,11 @@ export default function RogueBrickPage() {
       const centerX = x + brickWidth / 2;
       const centerY = y + BRICK_HEIGHT / 2;
       const hitScale = 1 + hitIntensity * 0.06;
+      const baseScale = kind === 'objective' ? 1 : brickSizeScale;
 
       ctx.save();
       ctx.translate(centerX, centerY);
-      ctx.scale(hitScale, hitScale);
+      ctx.scale(hitScale * baseScale, hitScale * baseScale);
       ctx.translate(-centerX, -centerY);
 
       const gradient = ctx.createLinearGradient(x, y, x, y + BRICK_HEIGHT);
@@ -1448,8 +2015,7 @@ export default function RogueBrickPage() {
         const pulse = 0.5 + Math.sin(pulsePhase) * 0.5;
         const transfer = Math.max(0, Math.min(1, 1 - brick.hp / Math.max(1, brick.maxHp)));
         const coreGlow = 1 - transfer;
-        const shakeMsRemaining = coreShakeUntilRef.current - now;
-        const coreShakeIntensity = shakeMsRemaining > 0 ? Math.min(3.5, shakeMsRemaining / 36) : 0;
+        const coreShakeIntensity = Math.min(3.5, hitIntensity * 4.2);
         const coreShakeX = Math.sin(now * 0.16 + brick.col) * coreShakeIntensity;
         const coreShakeY = Math.cos(now * 0.2 + brick.row) * coreShakeIntensity * 0.7;
         ctx.save();
@@ -1484,16 +2050,17 @@ export default function RogueBrickPage() {
 
         if (coreVariant === 'blue') {
           const blueRadius = Math.max(6.2, Math.min(objectiveWidth, objectiveHeight) * 0.5);
+          const blueForceFieldRadius = blueRadius * 1.9 * BLUE_CORE_FORCE_FIELD_SIZE_MULTIPLIER;
           ctx.save();
           ctx.globalCompositeOperation = 'lighter';
-          const blueGlow = ctx.createRadialGradient(centerX, centerY, 1, centerX, centerY, blueRadius * 1.9);
+          const blueGlow = ctx.createRadialGradient(centerX, centerY, 1, centerX, centerY, blueForceFieldRadius);
           blueGlow.addColorStop(0, 'rgba(255, 255, 255, 0.28)');
           blueGlow.addColorStop(0.18, 'rgba(191, 219, 254, 0.22)');
           blueGlow.addColorStop(0.55, 'rgba(59, 130, 246, 0.14)');
           blueGlow.addColorStop(1, 'rgba(30, 64, 175, 0)');
           ctx.fillStyle = blueGlow;
           ctx.beginPath();
-          ctx.arc(centerX, centerY, blueRadius * 1.9, 0, Math.PI * 2);
+          ctx.arc(centerX, centerY, blueForceFieldRadius, 0, Math.PI * 2);
           ctx.fill();
           ctx.restore();
 
@@ -1562,14 +2129,16 @@ export default function RogueBrickPage() {
         ctx.arc(centerX, centerY, coreRadius, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.strokeStyle = corePalette.text;
-        ctx.lineWidth = 1.2;
-        ctx.setLineDash([3, 2]);
-        ctx.lineDashOffset = -now / 45;
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, coreRadius + 2.6 + pulse * 2, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.setLineDash([]);
+        if (coreVariant !== 'yellow') {
+          ctx.strokeStyle = corePalette.text;
+          ctx.lineWidth = 1.2;
+          ctx.setLineDash([3, 2]);
+          ctx.lineDashOffset = -now / 45;
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, coreRadius + 2.6 + pulse * 2, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
 
         ctx.lineWidth = 1;
         ctx.strokeStyle = `rgba(255, 247, 205, ${(0.28 + pulse * 0.2) * coreGlow})`;
@@ -1692,15 +2261,6 @@ export default function RogueBrickPage() {
         ctx.lineWidth = 1;
       }
 
-      if (brick.hp <= Math.ceil(brick.maxHp * 0.45)) {
-        ctx.strokeStyle = 'rgba(255,255,255,0.22)';
-        ctx.beginPath();
-        ctx.moveTo(x + brickWidth * 0.25, y + BRICK_HEIGHT * 0.25);
-        ctx.lineTo(x + brickWidth * 0.55, y + BRICK_HEIGHT * 0.55);
-        ctx.lineTo(x + brickWidth * 0.72, y + BRICK_HEIGHT * 0.35);
-        ctx.stroke();
-      }
-
       const drawRoundedRectPath = (left: number, top: number, width: number, height: number, radius: number) => {
         const clampedRadius = Math.min(radius, width * 0.5, height * 0.5);
         ctx.beginPath();
@@ -1799,7 +2359,7 @@ export default function RogueBrickPage() {
 
     ctx.strokeStyle = 'rgba(255,255,255,0.12)';
     ctx.beginPath();
-    const loseY = BRICK_TOP + LOSE_ROW * (BRICK_HEIGHT + BRICK_GAP);
+    const loseY = LOSE_Y;
     ctx.moveTo(0, loseY);
     ctx.lineTo(CANVAS_WIDTH, loseY);
     ctx.stroke();
@@ -1896,8 +2456,13 @@ export default function RogueBrickPage() {
 
   const spawnBreakParticles = useCallback((brick: Brick, slowCinematic = false) => {
     const brickWidth = getBrickWidth();
-    const x = BRICK_GAP + brick.col * (brickWidth + BRICK_GAP);
-    const y = BRICK_TOP + brick.row * (BRICK_HEIGHT + BRICK_GAP);
+    const brickX = BRICK_GAP + brick.col * (brickWidth + BRICK_GAP);
+    const brickY = BRICK_TOP + brick.row * (BRICK_HEIGHT + BRICK_GAP);
+    const bounds = getBrickBounds(brick, brickX, brickY, brickWidth);
+    const x = bounds.x;
+    const y = bounds.y;
+    const width = bounds.width;
+    const height = bounds.height;
     const hpPct = Math.max(0, Math.min(1, brick.hp / Math.max(1, brick.maxHp)));
     const red = Math.round(220 - hpPct * 120);
     const green = Math.round(90 + hpPct * 110);
@@ -1910,8 +2475,8 @@ export default function RogueBrickPage() {
       const angle = Math.random() * Math.PI * 2;
       const isShard = i % 3 === 0;
       breakParticlesRef.current.push({
-        x: x + brickWidth * (0.2 + Math.random() * 0.6),
-        y: y + BRICK_HEIGHT * (0.2 + Math.random() * 0.6),
+        x: x + width * (0.2 + Math.random() * 0.6),
+        y: y + height * (0.2 + Math.random() * 0.6),
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed - (slowCinematic ? 8 : 30),
         radius: isShard ? 1.5 + Math.random() * 1.6 : 1.8 + Math.random() * 2.4,
@@ -1932,6 +2497,7 @@ export default function RogueBrickPage() {
         const base = prev ? cloneProfile(prev) : defaultProfile();
         mutate(base);
         base.updatedAt = Date.now();
+        profileRef.current = base;
         return base;
       });
       if (markDirty) {
@@ -1946,9 +2512,10 @@ export default function RogueBrickPage() {
     profileRef.current = profile;
     if (profile?.run?.stage === 'board' && !shotInProgress) {
       bricksRef.current = profile.run.board.bricks.map((brick) => ({ ...brick }));
+      return;
     }
     draw();
-  }, [profile, draw, shotInProgress]);
+  }, [profile, draw]);
 
   useEffect(() => {
     const run = profile?.run;
@@ -2248,6 +2815,8 @@ export default function RogueBrickPage() {
         }
 
         if (runState.board.bricks.length === 0) {
+          const clearedPathNode = runState.pathNodesByLevel[runState.level] ?? getCurrentPathNode(runState);
+          const clearedStoreType = clearedPathNode.storeType;
           const boardSummary: BoardSummary = {
             shotsTaken: runState.boardShotsTaken,
             bounceCount: runState.boardBounceCount,
@@ -2258,8 +2827,13 @@ export default function RogueBrickPage() {
           runState.boardSummaryAcknowledged = false;
           runState.boardsCleared += 1;
           runState.level += 1;
-          const storeUnlocked = runState.boardsCleared === runState.nextStoreBoard;
-          runState.hubMessage = `Board cleared. Ascend to level ${runState.level}. +${Math.round(rewards.mana)} mana, +${Math.round(rewards.coins)} coins.${storeUnlocked ? ' The store caravan has arrived.' : ''}`;
+          const storeArrivalMessage =
+            clearedStoreType === 'mana'
+              ? ' A mana store awaits at the hub.'
+              : clearedStoreType === 'money'
+                ? ' A money store awaits at the hub.'
+                : '';
+          runState.hubMessage = `Board cleared. Ascend to level ${runState.level}.${storeArrivalMessage}`;
 
           if (runState.level > runState.maxLevels) {
             runState.stage = 'hub';
@@ -2271,13 +2845,19 @@ export default function RogueBrickPage() {
             return;
           }
 
-          if (runState.boardsCleared % BALANCE.powerChoiceEveryBoards === 0) {
+          const moneyStoreUnlocked = clearedStoreType === 'money';
+          const manaStoreUnlocked = clearedStoreType === 'mana';
+          if (manaStoreUnlocked || runState.boardsCleared % BALANCE.powerChoiceEveryBoards === 0) {
             runState.stage = 'powerup';
             runState.pendingPowerOffers = makePowerOffers(runState);
-            runState.pendingStoreOffers = storeUnlocked ? makeStoreOffers(runState) : [];
+            runState.pendingStoreOffers = moneyStoreUnlocked ? makeStoreOffers(runState) : [];
+          } else if (moneyStoreUnlocked) {
+            runState.stage = 'store';
+            runState.pendingStoreOffers = makeStoreOffers(runState);
+            runState.pendingPowerOffers = [];
           } else {
             runState.stage = 'hub';
-            runState.pendingStoreOffers = storeUnlocked ? makeStoreOffers(runState) : [];
+            runState.pendingStoreOffers = [];
             runState.pendingPowerOffers = [];
           }
 
@@ -2288,16 +2868,22 @@ export default function RogueBrickPage() {
         }
 
         advanceBoardRows(runState.board);
-        if (runState.board.bricks.some((brick) => brick.row >= LOSE_ROW)) {
+        if (runState.board.bricks.some((brick) => hasBrickCrossedThreshold(brick))) {
           runState.stage = 'hub';
           runState.hubMessage = 'A brick crossed the threshold.';
         }
       }, true);
     if (shouldAnimateBoardAdvance) {
+      const currentTurn = profileRef.current?.run?.board.turn ?? 1;
+      const startingBrickRows = brickSnapshot.reduce<Record<string, number>>((rows, brick) => {
+        rows[brick.id] = brick.row;
+        return rows;
+      }, {});
       boardAdvanceAnimationRef.current = {
-        startedAt: performance.now(),
         durationMs: BOARD_ROW_ADVANCE_ANIMATION_MS,
-        offsetPx: BRICK_ROW_STEP,
+        startsAtTurn: currentTurn + 1,
+        startedAtMs: null,
+        startingBrickRows,
       };
     }
     commitTurnResolution();
@@ -2591,19 +3177,56 @@ export default function RogueBrickPage() {
                 BRICK_TOP + nearestBlueCore.row * (BRICK_HEIGHT + BRICK_GAP),
                 blueCoreWidth
               );
-              const awayX = ball.x - (blueCoreBounds.x + blueCoreBounds.width * 0.5);
-              const awayY = ball.y - (blueCoreBounds.y + blueCoreBounds.height * 0.5);
+              const blueCoreCenterX = blueCoreBounds.x + blueCoreBounds.width * 0.5;
+              const blueCoreCenterY = blueCoreBounds.y + blueCoreBounds.height * 0.5;
+              const awayX = ball.x - blueCoreCenterX;
+              const awayY = ball.y - blueCoreCenterY;
               const awayDistance = Math.hypot(awayX, awayY);
               if (awayDistance > 0.001) {
                 const blueCoreSizeScale = getObjectiveSizeScale(nearestBlueCore);
-                const blueCoreForceScale = 1 + (1 - blueCoreSizeScale) * 1.8;
-                const blueCoreInfluenceRadius = 205 + (1 - blueCoreSizeScale) * 85;
+                const blueCoreForceScale = 1.35 + (1 - blueCoreSizeScale) * 3.1;
+                const blueCoreVisualRadius = Math.max(6.2, Math.min(blueCoreBounds.width, blueCoreBounds.height) * 0.5);
+                const blueCoreInfluenceRadius =
+                  blueCoreVisualRadius * 1.2 * BLUE_CORE_FORCE_FIELD_SIZE_MULTIPLIER;
                 if (awayDistance < blueCoreInfluenceRadius) {
+                  const awayNormalX = awayX / awayDistance;
+                  const awayNormalY = awayY / awayDistance;
+                  const toCoreNormalX = -awayNormalX;
+                  const toCoreNormalY = -awayNormalY;
+                  const ballSpeed = Math.hypot(ball.vx, ball.vy);
+                  const towardCoreAlignment =
+                    ballSpeed > 0.001
+                      ? Math.max(0, ball.vx * toCoreNormalX + ball.vy * toCoreNormalY) / ballSpeed
+                      : 0;
+                  const proximity = (blueCoreInfluenceRadius - awayDistance) / blueCoreInfluenceRadius;
+                  const approachAmplifier = 1 + towardCoreAlignment * 3.4;
                   const repelStrength =
-                    ((blueCoreInfluenceRadius - awayDistance) / blueCoreInfluenceRadius) * 390 * blueCoreForceScale;
+                    proximity * proximity * 930 * blueCoreForceScale * approachAmplifier;
                   const resistance = ball.coreCharged ? 0.65 : 1;
-                  ball.vx += (awayX / awayDistance) * repelStrength * resistance * dtSeconds;
-                  ball.vy += (awayY / awayDistance) * repelStrength * resistance * dtSeconds;
+                  ball.vx += awayNormalX * repelStrength * resistance * dtSeconds;
+                  ball.vy += awayNormalY * repelStrength * resistance * dtSeconds;
+
+                  const tangentX = -awayNormalY;
+                  const tangentY = awayNormalX;
+                  const cross = ball.vx * awayNormalY - ball.vy * awayNormalX;
+                  const swirlDirection = cross === 0 ? (ball.x < blueCoreCenterX ? -1 : 1) : Math.sign(cross);
+                  const swerveStrength = proximity * 640 * blueCoreForceScale * approachAmplifier;
+                  ball.vx += tangentX * swirlDirection * swerveStrength * resistance * dtSeconds;
+                  ball.vy += tangentY * swirlDirection * swerveStrength * resistance * dtSeconds;
+                  const towardCoreVelocity = ball.vx * toCoreNormalX + ball.vy * toCoreNormalY;
+                  if (towardCoreVelocity > 0) {
+                    ball.vx -= toCoreNormalX * towardCoreVelocity;
+                    ball.vy -= toCoreNormalY * towardCoreVelocity;
+                  }
+
+                  if (ballSpeed > 0.001) {
+                    const adjustedSpeed = Math.hypot(ball.vx, ball.vy);
+                    if (adjustedSpeed > 0.001) {
+                      const speedScale = ballSpeed / adjustedSpeed;
+                      ball.vx *= speedScale;
+                      ball.vy *= speedScale;
+                    }
+                  }
                 }
               }
             }
@@ -2779,7 +3402,6 @@ export default function RogueBrickPage() {
                 brickVisualRef.current.set(brick.id, { hitUntil: timestamp + 120 });
                 const isObjective = variant === 'objective';
                 if (isObjective) {
-                  coreShakeUntilRef.current = Math.max(coreShakeUntilRef.current, timestamp + 170);
                   ball.coreCharged = false;
                 }
                 const baseManaReward = isObjective
@@ -2873,15 +3495,6 @@ export default function RogueBrickPage() {
           if (bricksRef.current.length === 0) {
             ballsRef.current = [];
             launchQueueRef.current = [];
-          } else if (ballsRef.current.length === 0) {
-            ballsRef.current.push({
-              x: CANVAS_WIDTH / 2,
-              y: LAUNCHER_Y,
-              vx: 0,
-              vy: -BALL_SPEED * 1.35,
-              active: true,
-              coreCharged: false,
-            });
           }
         }
 
@@ -2944,14 +3557,8 @@ export default function RogueBrickPage() {
     finalizeTurn();
   }, [finalizeTurn]);
 
-  const resetGame = useCallback(() => {
-    const confirmed = window.confirm(
-      'Reset all Rogue Brick progress and abandon the current run? This cannot be undone.'
-    );
-    if (!confirmed) {
-      return;
-    }
-
+  const confirmResetGame = useCallback(() => {
+    setShowResetConfirm(false);
     if (idleAnimationRef.current !== null) {
       cancelAnimationFrame(idleAnimationRef.current);
       idleAnimationRef.current = null;
@@ -2994,6 +3601,10 @@ export default function RogueBrickPage() {
     }
   }, [storageKey]);
 
+  const resetGame = useCallback(() => {
+    setShowResetConfirm(true);
+  }, []);
+
   useEffect(() => {
     return () => {
       if (idleAnimationRef.current !== null) {
@@ -3005,10 +3616,14 @@ export default function RogueBrickPage() {
     };
   }, []);
 
-  const startRun = useCallback(() => {
+  const startRun = useCallback((startingPowerId: string) => {
     setAutoHomingLaunchPending(false);
     setIsCoreBreachFlashing(false);
     commitProfile((draft) => {
+      const startingTemplate = POWER_POOL.find((template) => template.id === startingPowerId);
+      if (!startingTemplate) {
+        return;
+      }
       const seed = Math.floor(Math.random() * 4_000_000_000) >>> 0;
       const upgrades = draft.permanentUpgrades;
       const startingBalls =
@@ -3024,7 +3639,7 @@ export default function RogueBrickPage() {
       const runState: RogueRunState = {
         seed,
         rngState: seed,
-        stage: 'board',
+        stage: 'hub',
         level: 1,
         maxLevels: BALANCE.maxLevels,
         boardsCleared: 0,
@@ -3044,19 +3659,18 @@ export default function RogueBrickPage() {
         board: { turn: 1, objectiveBrickId: null, objectiveBrickIds: [], bricks: [] },
         pendingPowerOffers: [],
         pendingStoreOffers: [],
-        hubMessage: 'Run started.',
+        hubMessage: 'Run started. Choose your first climb node.',
         boardShotsTaken: 0,
         boardBounceCount: 0,
         lastBoardSummary: null,
         boardSummaryAcknowledged: true,
+        pathCurrentNodeId: '',
+        pathNodesByLevel: {},
       };
-      runState.nextStoreBoard = randomInt(runState, BALANCE.storeIntervalMinBoards, BALANCE.storeIntervalMaxBoards);
-
-      runState.board = generateBoard(runState);
-      runState.levelGoalBricks = calculateLevelGoal(runState.board.bricks.length);
-      runState.levelBricksDestroyed = 0;
-      runState.coreCharge = 0;
-      runState.homingBarrageReady = false;
+      const rootPathNode = createRootPathNode(seed);
+      runState.pathNodesByLevel[0] = rootPathNode;
+      runState.pathCurrentNodeId = rootPathNode.id;
+      startingTemplate.apply(runState);
       draft.run = runState;
       draft.lastRunSummary = null;
     }, true);
@@ -3066,36 +3680,65 @@ export default function RogueBrickPage() {
       coinsEarned: 0,
       remainingBricks: 0,
     });
+    setPreviewStartingPowerId(null);
+    setStartingRunPowerChoices([]);
   }, [commitProfile]);
 
-  const continueToBoard = useCallback(() => {
+  const requestStartingRunConfirmation = useCallback(
+    (startingPowerId: string) => {
+      if (profileRef.current?.run || shotInProgress) {
+        return;
+      }
+      setPendingStartingRunPowerId(startingPowerId);
+    },
+    [shotInProgress]
+  );
+
+  const confirmStartingRun = useCallback(() => {
+    if (!pendingStartingRunPowerId) {
+      return;
+    }
+    startRun(pendingStartingRunPowerId);
+    setPendingStartingRunPowerId(null);
+  }, [pendingStartingRunPowerId, startRun]);
+
+  const choosePathNode = useCallback((nodeId: string) => {
     setAutoHomingLaunchPending(false);
     setIsCoreBreachFlashing(false);
     commitProfile((draft) => {
-      if (!draft.run) {
+      if (!draft.run || draft.run.stage !== 'hub') {
         return;
       }
-      if (draft.run.level > draft.run.maxLevels) {
+      if (draft.run.level > draft.run.maxLevels || draft.run.boardSummaryAcknowledged === false) {
         return;
       }
-      draft.run.stage = 'board';
-      draft.run.board = generateBoard(draft.run);
-      draft.run.levelGoalBricks = calculateLevelGoal(draft.run.board.bricks.length);
-      draft.run.levelBricksDestroyed = 0;
-      draft.run.coreCharge = 0;
-      draft.run.homingBarrageReady = false;
-      if (draft.run.pendingStoreOffers.length > 0) {
-        draft.run.nextStoreBoard =
-          draft.run.boardsCleared +
-          randomInt(draft.run, BALANCE.storeIntervalMinBoards, BALANCE.storeIntervalMaxBoards);
+      const runState = draft.run;
+      ensureRunPathState(runState);
+      const currentNode = getCurrentPathNode(runState);
+      const availableChildren = derivePathChildren(runState, currentNode);
+      const selectedNode = availableChildren.find((node) => node.id === nodeId);
+      if (!selectedNode) {
+        runState.hubMessage = 'That path collapsed. Choose another route.';
+        return;
       }
-      draft.run.pendingPowerOffers = [];
-      draft.run.pendingStoreOffers = [];
-      draft.run.hubMessage = `Entering board ${draft.run.level} of ${draft.run.maxLevels}.`;
-      draft.run.boardShotsTaken = 0;
-      draft.run.boardBounceCount = 0;
-      draft.run.lastBoardSummary = null;
-      draft.run.boardSummaryAcknowledged = true;
+
+      runState.pathNodesByLevel[runState.level] = selectedNode;
+      runState.pathCurrentNodeId = selectedNode.id;
+      runState.stage = 'board';
+      runState.board = generateBoard(runState);
+      runState.levelGoalBricks = calculateLevelGoal(runState.board.bricks.length);
+      runState.levelBricksDestroyed = 0;
+      runState.coreCharge = 0;
+      runState.homingBarrageReady = false;
+      runState.pendingPowerOffers = [];
+      runState.pendingStoreOffers = [];
+      const challengeLabel = getPathChallengeDefinition(selectedNode.challenge).label;
+      const upcomingStoreLabel = getPathStoreTypeLabel(selectedNode.storeType);
+      runState.hubMessage = `Entering board ${runState.level} of ${runState.maxLevels} via ${challengeLabel}.${upcomingStoreLabel ? ` Completing this board opens a ${upcomingStoreLabel.toLowerCase()}.` : ''}`;
+      runState.boardShotsTaken = 0;
+      runState.boardBounceCount = 0;
+      runState.lastBoardSummary = null;
+      runState.boardSummaryAcknowledged = true;
     }, true);
     setLiveHud({
       destroyedBricks: 0,
@@ -3198,7 +3841,7 @@ export default function RogueBrickPage() {
         runState.mana -= offer.manaCost;
         template.apply(runState);
         runState.pendingPowerOffers = [];
-        runState.stage = 'hub';
+        runState.stage = runState.pendingStoreOffers.length > 0 ? 'store' : 'hub';
         runState.hubMessage = `${template.name} acquired.`;
       }, true);
     },
@@ -3215,7 +3858,7 @@ export default function RogueBrickPage() {
         return;
       }
       draft.run.pendingPowerOffers = [];
-      draft.run.stage = 'hub';
+      draft.run.stage = draft.run.pendingStoreOffers.length > 0 ? 'store' : 'hub';
       draft.run.hubMessage = 'Skipped power-up selection.';
     }, true);
   }, [commitProfile]);
@@ -3402,6 +4045,41 @@ export default function RogueBrickPage() {
     }
   }, [run]);
 
+  const hubMessageKey =
+    run?.stage === 'hub' && run.hubMessage
+      ? `${profile?.updatedAt ?? 0}:${run.hubMessage}`
+      : '';
+  const hasTransientHubMessage =
+    run?.stage === 'hub' &&
+    Boolean(run.hubMessage) &&
+    (STORE_INTERACTION_MESSAGE_PREFIXES.some((prefix) => run.hubMessage.startsWith(prefix)) ||
+      run.hubMessage.endsWith(RUN_POWERUP_MESSAGE_SUFFIX));
+  const isPurchasedStoreHubMessage =
+    run?.stage === 'hub' &&
+    Boolean(run.hubMessage) &&
+    run.hubMessage.startsWith('Purchased ');
+  const purchasedStoreOffer =
+    isPurchasedStoreHubMessage && run?.hubMessage
+      ? STORE_POOL.find((offer) => run.hubMessage === `Purchased ${offer.name}.`) ?? null
+      : null;
+  const purchasedStoreIcon = purchasedStoreOffer
+    ? POWER_BACKDROP_ICONS[purchasedStoreOffer.id] ?? '◌'
+    : '◌';
+
+  useEffect(() => {
+    if (!hasTransientHubMessage || !hubMessageKey) {
+      setHiddenHubMessageKey(null);
+      return;
+    }
+
+    setHiddenHubMessageKey(null);
+    const hideTimer = window.setTimeout(() => {
+      setHiddenHubMessageKey(hubMessageKey);
+    }, 4400);
+
+    return () => window.clearTimeout(hideTimer);
+  }, [hasTransientHubMessage, hubMessageKey]);
+
   useEffect(
     () => () => {
       if (gambleRevealTimeoutRef.current) {
@@ -3412,7 +4090,14 @@ export default function RogueBrickPage() {
   );
 
   useEffect(() => {
-    if (!selectedPowerId && !selectedResourceHelp && !showGambleConfirm && !isGambleRevealing && !gambleOutcome) {
+    if (
+      !selectedPowerId &&
+      !selectedResourceHelp &&
+      !showGambleConfirm &&
+      !isGambleRevealing &&
+      !gambleOutcome &&
+      !pendingStartingRunPowerId
+    ) {
       return;
     }
 
@@ -3433,13 +4118,14 @@ export default function RogueBrickPage() {
       setSelectedPowerId(null);
       setSelectedResourceHelp(null);
       setShowGambleConfirm(false);
+      setPendingStartingRunPowerId(null);
     };
 
     document.addEventListener('pointerdown', handleGlobalPointerDown);
     return () => {
       document.removeEventListener('pointerdown', handleGlobalPointerDown);
     };
-  }, [selectedPowerId, selectedResourceHelp, showGambleConfirm, isGambleRevealing, gambleOutcome]);
+  }, [selectedPowerId, selectedResourceHelp, showGambleConfirm, isGambleRevealing, gambleOutcome, pendingStartingRunPowerId]);
 
   const syncLabel = useMemo(() => {
     if (!isOnline) {
@@ -3485,8 +4171,26 @@ export default function RogueBrickPage() {
     return <div className="loading">Loading hidden module...</div>;
   }
 
-  const canStartRun = !profile.run && !shotInProgress;
   const hasActiveRun = !!profile.run;
+  const lastRunSummary = profile.lastRunSummary;
+  const shouldShowDefeatNotification = Boolean(
+    !hasActiveRun &&
+    lastRunSummary &&
+    !lastRunSummary.victory &&
+    dismissedDefeatSummaryCompletedAt !== lastRunSummary.completedAt
+  );
+  const shouldShowStartingRunSelection = !hasActiveRun && !shouldShowDefeatNotification;
+  const canSelectStartingRunPower = !profile.run && !shotInProgress;
+  const startingRunPowerChoiceTemplates = startingRunPowerChoices
+    .map((id) => POWER_POOL.find((template) => template.id === id) ?? null)
+    .filter((template): template is RuntimePowerTemplate => Boolean(template));
+  const pendingStartingRunPowerTemplate = pendingStartingRunPowerId
+    ? POWER_POOL.find((template) => template.id === pendingStartingRunPowerId) ?? null
+    : null;
+  const previewStartingRunPowerTemplate = previewStartingPowerId
+    ? POWER_POOL.find((template) => template.id === previewStartingPowerId) ?? null
+    : null;
+  const highlightedPowerChipId = previewStartingPowerId ? `run-${previewStartingPowerId}` : null;
   const runProgressPct = run
     ? Math.round((Math.max(0, run.level - 1) / Math.max(1, run.maxLevels)) * 100)
     : 0;
@@ -3517,6 +4221,21 @@ export default function RogueBrickPage() {
     : hasActiveRun
       ? `Core drained | Power Shot +${powerShotBonusPct}%${barrageReady ? ' | Barrage ready' : ''}`
       : 'No active core';
+  const coreProgressSlots = CORE_VARIANTS.map((variant) => {
+    const variantBricks = objectiveBricks.filter((brick) => (brick.coreVariant ?? 'yellow') === variant);
+    const progressPct = variantBricks.length
+      ? Math.round(
+          Math.max(
+            ...variantBricks.map((brick) => Math.max(0, Math.min(1, 1 - brick.hp / Math.max(1, brick.maxHp))))
+          ) * 100
+        )
+      : 0;
+    return {
+      variant,
+      progressPct,
+      hasCore: variantBricks.length > 0,
+    };
+  });
   const boardHpRemaining = run
     ? Math.round(run.board.bricks.reduce((sum, brick) => sum + Math.max(0, brick.hp), 0))
     : 0;
@@ -3539,6 +4258,7 @@ export default function RogueBrickPage() {
       id: `perm-${upgrade.key}`,
       name: upgrade.name,
       description: upgrade.description,
+      category: 'permanent',
       currentLevel: state.rank,
       barSlots: upgrade.maxRank,
       baseColor: POWER_BASE_COLORS[upgrade.key] ?? '#22d3ee',
@@ -3557,6 +4277,7 @@ export default function RogueBrickPage() {
         id: `run-${template.id}`,
         name: template.name,
         description: template.description,
+        category: 'run',
         currentLevel: rank,
         barSlots: 5,
         baseColor: POWER_BASE_COLORS[template.id] ?? '#60a5fa',
@@ -3583,6 +4304,53 @@ export default function RogueBrickPage() {
     !shouldGateBoardChoices &&
     (run.stage === 'hub' || run.stage === 'store')
   );
+  const pathPreview = run ? buildPathPreview(run, shouldGateBoardChoices) : null;
+  const pathNodePositions: Record<string, { x: number; y: number }> = {};
+  if (pathPreview) {
+    const laneSpan = Math.max(1, pathPreview.maxLane - pathPreview.minLane);
+    const levelSpan = Math.max(1, pathPreview.endLevel - pathPreview.startLevel);
+    const pathLeftPct = 16;
+    const pathWidthPct = 80;
+    const pathTopPct = 4;
+    const pathHeightPct = 92;
+    for (const node of pathPreview.nodes) {
+      const xPct = pathLeftPct + ((node.lane - pathPreview.minLane) / laneSpan) * pathWidthPct;
+      const yPct = pathTopPct + ((pathPreview.endLevel - node.level) / levelSpan) * pathHeightPct;
+      pathNodePositions[node.id] = { x: xPct, y: yPct };
+    }
+  }
+  const pathLevelMarkers = pathPreview
+    ? Array.from({ length: pathPreview.endLevel - pathPreview.startLevel + 1 }, (_, index) => {
+        const level = pathPreview.endLevel - index;
+        const levelSpan = Math.max(1, pathPreview.endLevel - pathPreview.startLevel);
+        const yPct = 4 + ((pathPreview.endLevel - level) / levelSpan) * 92;
+        return { level, yPct };
+      })
+    : [];
+  const renderOfferCost = (
+    amount: number,
+    currency: 'mana' | 'coins',
+    purchased = false,
+  ) => {
+    if (purchased) {
+      return <span className="rogue-store-offer-cost-text">Purchased</span>;
+    }
+
+    const currencyIconClass =
+      currency === 'mana'
+        ? 'rogue-overlay-resource-icon-mana'
+        : 'rogue-overlay-resource-icon-coins';
+
+    return (
+      <span className="rogue-store-offer-cost-text">
+        <span
+          className={`rogue-store-offer-currency-icon rogue-overlay-resource-icon ${currencyIconClass}`}
+          aria-hidden="true"
+        />
+        <strong>{amount}</strong>
+      </span>
+    );
+  };
   const renderStoreOfferCard = (offer: StoreOffer) => {
     const currentLevel = run?.powers?.[offer.id] ?? 0;
     const nextLevel = currentLevel + 1;
@@ -3597,55 +4365,229 @@ export default function RogueBrickPage() {
       <button
         type="button"
         key={offer.id}
-        className="rogue-choice-card"
+        className="rogue-choice-card rogue-store-offer-card"
         onClick={() => buyStoreOffer(offer.id)}
         disabled={offer.purchased}
+        style={{ '--power-base-color': baseColor } as CSSProperties}
       >
-        <strong>{offer.name}</strong>
-        <span>{offer.description}</span>
-        <div className="rogue-store-offer-preview">
-          <span className="rogue-store-offer-preview-label">
-            {startsNewStack ? 'Starts new stack' : 'Adds to existing stack'}
-          </span>
-          <div className="rogue-store-offer-bars" aria-hidden="true">
-            <span
-              className="rogue-active-power-chip rogue-store-power-chip"
-              style={{ '--power-base-color': baseColor } as CSSProperties}
-            >
-              <span className="rogue-active-power-backdrop">{backdropIcon}</span>
-              <span className="rogue-active-power-stack">
-                {Array.from({ length: previewSlots }, (_, index) => (
-                  <span
-                    key={`${offer.id}-current-${index}`}
-                    className={`rogue-active-power-segment${index < currentActive ? ' is-active' : ''}`}
-                  />
-                ))}
-              </span>
+        <span className="rogue-store-offer-corner-icon" aria-hidden="true">{backdropIcon}</span>
+        <div className="rogue-store-offer-segment rogue-store-offer-segment-top">
+          <div className="rogue-store-offer-title">
+            <strong>{offer.name}</strong>
+          </div>
+        </div>
+        <div className="rogue-store-offer-segment rogue-store-offer-segment-middle">
+          <span>{offer.description}</span>
+          <div className="rogue-store-offer-preview">
+            <span className="rogue-store-offer-preview-label">
+              {startsNewStack ? 'Starts new stack' : 'Adds to existing stack'}
             </span>
-            <span className="rogue-store-power-arrow">→</span>
-            <span
-              className="rogue-active-power-chip rogue-store-power-chip is-after"
-              style={{ '--power-base-color': baseColor } as CSSProperties}
-            >
-              <span className="rogue-active-power-backdrop">{backdropIcon}</span>
-              <span className="rogue-active-power-stack">
-                {Array.from({ length: previewSlots }, (_, index) => (
-                  <span
-                    key={`${offer.id}-next-${index}`}
-                    className={`rogue-active-power-segment${index < nextActive ? ' is-active' : ''}`}
-                  />
-                ))}
+            <div className="rogue-store-offer-bars" aria-hidden="true">
+              <span
+                className="rogue-active-power-chip rogue-store-power-chip"
+                style={{ '--power-base-color': baseColor } as CSSProperties}
+              >
+                <span className="rogue-active-power-backdrop">{backdropIcon}</span>
+                <span className="rogue-active-power-stack">
+                  {Array.from({ length: previewSlots }, (_, index) => (
+                    <span
+                      key={`${offer.id}-current-${index}`}
+                      className={`rogue-active-power-segment${index < currentActive ? ' is-active' : ''}`}
+                    />
+                  ))}
+                </span>
               </span>
+              <span className="rogue-store-power-arrow">→</span>
+              <span
+                className="rogue-active-power-chip rogue-store-power-chip is-after"
+                style={{ '--power-base-color': baseColor } as CSSProperties}
+              >
+                <span className="rogue-active-power-backdrop">{backdropIcon}</span>
+                <span className="rogue-active-power-stack">
+                  {Array.from({ length: previewSlots }, (_, index) => (
+                    <span
+                      key={`${offer.id}-next-${index}`}
+                      className={`rogue-active-power-segment${index < nextActive ? ' is-active' : ''}`}
+                    />
+                  ))}
+                </span>
+              </span>
+            </div>
+            <span className="rogue-store-offer-levels">
+              Current x{currentLevel} → New x{nextLevel}
             </span>
           </div>
-          <span className="rogue-store-offer-levels">
-            Current x{currentLevel} → New x{nextLevel}
-          </span>
         </div>
-        <span>{offer.purchased ? 'Purchased' : `Cost: ${offer.coinCost} coins`}</span>
+        <div className="rogue-store-offer-segment rogue-store-offer-segment-bottom">
+          {renderOfferCost(offer.coinCost, 'coins', offer.purchased)}
+        </div>
       </button>
     );
   };
+
+  const powerStripElement = (
+    <section
+      ref={powersStripRef}
+      className={`rogue-active-powers-strip${isPowerDrawerExpanded ? ' is-expanded' : ' is-collapsed'}${isFocusMode ? ' is-focus-drawer' : ''}`}
+      aria-label="Owned and active powers"
+    >
+      <button
+        type="button"
+        className="rogue-active-powers-tab"
+        onClick={() => setIsPowerDrawerExpanded((expanded) => !expanded)}
+        aria-label={isPowerDrawerExpanded ? 'Collapse powers drawer' : 'Expand powers drawer'}
+      >
+        <span className="rogue-active-powers-tab-handle" aria-hidden="true" />
+      </button>
+      <div className="rogue-active-powers-header">
+        <span>Powers</span>
+        {!hasActiveRun && previewStartingRunPowerTemplate && (
+          <span className="rogue-active-powers-preview" aria-live="polite">
+            <span className="rogue-active-powers-preview-icon" aria-hidden="true">
+              {POWER_BACKDROP_ICONS[previewStartingRunPowerTemplate.id] ?? '◌'}
+            </span>
+            <span>{previewStartingRunPowerTemplate.name}</span>
+          </span>
+        )}
+      </div>
+      <div className="rogue-active-powers-row">
+        {activePowerIndicators.length > 0 ? (
+          <div className="rogue-active-powers-grid" role="list">
+            {activePowerIndicators.map((power) => (
+              <button
+                type="button"
+                key={power.id}
+                className={`rogue-active-power-chip is-${power.category}${selectedPowerId === power.id ? ' is-selected' : ''}${highlightedPowerChipId === power.id ? ' is-linked-highlight' : ''}`}
+                title={power.name}
+                aria-label={`${power.name}: ${power.statusLabel}`}
+                onClick={(event) => handlePowerChipClick(power.id, event.currentTarget)}
+                style={{ '--power-base-color': power.baseColor } as CSSProperties}
+                data-popover-surface="true"
+              >
+                <span className="rogue-active-power-backdrop" aria-hidden="true">
+                  {power.backdropIcon}
+                </span>
+                <span className="rogue-active-power-stack" aria-hidden="true">
+                  {Array.from({ length: power.barSlots }, (_, index) => {
+                    const activeThreshold = Math.min(power.currentLevel, power.barSlots);
+                    const isActive = index < activeThreshold;
+                    return (
+                      <span
+                        key={`${power.id}-${index}`}
+                        className={`rogue-active-power-segment${isActive ? ' is-active' : ''}`}
+                      />
+                    );
+                  })}
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="rogue-active-powers-empty">No upgrades or powers owned yet.</p>
+        )}
+        <button
+          type="button"
+          className="btn-secondary rogue-active-powers-reclaim"
+          onClick={reclaimShot}
+          disabled={!shotInProgress || run?.stage !== 'board'}
+          aria-label="Reclaim balls"
+          title="Reclaim balls"
+        >
+          ⇊
+        </button>
+      </div>
+      {isFocusMode && isPowerDrawerExpanded && (
+        <button type="button" className="btn-secondary rogue-active-powers-reset" onClick={resetGame}>
+          Reset Game (Abandon Run)
+        </button>
+      )}
+      {selectedPower && (
+        <section
+          className="rogue-active-power-hover-card"
+          style={powerPopoverStyle}
+          role="dialog"
+          aria-label={`${selectedPower.name} details`}
+          data-popover-surface="true"
+        >
+          <div className="rogue-active-power-detail-head">
+            <strong>{selectedPower.name}</strong>
+            <button
+              type="button"
+              className="btn-text"
+              onClick={() => setSelectedPowerId(null)}
+            >
+              Close
+            </button>
+          </div>
+          <p>{selectedPower.description}</p>
+          <div className="rogue-active-power-detail-stats">
+            <span>Status: {selectedPower.statusLabel}</span>
+            <span>Current: {selectedPower.levelLabel}</span>
+            <span>Max: {selectedPower.maxLevelLabel}</span>
+          </div>
+        </section>
+      )}
+    </section>
+  );
+  const boardSummaryModalElement = (() => {
+    if (!shouldGateBoardChoices || !boardSummary) {
+      return null;
+    }
+    return (
+      <div className="rogue-board-summary-modal-backdrop">
+        <section
+          className="rogue-board-summary rogue-board-summary-modal"
+          aria-label="Board summary"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="rogue-board-summary-stats">
+            <div className="rogue-board-summary-stat">
+              <span className="rogue-board-summary-stat-icon rogue-board-summary-stat-icon-shots" aria-hidden="true">
+                <svg viewBox="0 0 16 16" focusable="false" aria-hidden="true">
+                  <circle cx="8" cy="8" r="4.4" fill="none" stroke="currentColor" strokeWidth="1.4" />
+                  <circle cx="8" cy="8" r="1.2" fill="currentColor" />
+                  <path d="M8 1.6v2M8 12.4v2M1.6 8h2M12.4 8h2" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                </svg>
+              </span>
+              <div className="rogue-board-summary-stat-copy">
+                <span>Shots Taken</span>
+                <strong>{boardSummary.shotsTaken}</strong>
+              </div>
+            </div>
+            <div className="rogue-board-summary-stat">
+              <span className="rogue-board-summary-stat-icon rogue-board-summary-stat-icon-bounces" aria-hidden="true">
+                <svg viewBox="0 0 16 16" focusable="false" aria-hidden="true">
+                  <path d="M2 10.6c1.6-1.2 3.3-1.2 4.9 0s3.3 1.2 4.9 0" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                  <circle cx="3.2" cy="6" r="1.1" fill="currentColor" />
+                  <circle cx="8" cy="4.4" r="1.1" fill="currentColor" opacity="0.82" />
+                  <circle cx="12.8" cy="6" r="1.1" fill="currentColor" opacity="0.64" />
+                </svg>
+              </span>
+              <div className="rogue-board-summary-stat-copy">
+                <span>Bounce Count</span>
+                <strong>{boardSummary.bounceCount}</strong>
+              </div>
+            </div>
+          </div>
+          {boardSummary.achievements.length > 0 && (
+            <div className="rogue-board-summary-achievements">
+              {boardSummary.achievements.map((achievement) => (
+                <span key={achievement}>{achievement}</span>
+              ))}
+            </div>
+          )}
+          <button type="button" className="btn-text rogue-board-summary-dismiss" onClick={acknowledgeBoardSummary}>
+            Continue
+          </button>
+        </section>
+      </div>
+    );
+  })();
+  const boardSummaryModalLayer =
+    boardSummaryModalElement && typeof document !== 'undefined'
+      ? createPortal(boardSummaryModalElement, document.body)
+      : boardSummaryModalElement;
 
   return (
     <div className="rogue-brick-page">
@@ -3673,10 +4615,28 @@ export default function RogueBrickPage() {
               {isFocusMode && (
                 <button
                   type="button"
-                  className="btn-secondary rogue-brick-focus-exit"
+                  className="rogue-brick-focus-exit"
                   onClick={() => setIsFocusMode(false)}
+                  aria-label="Exit lock mode"
+                  title="Exit lock mode"
                 >
-                  Exit
+                  <svg
+                    className="rogue-brick-focus-exit-icon"
+                    viewBox="0 0 24 24"
+                    role="img"
+                    aria-hidden="true"
+                  >
+                    <path d="M4 3.5h8.5v17H4z" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                    <path d="M9.1 12h.01" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+                    <path
+                      d="M16.5 7.6l1.35 2.1m-1.35-2.1L14.7 9m2.8.85-.95 3.05m.95-3.05 1.9 1.45m-2.85 1.6L14 14.85m2.55-1.95 2.35 1.55m-4.9.4L12.45 18"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
                 </button>
               )}
             </div>
@@ -3686,31 +4646,6 @@ export default function RogueBrickPage() {
               Progress {overallProgressPct}%
               {hasActiveRun ? ` - Level ${run?.level}/${run?.maxLevels}` : ''}
             </span>
-            {hasActiveRun && objectiveBricks.length > 0 && (
-              <div
-                className="rogue-core-progress-visual"
-                aria-label={`Core progress for ${objectiveBricks.length} active core${objectiveBricks.length === 1 ? '' : 's'}`}
-              >
-                {objectiveBricks.map((brick, index) => {
-                  const coreDestroyedPct = Math.round(
-                    Math.max(0, Math.min(1, 1 - brick.hp / Math.max(1, brick.maxHp))) * 100
-                  );
-                  const variantColor = getCoreVariantColor(brick.coreVariant);
-                  return (
-                    <span
-                      key={brick.id}
-                      className="rogue-core-progress-ring"
-                      style={{
-                        background: `conic-gradient(${variantColor} ${coreDestroyedPct * 3.6}deg, rgb(51 65 85 / 0.9) 0deg)`,
-                      }}
-                      aria-label={`${getCoreVariantLabel(brick.coreVariant)} ${index + 1} ${coreDestroyedPct}% complete`}
-                    >
-                      <span className="rogue-core-progress-ring-value">{coreDestroyedPct}%</span>
-                    </span>
-                  );
-                })}
-              </div>
-            )}
           </div>
           <div
             className="rogue-progress-track rogue-progress-track-compact"
@@ -3725,8 +4660,27 @@ export default function RogueBrickPage() {
         </div>
 
         <div className={`rogue-brick-layout${isFocusMode ? ' is-focus-mode' : ''}`}>
-          <div className="rogue-brick-canvas-wrap">
+          <div className={`rogue-brick-canvas-wrap${isPowerDrawerExpanded ? ' is-power-drawer-expanded' : ''}`}>
             <div className={`rogue-brick-board-frame${isBetweenLevelHub ? ' is-between-level' : ''}`}>
+              {hasActiveRun && run?.stage === 'board' && (
+                <div className="rogue-core-progress-board" aria-label="Core progress (Yellow left, Blue middle, Green right)">
+                  {coreProgressSlots.map((slot) => {
+                    const variantColor = getCoreVariantColor(slot.variant);
+                    return (
+                      <span
+                        key={slot.variant}
+                        className={`rogue-core-progress-ring${slot.hasCore ? '' : ' is-inactive'}`}
+                        style={{
+                          background: `conic-gradient(${variantColor} ${slot.progressPct * 3.6}deg, rgb(51 65 85 / 0.9) 0deg)`,
+                        }}
+                        aria-label={`${getCoreVariantLabel(slot.variant)} ${slot.progressPct}% complete`}
+                      >
+                        <span className="rogue-core-progress-ring-value">{slot.progressPct}%</span>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
               {showBoardOverlay && (
                 <div className="rogue-board-overlay">
                   <section
@@ -3795,48 +4749,256 @@ export default function RogueBrickPage() {
                       </div>
                     )}
 
-                    {!hasActiveRun && (
-                      <button
-                        type="button"
-                        className="btn-primary"
-                        onClick={startRun}
-                        disabled={!canStartRun}
+                    {shouldShowStartingRunSelection && (
+                      <>
+                        <h2 className="rogue-starting-run-title">Lexor&apos;s Gift</h2>
+                        <div className="rogue-choice-grid rogue-choice-grid-store">
+                          {startingRunPowerChoiceTemplates.map((offer) => {
+                            const backdropIcon = POWER_BACKDROP_ICONS[offer.id] ?? '◌';
+                            const baseColor = POWER_BASE_COLORS[offer.id] ?? '#60a5fa';
+                            const currentLevel = 0;
+                            return (
+                              <button
+                                type="button"
+                                key={`start-power-${offer.id}`}
+                                className="rogue-choice-card rogue-store-offer-card"
+                                onClick={() => requestStartingRunConfirmation(offer.id)}
+                                onMouseEnter={() => {
+                                  setPreviewStartingPowerId(offer.id);
+                                }}
+                                onMouseLeave={() => setPreviewStartingPowerId((current) => (current === offer.id ? null : current))}
+                                onFocus={() => {
+                                  setPreviewStartingPowerId(offer.id);
+                                }}
+                                onBlur={() => setPreviewStartingPowerId((current) => (current === offer.id ? null : current))}
+                                disabled={!canSelectStartingRunPower}
+                                style={{ '--power-base-color': baseColor } as CSSProperties}
+                              >
+                                <span className="rogue-store-offer-corner-icon" aria-hidden="true">{backdropIcon}</span>
+                                <div className="rogue-store-offer-segment rogue-store-offer-segment-top">
+                                  <div className="rogue-store-offer-title">
+                                    <strong>{offer.name}</strong>
+                                  </div>
+                                </div>
+                                <div className="rogue-store-offer-segment rogue-store-offer-segment-middle">
+                                  <span>{offer.description}</span>
+                                </div>
+                                <div className="rogue-store-offer-segment rogue-store-offer-segment-bottom">
+                                  <span className="rogue-store-offer-levels">Current level: x{currentLevel}</span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                    {shouldShowStartingRunSelection && pendingStartingRunPowerTemplate && (
+                      <div
+                        className="rogue-gamble-modal-backdrop"
+                        role="presentation"
+                        onClick={() => setPendingStartingRunPowerId(null)}
                       >
-                        Start New Run
-                      </button>
+                        <section
+                          className="rogue-gamble-modal"
+                          role="dialog"
+                          aria-label="Confirm starting run power-up"
+                          data-popover-surface="true"
+                        >
+                          <p className="rogue-starting-run-confirm-copy">
+                            Start your run with <strong>{pendingStartingRunPowerTemplate.name}</strong>?
+                          </p>
+                          <div className="rogue-gamble-modal-actions">
+                            <button
+                              type="button"
+                              className="rogue-starting-run-confirm-action is-accept"
+                              onClick={confirmStartingRun}
+                            >
+                              Start run
+                            </button>
+                            <button
+                              type="button"
+                              className="rogue-starting-run-confirm-action is-cancel"
+                              onClick={() => setPendingStartingRunPowerId(null)}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </section>
+                      </div>
                     )}
 
-                    {run?.stage === 'hub' && !shouldGateBoardChoices && (
+                    {run?.stage === 'hub' && !shouldGateBoardChoices && pathPreview && (
                       <>
-                        <div className="rogue-hub-actions-row">
-                          <button
-                            type="button"
-                            className="btn-primary rogue-hub-action-icon"
-                            onClick={continueToBoard}
-                            aria-label="Face next board"
-                            title="Face next board"
-                          >
-                            ▶
-                          </button>
+                        <div className="rogue-path-tree-panel" aria-label="Level climb path selector">
+                          <div className="rogue-path-tree-heading">
+                            <strong>Choose your next climb node</strong>
+                          </div>
+                          <div className="rogue-path-tree-graph">
+                            <div className="rogue-path-tree-level-rail" aria-hidden="true">
+                              {pathLevelMarkers.map((marker) => (
+                                <div
+                                  key={`path-level-${marker.level}`}
+                                  className="rogue-path-tree-level-marker"
+                                  style={{ top: `${marker.yPct}%` }}
+                                >
+                                  <span>L{marker.level}</span>
+                                </div>
+                              ))}
+                            </div>
+                            <svg className="rogue-path-tree-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                              {pathPreview.edges.map((edge) => {
+                                const from = pathNodePositions[edge.fromId];
+                                const to = pathNodePositions[edge.toId];
+                                if (!from || !to) {
+                                  return null;
+                                }
+                                return (
+                                  <line
+                                    key={`${edge.fromId}-${edge.toId}`}
+                                    x1={from.x}
+                                    y1={from.y}
+                                    x2={to.x}
+                                    y2={to.y}
+                                    className="rogue-path-tree-line"
+                                  />
+                                );
+                              })}
+                            </svg>
+                            {pathPreview.nodes.map((node) => {
+                              const position = pathNodePositions[node.id];
+                              if (!position) {
+                                return null;
+                              }
+                              const challenge = getPathChallengeDefinition(node.challenge);
+                              const storeLabel = getPathStoreTypeLabel(node.storeType);
+                              const challengeTitle = `${challenge.label}${storeLabel ? ` + ${storeLabel}` : ''} - ${challenge.description}`;
+                              const nodeClassName = [
+                                'rogue-path-tree-node',
+                                `is-${node.relation}`,
+                                node.storeType ? `is-store-${node.storeType}` : '',
+                                node.isSelected ? 'is-selected' : '',
+                                node.isPlayable ? 'is-playable' : '',
+                              ]
+                                .filter(Boolean)
+                                .join(' ');
+                              const style = {
+                                left: `${position.x}%`,
+                                top: `${position.y}%`,
+                              };
+
+                              if (node.isPlayable) {
+                                return (
+                                  <button
+                                    type="button"
+                                    key={node.id}
+                                    className={nodeClassName}
+                                    style={style}
+                                    onClick={() => choosePathNode(node.id)}
+                                    aria-label={`Choose level ${node.level} node (${challenge.label}${storeLabel ? `, ${storeLabel}` : ''})`}
+                                    title={challengeTitle}
+                                  />
+                                );
+                              }
+
+                              return (
+                                <div
+                                  key={node.id}
+                                  className={nodeClassName}
+                                  style={style}
+                                  title={challengeTitle}
+                                />
+                              );
+                            })}
+                          </div>
                         </div>
+                        {run.hubMessage &&
+                          hubMessageKey !== hiddenHubMessageKey &&
+                          isPurchasedStoreHubMessage && (
+                          <div className="rogue-store-purchase-toast is-transient" role="status" aria-live="polite">
+                            <span className="rogue-store-purchase-toast-icon" aria-hidden="true">{purchasedStoreIcon}</span>
+                            <span>{run.hubMessage}</span>
+                          </div>
+                        )}
                       </>
                     )}
 
                     {run?.stage === 'powerup' && !shouldGateBoardChoices && (
                       <>
                         <h2>Choose a Power-Up (Mana)</h2>
-                        <div className="rogue-choice-grid">
+                        <div className="rogue-choice-grid rogue-choice-grid-store">
                           {run.pendingPowerOffers.map((offer) => (
-                            <button
-                              type="button"
-                              key={offer.id}
-                              className="rogue-choice-card"
-                              onClick={() => choosePowerUp(offer.id)}
-                            >
-                              <strong>{offer.name}</strong>
-                              <span>{offer.description}</span>
-                              <span>Cost: {offer.manaCost} mana</span>
-                            </button>
+                            (() => {
+                              const currentLevel = run?.powers?.[offer.id] ?? 0;
+                              const nextLevel = currentLevel + 1;
+                              const startsNewStack = currentLevel === 0;
+                              const previewSlots = 5;
+                              const currentActive = Math.min(currentLevel, previewSlots);
+                              const nextActive = Math.min(nextLevel, previewSlots);
+                              const baseColor = POWER_BASE_COLORS[offer.id] ?? '#60a5fa';
+                              const backdropIcon = POWER_BACKDROP_ICONS[offer.id] ?? '◌';
+
+                              return (
+                                <button
+                                  type="button"
+                                  key={offer.id}
+                                  className="rogue-choice-card rogue-store-offer-card"
+                                  onClick={() => choosePowerUp(offer.id)}
+                                  style={{ '--power-base-color': baseColor } as CSSProperties}
+                                >
+                                  <span className="rogue-store-offer-corner-icon" aria-hidden="true">{backdropIcon}</span>
+                                  <div className="rogue-store-offer-segment rogue-store-offer-segment-top">
+                                    <div className="rogue-store-offer-title">
+                                      <strong>{offer.name}</strong>
+                                    </div>
+                                  </div>
+                                  <div className="rogue-store-offer-segment rogue-store-offer-segment-middle">
+                                    <span>{offer.description}</span>
+                                    <div className="rogue-store-offer-preview">
+                                      <span className="rogue-store-offer-preview-label">
+                                        {startsNewStack ? 'Starts new stack' : 'Adds to existing stack'}
+                                      </span>
+                                      <div className="rogue-store-offer-bars" aria-hidden="true">
+                                        <span
+                                          className="rogue-active-power-chip rogue-store-power-chip"
+                                          style={{ '--power-base-color': baseColor } as CSSProperties}
+                                        >
+                                          <span className="rogue-active-power-backdrop">{backdropIcon}</span>
+                                          <span className="rogue-active-power-stack">
+                                            {Array.from({ length: previewSlots }, (_, index) => (
+                                              <span
+                                                key={`${offer.id}-power-current-${index}`}
+                                                className={`rogue-active-power-segment${index < currentActive ? ' is-active' : ''}`}
+                                              />
+                                            ))}
+                                          </span>
+                                        </span>
+                                        <span className="rogue-store-power-arrow">→</span>
+                                        <span
+                                          className="rogue-active-power-chip rogue-store-power-chip is-after"
+                                          style={{ '--power-base-color': baseColor } as CSSProperties}
+                                        >
+                                          <span className="rogue-active-power-backdrop">{backdropIcon}</span>
+                                          <span className="rogue-active-power-stack">
+                                            {Array.from({ length: previewSlots }, (_, index) => (
+                                              <span
+                                                key={`${offer.id}-power-next-${index}`}
+                                                className={`rogue-active-power-segment${index < nextActive ? ' is-active' : ''}`}
+                                              />
+                                            ))}
+                                          </span>
+                                        </span>
+                                      </div>
+                                      <span className="rogue-store-offer-levels">
+                                        Current x{currentLevel} → New x{nextLevel}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="rogue-store-offer-segment rogue-store-offer-segment-bottom">
+                                    {renderOfferCost(offer.manaCost, 'mana')}
+                                  </div>
+                                </button>
+                              );
+                            })()
                           ))}
                         </div>
                         <button type="button" className="btn-text" onClick={skipPowerUp}>
@@ -3847,8 +5009,8 @@ export default function RogueBrickPage() {
 
                     {run?.stage === 'hub' && !shouldGateBoardChoices && run.pendingStoreOffers.length > 0 && (
                       <>
-                        <h2>Store</h2>
-                        <div className="rogue-choice-grid">
+                        <h2>Money Store</h2>
+                        <div className="rogue-choice-grid rogue-choice-grid-store">
                           {run.pendingStoreOffers.map((offer) => renderStoreOfferCard(offer))}
                           <button
                             type="button"
@@ -3872,8 +5034,8 @@ export default function RogueBrickPage() {
 
                     {run?.stage === 'store' && !shouldGateBoardChoices && (
                       <>
-                        <h2>Store</h2>
-                        <div className="rogue-choice-grid">
+                        <h2>Money Store</h2>
+                        <div className="rogue-choice-grid rogue-choice-grid-store">
                           {run.pendingStoreOffers.map((offer) => renderStoreOfferCard(offer))}
                           <button
                             type="button"
@@ -3898,7 +5060,15 @@ export default function RogueBrickPage() {
                       </>
                     )}
 
-                    {run?.hubMessage && <p className="rogue-hub-message">{run.hubMessage}</p>}
+                    {run?.stage === 'hub' &&
+                      !shouldGateBoardChoices &&
+                      run.hubMessage &&
+                      hubMessageKey !== hiddenHubMessageKey &&
+                      !isPurchasedStoreHubMessage && (
+                      <p className={`rogue-hub-message${hasTransientHubMessage ? ' is-transient' : ''}`}>
+                        {run.hubMessage}
+                      </p>
+                    )}
                     {shouldShowStoreGamble && (showGambleConfirm || isGambleRevealing || gambleOutcome) && (
                       <div
                         className="rogue-gamble-modal-backdrop"
@@ -3966,32 +5136,36 @@ export default function RogueBrickPage() {
                         </section>
                       </div>
                     )}
-                    {shouldGateBoardChoices && boardSummary && (
-                      <div className="rogue-board-summary-modal-backdrop">
-                        <section
-                          className="rogue-board-summary rogue-board-summary-modal"
-                          aria-label="Board summary"
-                          role="dialog"
-                          aria-modal="true"
-                        >
-                          <h3>Board Summary</h3>
-                          <ul>
-                            <li>Shots Taken: <strong>{boardSummary.shotsTaken}</strong></li>
-                            <li>Bounce Count: <strong>{boardSummary.bounceCount}</strong></li>
-                          </ul>
-                          {boardSummary.achievements.length > 0 && (
-                            <div className="rogue-board-summary-achievements">
-                              {boardSummary.achievements.map((achievement) => (
-                                <span key={achievement}>{achievement}</span>
-                              ))}
-                            </div>
-                          )}
-                          <button type="button" className="btn-primary" onClick={acknowledgeBoardSummary}>
-                            OK
-                          </button>
-                        </section>
-                      </div>
-                    )}
+                    {boardSummaryModalLayer}
+                  </section>
+                </div>
+              )}
+              {showResetConfirm && (
+                <div
+                  className="rogue-gamble-modal-backdrop"
+                  role="presentation"
+                  onClick={(event) => {
+                    if (event.target === event.currentTarget) {
+                      setShowResetConfirm(false);
+                    }
+                  }}
+                >
+                  <section
+                    className="rogue-gamble-modal"
+                    role="dialog"
+                    aria-label="Confirm abandon run"
+                    data-popover-surface="true"
+                  >
+                    <h3>Confirm Abandon Run</h3>
+                    <p>Reset all Rogue Brick progress and abandon the current run? This cannot be undone.</p>
+                    <div className="rogue-gamble-modal-actions">
+                      <button type="button" className="btn-primary" onClick={confirmResetGame}>
+                        Abandon Run
+                      </button>
+                      <button type="button" className="btn-secondary" onClick={() => setShowResetConfirm(false)}>
+                        Cancel
+                      </button>
+                    </div>
                   </section>
                 </div>
               )}
@@ -4021,85 +5195,9 @@ export default function RogueBrickPage() {
                 onPointerCancel={handlePointerCancel}
               />
             </div>
-            <section
-              ref={powersStripRef}
-              className="rogue-active-powers-strip"
-              aria-label="Owned and active powers"
-            >
-              <div className="rogue-active-powers-header">Powers</div>
-              <div className="rogue-active-powers-row">
-                {activePowerIndicators.length > 0 ? (
-                  <div className="rogue-active-powers-grid" role="list">
-                    {activePowerIndicators.map((power) => (
-                      <button
-                        type="button"
-                        key={power.id}
-                        className={`rogue-active-power-chip${selectedPowerId === power.id ? ' is-selected' : ''}`}
-                        title={power.name}
-                        aria-label={`${power.name}: ${power.statusLabel}`}
-                        onClick={(event) => handlePowerChipClick(power.id, event.currentTarget)}
-                        style={{ '--power-base-color': power.baseColor } as CSSProperties}
-                        data-popover-surface="true"
-                      >
-                        <span className="rogue-active-power-backdrop" aria-hidden="true">
-                          {power.backdropIcon}
-                        </span>
-                        <span className="rogue-active-power-stack" aria-hidden="true">
-                          {Array.from({ length: power.barSlots }, (_, index) => {
-                            const activeThreshold = Math.min(power.currentLevel, power.barSlots);
-                            const isActive = index < activeThreshold;
-                            return (
-                              <span
-                                key={`${power.id}-${index}`}
-                                className={`rogue-active-power-segment${isActive ? ' is-active' : ''}`}
-                              />
-                            );
-                          })}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="rogue-active-powers-empty">No upgrades or powers owned yet.</p>
-                )}
-                <button
-                  type="button"
-                  className="btn-secondary rogue-active-powers-reclaim"
-                  onClick={reclaimShot}
-                  disabled={!shotInProgress || run?.stage !== 'board'}
-                  aria-label="Reclaim balls"
-                  title="Reclaim balls"
-                >
-                  ⇊
-                </button>
-              </div>
-              {selectedPower && (
-                <section
-                  className="rogue-active-power-hover-card"
-                  style={powerPopoverStyle}
-                  role="dialog"
-                  aria-label={`${selectedPower.name} details`}
-                  data-popover-surface="true"
-                >
-                  <div className="rogue-active-power-detail-head">
-                    <strong>{selectedPower.name}</strong>
-                    <button
-                      type="button"
-                      className="btn-text"
-                      onClick={() => setSelectedPowerId(null)}
-                    >
-                      Close
-                    </button>
-                  </div>
-                  <p>{selectedPower.description}</p>
-                  <div className="rogue-active-power-detail-stats">
-                    <span>Status: {selectedPower.statusLabel}</span>
-                    <span>Current: {selectedPower.levelLabel}</span>
-                    <span>Max: {selectedPower.maxLevelLabel}</span>
-                  </div>
-                </section>
-              )}
-            </section>
+            {isFocusMode && typeof document !== 'undefined'
+              ? createPortal(powerStripElement, document.body)
+              : powerStripElement}
         </div>
 
         <aside className="rogue-brick-sidebar">
@@ -4151,20 +5249,20 @@ export default function RogueBrickPage() {
             </button>
           </section>
 
-          {!hasActiveRun && profile.lastRunSummary && (
+          {!hasActiveRun && lastRunSummary && (
             <section className="rogue-brick-panel">
               <h2>Last Run</h2>
-              <p>{profile.lastRunSummary.victory ? 'Victory' : 'Defeat'}</p>
-              <p>Level Reached: {profile.lastRunSummary.levelReached}</p>
-              <p>Boards Cleared: {profile.lastRunSummary.boardsCleared}</p>
-              <p>Meta Earned: +{profile.lastRunSummary.metaEarned}</p>
+              <p>{lastRunSummary.victory ? 'Victory' : 'Defeat'}</p>
+              <p>Level Reached: {lastRunSummary.levelReached}</p>
+              <p>Boards Cleared: {lastRunSummary.boardsCleared}</p>
+              <p>Meta Earned: +{lastRunSummary.metaEarned}</p>
             </section>
           )}
         </aside>
         </div>
       </section>
 
-      {!hasActiveRun && (
+      {shouldShowStartingRunSelection && (
         <section className="rogue-brick-panel">
           <h2>Permanent Upgrades</h2>
           <div className="rogue-choice-grid">
@@ -4172,11 +5270,53 @@ export default function RogueBrickPage() {
               const state = profile.permanentUpgrades[upgrade.key];
               const cost = upgradeCost(upgrade, state.rank);
               const atMax = state.rank >= upgrade.maxRank;
+              const baseColor = POWER_BASE_COLORS[upgrade.key] ?? '#22d3ee';
+              const backdropIcon = POWER_BACKDROP_ICONS[upgrade.key] ?? '◌';
+              const currentRank = state.rank;
+              const nextRank = atMax ? state.rank : state.rank + 1;
               return (
                 <div key={upgrade.key} className="rogue-upgrade-card">
                   <strong>{upgrade.name}</strong>
                   <span>{upgrade.description}</span>
-                  <span>Rank: {state.rank}/{upgrade.maxRank}</span>
+                  <div className="rogue-store-offer-preview">
+                    <span className="rogue-store-offer-preview-label">
+                      {state.enabled ? 'Meta power enabled' : state.rank > 0 ? 'Owned but disabled' : 'Not owned yet'}
+                    </span>
+                    <div className="rogue-store-offer-bars" aria-hidden="true">
+                      <span
+                        className="rogue-active-power-chip rogue-store-power-chip"
+                        style={{ '--power-base-color': baseColor } as CSSProperties}
+                      >
+                        <span className="rogue-active-power-backdrop">{backdropIcon}</span>
+                        <span className="rogue-active-power-stack">
+                          {Array.from({ length: upgrade.maxRank }, (_, index) => (
+                            <span
+                              key={`${upgrade.key}-perm-current-${index}`}
+                              className={`rogue-active-power-segment${index < currentRank ? ' is-active' : ''}`}
+                            />
+                          ))}
+                        </span>
+                      </span>
+                      <span className="rogue-store-power-arrow">→</span>
+                      <span
+                        className="rogue-active-power-chip rogue-store-power-chip is-after"
+                        style={{ '--power-base-color': baseColor } as CSSProperties}
+                      >
+                        <span className="rogue-active-power-backdrop">{backdropIcon}</span>
+                        <span className="rogue-active-power-stack">
+                          {Array.from({ length: upgrade.maxRank }, (_, index) => (
+                            <span
+                              key={`${upgrade.key}-perm-next-${index}`}
+                              className={`rogue-active-power-segment${index < nextRank ? ' is-active' : ''}`}
+                            />
+                          ))}
+                        </span>
+                      </span>
+                    </div>
+                    <span className="rogue-store-offer-levels">
+                      Rank {currentRank}/{upgrade.maxRank} → {nextRank}/{upgrade.maxRank}
+                    </span>
+                  </div>
                   <div className="rogue-upgrade-actions">
                     <button
                       type="button"
@@ -4200,6 +5340,36 @@ export default function RogueBrickPage() {
             })}
           </div>
         </section>
+      )}
+      {shouldShowDefeatNotification && lastRunSummary && (
+        <div className="rogue-gamble-modal-backdrop" role="presentation">
+          <section
+            className="rogue-gamble-modal is-backfire"
+            role="dialog"
+            aria-label="Run ended in defeat"
+            aria-modal="true"
+            data-popover-surface="true"
+          >
+            <h3 className="rogue-defeat-title">
+              <span className="rogue-defeat-title-icon" aria-hidden="true">☠</span>
+              Defeat
+            </h3>
+            <p className="rogue-gamble-modal-copy">
+              You were crushed at level {lastRunSummary.levelReached} after {lastRunSummary.boardsCleared}{' '}
+              board{lastRunSummary.boardsCleared === 1 ? '' : 's'}.
+            </p>
+            <p className="rogue-gamble-modal-copy">Your run is gone. You salvaged +{lastRunSummary.metaEarned} meta.</p>
+            <div className="rogue-gamble-modal-actions">
+              <button
+                type="button"
+                className="rogue-defeat-dismiss"
+                onClick={() => setDismissedDefeatSummaryCompletedAt(lastRunSummary.completedAt)}
+              >
+                Accept Defeat
+              </button>
+            </div>
+          </section>
+        </div>
       )}
     </div>
   );
