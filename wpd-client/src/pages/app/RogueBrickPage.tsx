@@ -2355,7 +2355,7 @@ export default function RogueBrickPage() {
     }
 
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    ctx.fillStyle = '#1a1410';
+    ctx.fillStyle = 'rgba(26, 20, 16, 0.68)';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     const now = performance.now();
 
