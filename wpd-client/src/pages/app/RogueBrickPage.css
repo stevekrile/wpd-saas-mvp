@@ -36,6 +36,8 @@ body.rogue-brick-focus-mode {
 
 .rogue-brick-layout-shell {
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .rogue-brick-layout-shell.is-focus-mode {
@@ -70,6 +72,11 @@ body.rogue-brick-focus-mode {
   flex-shrink: 0;
 }
 
+.rogue-brick-layout-shell.is-focus-mode .rogue-brick-top-hud {
+  background: #08111f;
+  border: 1px solid rgb(148 163 184 / 22%);
+}
+
 .rogue-brick-top-hud-row {
   display: flex;
   justify-content: space-between;
@@ -90,6 +97,40 @@ body.rogue-brick-focus-mode {
 
 .rogue-brick-top-hud-score {
   font-size: 1rem;
+}
+
+.rogue-core-progress-visual {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.rogue-core-progress-ring {
+  width: 2.85rem;
+  height: 2.85rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+}
+
+.rogue-core-progress-ring-value {
+  width: 2.08rem;
+  height: 2.08rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 0.68rem;
+  font-weight: 700;
 }
 
 .rogue-brick-layout {
@@ -120,7 +161,7 @@ body.rogue-brick-focus-mode {
   align-items: stretch;
   gap: 0.75rem;
   width: 100%;
-  overflow: hidden;
+  overflow: visible;
   touch-action: none;
   overscroll-behavior: contain;
   max-width: 720px;
@@ -133,12 +174,27 @@ body.rogue-brick-focus-mode {
   background: #08111f;
   box-shadow: none;
   max-width: none;
+  justify-content: space-between;
 }
 
 .rogue-brick-board-frame {
   position: relative;
+  flex: 1;
+  min-height: 0;
   width: 100%;
   display: flex;
+  overflow: hidden;
+  border-radius: 0.75rem;
+}
+
+.rogue-brick-board-frame .rogue-brick-canvas {
+  opacity: 1;
+  transition: opacity 380ms ease, filter 380ms ease;
+}
+
+.rogue-brick-board-frame.is-between-level .rogue-brick-canvas {
+  opacity: 0.38;
+  filter: saturate(0.9) brightness(0.7);
 }
 
 .rogue-board-overlay {
@@ -161,9 +217,425 @@ body.rogue-brick-focus-mode {
   color: #f8fafc;
 }
 
+.rogue-board-overlay-content.is-between-level {
+  opacity: 0;
+  transform: translateY(10px);
+  animation: rogue-between-level-fade-in 420ms ease 170ms forwards;
+}
+
 .rogue-board-overlay-content h2 {
   color: #f8fafc;
   font-size: 1rem;
+}
+
+.rogue-core-breach-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: radial-gradient(circle, var(--core-breach-glow, rgb(251 191 36 / 0.28)), rgb(7 12 24 / 0) 62%);
+  animation: rogue-core-breach-flash 1200ms ease-out forwards;
+}
+
+.rogue-core-breach-flash span {
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: var(--core-breach-text, rgb(254 240 138 / 0.96));
+  text-shadow: 0 0 12px var(--core-breach-shadow, rgb(245 158 11 / 0.65));
+}
+
+@keyframes rogue-core-breach-flash {
+  from {
+    opacity: 0;
+  }
+
+  22% {
+    opacity: 1;
+  }
+
+  68% {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes rogue-between-level-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rogue-overlay-resources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.rogue-overlay-resource-wrap {
+  position: relative;
+}
+
+.rogue-overlay-resource {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #f8fafc;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.rogue-overlay-resource-button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.rogue-overlay-resource-button:hover {
+  opacity: 0.92;
+}
+
+.rogue-overlay-resource-icon {
+  position: relative;
+  width: 1.2rem;
+  height: 1.2rem;
+  display: inline-block;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 3px rgb(0 0 0 / 0.45));
+}
+
+.rogue-overlay-resource-icon-mana {
+  border-radius: 0.28rem;
+  transform: rotate(45deg);
+  background:
+    radial-gradient(circle at 32% 28%, rgb(255 255 255 / 0.55), transparent 45%),
+    linear-gradient(140deg, #8b5cf6, #6366f1 60%, #4338ca);
+  border: 1px solid rgb(196 181 253 / 0.8);
+}
+
+.rogue-overlay-resource-icon-coins {
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 28% 28%, rgb(255 255 255 / 0.5), transparent 42%),
+    radial-gradient(circle at 65% 70%, rgb(120 53 15 / 0.2), transparent 58%),
+    linear-gradient(160deg, #fbbf24, #f59e0b 58%, #b45309);
+  border: 1px solid rgb(253 230 138 / 0.85);
+}
+
+.rogue-overlay-resource-icon-mana::before,
+.rogue-overlay-resource-icon-mana::after,
+.rogue-overlay-resource-icon-coins::before,
+.rogue-overlay-resource-icon-coins::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+}
+
+.rogue-overlay-resource-icon-mana::before {
+  width: 0.5rem;
+  height: 0.5rem;
+  top: 0.34rem;
+  left: 0.34rem;
+  transform: rotate(-45deg);
+  border-radius: 0.14rem;
+  background: rgb(224 231 255 / 0.45);
+}
+
+.rogue-overlay-resource-icon-mana::after {
+  width: 0.16rem;
+  height: 0.16rem;
+  right: -0.06rem;
+  top: -0.02rem;
+  border-radius: 999px;
+  background: rgb(250 245 255 / 0.9);
+  box-shadow: 0 0 4px rgb(192 132 252 / 0.95);
+}
+
+.rogue-overlay-resource-icon-coins::before {
+  inset: 0.23rem;
+  border-radius: 999px;
+  border: 1px solid rgb(120 53 15 / 0.4);
+}
+
+.rogue-overlay-resource-icon-coins::after {
+  width: 0.35rem;
+  height: 0.35rem;
+  top: 0.42rem;
+  left: 0.42rem;
+  border-radius: 999px;
+  background: rgb(255 249 196 / 0.3);
+}
+
+.rogue-overlay-resource-popover {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  z-index: 6;
+  width: 14.5rem;
+  border-radius: 0.8rem;
+  border: 1px solid rgb(148 163 184 / 34%);
+  background: rgb(15 23 42 / 98%);
+  padding: 0.5rem 0.55rem;
+  box-shadow: 0 10px 20px rgb(2 6 23 / 42%);
+}
+
+.rogue-overlay-resource-popover::before {
+  content: '';
+  position: absolute;
+  left: 0.78rem;
+  top: -0.34rem;
+  width: 0.62rem;
+  height: 0.62rem;
+  transform: rotate(45deg);
+  background: rgb(15 23 42 / 98%);
+  border-top: 1px solid rgb(148 163 184 / 34%);
+  border-left: 1px solid rgb(148 163 184 / 34%);
+}
+
+.rogue-overlay-resource-popover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.2rem;
+}
+
+.rogue-overlay-resource-popover-head strong {
+  font-size: 0.8rem;
+  color: #f8fafc;
+}
+
+.rogue-overlay-resource-popover p {
+  margin: 0;
+  font-size: 0.75rem;
+  color: rgb(226 232 240 / 92%);
+}
+
+.rogue-board-summary {
+  border: 1px solid rgb(148 163 184 / 28%);
+  border-radius: 0.55rem;
+  background: rgb(15 23 42 / 68%);
+  padding: 0.55rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.rogue-board-summary h3 {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #f8fafc;
+}
+
+.rogue-board-summary ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.78rem;
+}
+
+.rogue-board-summary-achievements {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.rogue-board-summary-achievements span {
+  border-radius: 999px;
+  border: 1px solid rgb(52 211 153 / 42%);
+  background: rgb(6 78 59 / 48%);
+  color: rgb(209 250 229 / 96%);
+  padding: 0.15rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.rogue-board-summary .btn-primary {
+  align-self: flex-start;
+}
+
+.rogue-board-summary-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 42;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(2 6 23 / 52%);
+}
+
+.rogue-board-summary-modal {
+  width: min(100%, 22rem);
+  border-radius: 0.85rem;
+  border: 1px solid rgb(148 163 184 / 34%);
+  background: rgb(15 23 42 / 97%);
+  box-shadow: 0 16px 34px rgb(2 6 23 / 55%);
+  padding: 0.75rem;
+  gap: 0.65rem;
+}
+
+.rogue-board-summary-modal .btn-primary {
+  align-self: stretch;
+}
+
+.rogue-hub-actions-row {
+  display: flex;
+  width: 100%;
+  gap: 0.65rem;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.1rem;
+}
+
+.rogue-hub-action-icon {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  height: 2.4rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.08rem;
+  line-height: 1;
+  border-radius: 0.52rem;
+}
+
+.rogue-store-gamble-card {
+  justify-content: space-between;
+}
+
+.rogue-store-gamble-dice {
+  font-size: 3rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+.rogue-gamble-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(2 6 23 / 52%);
+}
+
+.rogue-gamble-modal {
+  width: min(100%, 22rem);
+  border-radius: 0.85rem;
+  border: 1px solid rgb(148 163 184 / 34%);
+  background: rgb(15 23 42 / 97%);
+  box-shadow: 0 16px 34px rgb(2 6 23 / 55%);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.rogue-gamble-modal h3 {
+  margin: 0;
+  font-size: 0.92rem;
+  color: #f8fafc;
+}
+
+.rogue-gamble-modal p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: rgb(226 232 240 / 96%);
+}
+
+.rogue-gamble-modal.is-success {
+  border-color: rgb(74 222 128 / 55%);
+}
+
+.rogue-gamble-modal.is-failure,
+.rogue-gamble-modal.is-backfire {
+  border-color: rgb(248 113 113 / 55%);
+}
+
+.rogue-gamble-modal-copy {
+  text-align: center;
+  font-weight: 600;
+}
+
+.rogue-gamble-outcome-icon {
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 999px;
+  margin: 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.rogue-gamble-outcome-icon-success {
+  color: rgb(34 197 94 / 98%);
+  background: rgb(34 197 94 / 16%);
+  border: 1px solid rgb(34 197 94 / 42%);
+}
+
+.rogue-gamble-outcome-icon-bad {
+  color: rgb(248 113 113 / 98%);
+  background: rgb(248 113 113 / 16%);
+  border: 1px solid rgb(248 113 113 / 42%);
+}
+
+.rogue-gamble-modal-actions {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.rogue-gamble-modal-actions .btn-primary,
+.rogue-gamble-modal-actions .btn-secondary {
+  flex: 1 1 0;
+}
+
+.rogue-gamble-reveal-dice {
+  margin: 0 auto;
+  font-size: 1.8rem;
+  line-height: 1;
+  animation: rogue-gamble-roll 620ms ease-in-out infinite;
+}
+
+@keyframes rogue-gamble-roll {
+  0% {
+    transform: rotate(0deg) scale(0.95);
+    filter: drop-shadow(0 0 0 rgb(0 0 0 / 0));
+  }
+  40% {
+    transform: rotate(18deg) scale(1.08);
+    filter: drop-shadow(0 0 7px rgb(250 204 21 / 0.35));
+  }
+  70% {
+    transform: rotate(-14deg) scale(1.02);
+  }
+  100% {
+    transform: rotate(0deg) scale(0.95);
+    filter: drop-shadow(0 0 0 rgb(0 0 0 / 0));
+  }
 }
 
 .rogue-brick-canvas {
@@ -180,10 +652,197 @@ body.rogue-brick-focus-mode {
   display: flex;
   justify-content: center;
   padding: 0 0.75rem 0.75rem;
+  flex-shrink: 0;
+}
+
+.rogue-active-powers-strip {
+  margin: 0 0.75rem;
+  border: 1px solid rgb(148 163 184 / 22%);
+  background: rgb(15 23 42 / 78%);
+  border-radius: 0.65rem;
+  padding: 0.5rem;
+  color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  position: relative;
+}
+
+.rogue-active-powers-header {
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: rgb(203 213 225 / 95%);
+}
+
+.rogue-active-powers-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.rogue-active-powers-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  flex: 1;
+}
+
+.rogue-active-power-chip {
+  position: relative;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border-radius: 0.5rem;
+  background: rgb(30 41 59 / 72%);
+  border: 1px solid rgb(148 163 184 / 28%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  --power-base-color: #22d3ee;
+  overflow: hidden;
+}
+
+.rogue-active-power-chip.is-selected {
+  border-color: color-mix(in srgb, var(--power-base-color) 82%, #e2e8f0);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--power-base-color) 42%, transparent);
+}
+
+.rogue-active-power-stack {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: center;
+  gap: 0.12rem;
+  position: relative;
+  z-index: 1;
+}
+
+.rogue-active-power-backdrop {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--power-base-color) 72%, #cbd5e1);
+  opacity: 0.22;
+  transform: translateY(0.02rem);
+  pointer-events: none;
+}
+
+.rogue-active-power-segment {
+  width: 100%;
+  height: 0.2rem;
+  border-radius: 999px;
+  background: rgb(100 116 139 / 55%);
+  border: 1px solid rgb(148 163 184 / 20%);
+}
+
+.rogue-active-power-segment.is-active {
+  background: var(--power-base-color);
+  border-color: color-mix(in srgb, var(--power-base-color) 72%, #f8fafc);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--power-base-color) 38%, transparent);
+}
+
+.rogue-active-powers-reclaim {
+  flex-shrink: 0;
+  width: 2.4rem;
+  min-width: 2.4rem;
+  height: 2.25rem;
+  padding: 0;
+  font-size: 1.05rem;
+  line-height: 1;
+  border-left: 1px solid rgb(148 163 184 / 26%);
+  border-radius: 0.45rem;
+}
+
+.rogue-active-power-hover-card {
+  position: absolute;
+  left: var(--power-popover-left, 8px);
+  bottom: calc(100% - 0.18rem);
+  z-index: 5;
+  width: 17rem;
+  max-height: 38vh;
+  border-radius: 1rem;
+  border: 2px solid rgb(30 41 59 / 96%);
+  background: linear-gradient(160deg, rgb(15 23 42 / 98%), rgb(17 24 39 / 98%));
+  padding: 0.58rem 0.62rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  box-shadow:
+    0 14px 30px rgb(2 6 23 / 48%),
+    0 0 0 1px rgb(148 163 184 / 18%) inset;
+  overflow: visible;
+}
+
+.rogue-active-power-hover-card::after {
+  content: '';
+  position: absolute;
+  left: var(--power-popover-arrow, 136px);
+  bottom: -20px;
+  width: 22px;
+  height: 22px;
+  background: rgb(71 85 105 / 96%);
+  clip-path: polygon(8% 0, 92% 0, 52% 100%);
+  transform: translateX(-50%);
+  filter: drop-shadow(0 2px 1px rgb(2 6 23 / 32%));
+}
+
+.rogue-active-power-hover-card::before {
+  content: '';
+  position: absolute;
+  left: var(--power-popover-arrow, 136px);
+  bottom: -16px;
+  width: 15px;
+  height: 16px;
+  background: rgb(15 23 42 / 98%);
+  clip-path: polygon(10% 0, 90% 0, 52% 100%);
+  transform: translateX(-50%);
+}
+
+.rogue-active-power-hover-card p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: rgb(226 232 240 / 94%);
+}
+
+.rogue-active-power-detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rogue-active-power-detail-head strong {
+  font-size: 0.82rem;
+}
+
+.rogue-active-power-detail-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.7rem;
+  color: rgb(191 219 254 / 95%);
+}
+
+.rogue-active-powers-empty {
+  margin: 0;
+  font-size: 0.74rem;
+  color: rgb(203 213 225 / 86%);
+  flex: 1;
 }
 
 .rogue-brick-board-actions .btn-secondary {
   min-width: 10rem;
+}
+
+.rogue-brick-layout.is-focus-mode .rogue-brick-board-actions {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 
 .rogue-brick-sidebar {
@@ -262,6 +921,58 @@ body.rogue-brick-focus-mode {
 
 .rogue-choice-card {
   cursor: pointer;
+}
+
+.rogue-store-offer-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.rogue-store-offer-preview-label {
+  font-size: 0.72rem;
+  color: rgb(15 23 42 / 78%);
+  font-weight: 700;
+}
+
+.rogue-store-offer-bars {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.rogue-store-power-chip {
+  width: 2.95rem;
+  height: 2.95rem;
+  border-radius: 0.68rem;
+  cursor: default;
+  pointer-events: none;
+}
+
+.rogue-store-power-chip .rogue-active-power-stack {
+  width: 2.02rem;
+  height: 2.02rem;
+  gap: 0.16rem;
+}
+
+.rogue-store-power-chip .rogue-active-power-segment {
+  height: 0.26rem;
+}
+
+.rogue-store-power-chip.is-after {
+  border-color: color-mix(in srgb, var(--power-base-color) 72%, #e2e8f0);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--power-base-color) 36%, transparent);
+}
+
+.rogue-store-power-arrow {
+  color: rgb(71 85 105 / 88%);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.rogue-store-offer-levels {
+  font-size: 0.72rem;
+  color: rgb(51 65 85 / 85%);
 }
 
 .rogue-upgrade-actions {

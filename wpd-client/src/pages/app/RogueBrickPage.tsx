@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { rogueBrickApi } from '../../api/rogueBrickApi';
 import { useWpdAuth } from '../../features/auth/AuthContext';
 import './RogueBrickPage.css';
@@ -7,27 +7,76 @@ import './RogueBrickPage.css';
 const CANVAS_WIDTH = 420;
 const CANVAS_HEIGHT = 720;
 const BRICK_COLUMNS = 7;
-const BRICK_GAP = 6;
-const BRICK_HEIGHT = 36;
-const BRICK_TOP = 90;
+const BRICK_GAP = 3;
+const BRICK_HEIGHT = 22;
+const BRICK_ROW_STEP = BRICK_HEIGHT + BRICK_GAP;
+const BRICK_TOP = 70;
 const LAUNCHER_Y = CANVAS_HEIGHT - 42;
 const BALL_RADIUS = 6.5;
 const BALL_SPEED = 630;
 const MAX_ACTIVE_BALLS = 280;
 const MIN_LAUNCH_UPWARD_COMPONENT = -0.08;
-const LOSE_ROW = 13;
+const LOSE_ROW = 22;
 const LOCAL_STORAGE_PREFIX = 'wpd:rogue-brick:';
+const HOMING_BULLET_TIME_SCALE = 0.34;
+const POWER_POPOVER_WIDTH_PX = 272;
+const CORE_MIN_SCALE = 0.42;
+const BLUE_CORE_MIN_SCALE = 0.92;
+const BOARD_ROW_ADVANCE_ANIMATION_MS = 390;
+const CORE_BREACH_FLASH_MS = 1400;
+const CORE_VARIANTS = ['yellow', 'blue', 'green'] as const;
+
+const BALANCE_TARGETS = {
+  runDurationMinutes: 20,
+  storeEveryBoards: [4, 5] as const,
+  powerChoiceEveryBoards: 4,
+  expectedStorePurchasesPerStop: 1,
+  expectedStoreOffersPerStop: 3,
+};
+
+const BALANCE = {
+  maxLevels: 60,
+  launchStaggerMs: 96,
+  storeIntervalMinBoards: BALANCE_TARGETS.storeEveryBoards[0],
+  storeIntervalMaxBoards: BALANCE_TARGETS.storeEveryBoards[1],
+  powerChoiceEveryBoards: BALANCE_TARGETS.powerChoiceEveryBoards,
+  storeOfferCount: BALANCE_TARGETS.expectedStoreOffersPerStop,
+  objectiveHpBase: 10,
+  objectiveHpPerLevel: 3.8,
+  objectiveHpLevelScale: 2.4,
+  powerOfferMinManaCost: 16,
+  powerOfferLevelStepBoards: 3,
+  powerOfferLevelScalePerStep: 0.2,
+  storeOfferMinCoinCost: 20,
+  storeOfferLevelStepBoards: 4,
+  storeOfferLevelScalePerStep: 0.24,
+  gambleBaseCost: 24,
+  gambleCostPerLevel: 2.5,
+  gambleSuccessChance: 0.45,
+  gambleBackfireThreshold: 0.8,
+  gambleBackfireMinBalls: 6,
+  gambleBackfireManaLoss: 8,
+  objectiveCoinRewardFlat: 18,
+  objectiveCoinRewardHpScale: 0.35,
+  brickCoinRewardFlat: 0.8,
+  brickCoinRewardHpScale: 0.08,
+  objectiveManaRewardCrit: 1.2,
+  objectiveManaRewardNormal: 0.8,
+  brickManaRewardCrit: 0.55,
+  brickManaRewardNormal: 0.35,
+} as const;
 
 type RunStage = 'board' | 'hub' | 'powerup' | 'store';
 type BrickKind =
   | 'standard'
   | 'reinforced'
-  | 'orb'
   | 'prism'
+  | 'objective'
   | 'unbreakable'
   | 'oneway'
   | 'exploding'
   | 'splinter';
+type CoreVariant = (typeof CORE_VARIANTS)[number];
 type OneWaySide = 'top' | 'bottom' | 'left' | 'right';
 
 interface Brick {
@@ -37,11 +86,14 @@ interface Brick {
   hp: number;
   maxHp: number;
   kind?: BrickKind;
+  coreVariant?: CoreVariant;
   weakSide?: OneWaySide;
 }
 
 interface BoardState {
   turn: number;
+  objectiveBrickId: string | null;
+  objectiveBrickIds: string[];
   bricks: Brick[];
 }
 
@@ -68,6 +120,21 @@ interface RunSummary {
   completedAt: number;
 }
 
+interface BoardSummary {
+  shotsTaken: number;
+  bounceCount: number;
+  achievements: string[];
+}
+
+type ResourceHelpKey = 'mana' | 'coins';
+type GambleOutcomeTone = 'success' | 'failure' | 'backfire';
+
+interface GambleOutcome {
+  tone: GambleOutcomeTone;
+  title: string;
+  message: string;
+}
+
 interface RogueRunState {
   seed: number;
   rngState: number;
@@ -75,6 +142,7 @@ interface RogueRunState {
   level: number;
   maxLevels: number;
   boardsCleared: number;
+  nextStoreBoard: number;
   mana: number;
   coins: number;
   ballCount: number;
@@ -85,10 +153,16 @@ interface RogueRunState {
   powers: Record<string, number>;
   levelGoalBricks: number;
   levelBricksDestroyed: number;
+  coreCharge: number;
+  homingBarrageReady: boolean;
   board: BoardState;
   pendingPowerOffers: PowerOffer[];
   pendingStoreOffers: StoreOffer[];
   hubMessage: string;
+  boardShotsTaken: number;
+  boardBounceCount: number;
+  lastBoardSummary: BoardSummary | null;
+  boardSummaryAcknowledged: boolean;
 }
 
 type PermanentUpgradeKey = 'startingBalls' | 'startingMana' | 'startingCoins' | 'startingDamage';
@@ -121,6 +195,7 @@ interface BallRuntime {
   vx: number;
   vy: number;
   active: boolean;
+  coreCharged: boolean;
 }
 
 interface LaunchQueueItem {
@@ -143,6 +218,12 @@ interface BrickVisualState {
   hitUntil: number;
 }
 
+interface BoardAdvanceAnimationState {
+  startedAt: number;
+  durationMs: number;
+  offsetPx: number;
+}
+
 interface BreakParticle {
   x: number;
   y: number;
@@ -152,6 +233,10 @@ interface BreakParticle {
   lifeMs: number;
   ageMs: number;
   color: string;
+  kind: 'spark' | 'shard';
+  rotation: number;
+  rotationVelocity: number;
+  glow: number;
 }
 
 interface PermanentUpgradeDefinition {
@@ -198,6 +283,38 @@ const PERMANENT_UPGRADES: PermanentUpgradeDefinition[] = [
   },
 ];
 
+const POWER_BASE_COLORS: Record<string, string> = {
+  startingBalls: '#22d3ee',
+  startingMana: '#8b5cf6',
+  startingCoins: '#f59e0b',
+  startingDamage: '#ef4444',
+  'arcane-volley': '#38bdf8',
+  'rune-edge': '#fb7185',
+  'siphon-shell': '#a78bfa',
+  'golden-thread': '#fbbf24',
+  'fortune-ricochet': '#34d399',
+  'shop-ball': '#2dd4bf',
+  'shop-damage': '#f97316',
+  'shop-crit': '#60a5fa',
+  'shop-mana': '#c084fc',
+};
+
+const POWER_BACKDROP_ICONS: Record<string, string> = {
+  startingBalls: '◍',
+  startingMana: '✦',
+  startingCoins: '◈',
+  startingDamage: '✶',
+  'arcane-volley': '✹',
+  'rune-edge': '⟡',
+  'siphon-shell': '⬢',
+  'golden-thread': '⌁',
+  'fortune-ricochet': '◎',
+  'shop-ball': '◌',
+  'shop-damage': '✸',
+  'shop-crit': '✷',
+  'shop-mana': '✧',
+};
+
 interface RuntimePowerTemplate {
   id: string;
   name: string;
@@ -211,7 +328,7 @@ const POWER_POOL: RuntimePowerTemplate[] = [
     id: 'arcane-volley',
     name: 'Arcane Volley',
     description: '+2 balls this run.',
-    baseManaCost: 16,
+    baseManaCost: 30,
     apply: (run) => {
       run.ballCount += 2;
       run.powers['arcane-volley'] = (run.powers['arcane-volley'] ?? 0) + 1;
@@ -221,7 +338,7 @@ const POWER_POOL: RuntimePowerTemplate[] = [
     id: 'rune-edge',
     name: 'Rune Edge',
     description: '+1 damage this run.',
-    baseManaCost: 18,
+    baseManaCost: 34,
     apply: (run) => {
       run.damage += 1;
       run.powers['rune-edge'] = (run.powers['rune-edge'] ?? 0) + 1;
@@ -231,7 +348,7 @@ const POWER_POOL: RuntimePowerTemplate[] = [
     id: 'siphon-shell',
     name: 'Siphon Shell',
     description: '+20% mana gained this run.',
-    baseManaCost: 20,
+    baseManaCost: 36,
     apply: (run) => {
       run.manaMultiplier += 0.2;
       run.powers['siphon-shell'] = (run.powers['siphon-shell'] ?? 0) + 1;
@@ -241,7 +358,7 @@ const POWER_POOL: RuntimePowerTemplate[] = [
     id: 'golden-thread',
     name: 'Golden Thread',
     description: '+20% coin gains this run.',
-    baseManaCost: 18,
+    baseManaCost: 32,
     apply: (run) => {
       run.coinMultiplier += 0.2;
       run.powers['golden-thread'] = (run.powers['golden-thread'] ?? 0) + 1;
@@ -251,7 +368,7 @@ const POWER_POOL: RuntimePowerTemplate[] = [
     id: 'fortune-ricochet',
     name: 'Fortune Ricochet',
     description: '+7% critical chance this run.',
-    baseManaCost: 21,
+    baseManaCost: 38,
     apply: (run) => {
       run.critChance += 0.07;
       run.powers['fortune-ricochet'] = (run.powers['fortune-ricochet'] ?? 0) + 1;
@@ -272,39 +389,56 @@ const STORE_POOL: StoreTemplate[] = [
     id: 'shop-ball',
     name: 'Orb Crate',
     description: '+1 ball',
-    baseCoinCost: 16,
+    baseCoinCost: 42,
     apply: (run) => {
       run.ballCount += 1;
+      run.powers['shop-ball'] = (run.powers['shop-ball'] ?? 0) + 1;
     },
   },
   {
     id: 'shop-damage',
     name: 'Sharpening Glyph',
     description: '+1 damage',
-    baseCoinCost: 20,
+    baseCoinCost: 50,
     apply: (run) => {
       run.damage += 1;
+      run.powers['shop-damage'] = (run.powers['shop-damage'] ?? 0) + 1;
     },
   },
   {
     id: 'shop-crit',
     name: 'Lucky Sigil',
     description: '+5% crit chance',
-    baseCoinCost: 18,
+    baseCoinCost: 44,
     apply: (run) => {
       run.critChance += 0.05;
+      run.powers['shop-crit'] = (run.powers['shop-crit'] ?? 0) + 1;
     },
   },
   {
     id: 'shop-mana',
     name: 'Mana Flask',
-    description: '+15 mana now',
-    baseCoinCost: 10,
+    description: '+18 mana now',
+    baseCoinCost: 30,
     apply: (run) => {
-      run.mana += 15;
+      run.mana += 18;
+      run.powers['shop-mana'] = (run.powers['shop-mana'] ?? 0) + 1;
     },
   },
 ];
+
+interface ActivePowerIndicator {
+  id: string;
+  name: string;
+  description: string;
+  currentLevel: number;
+  barSlots: number;
+  baseColor: string;
+  backdropIcon: string;
+  statusLabel: string;
+  levelLabel: string;
+  maxLevelLabel: string;
+}
 
 function defaultProfile(): RogueBrickProfile {
   return {
@@ -324,6 +458,103 @@ function defaultProfile(): RogueBrickProfile {
   };
 }
 
+function normalizeProfile(profile: RogueBrickProfile): RogueBrickProfile {
+  const normalized = cloneProfile(profile);
+  const defaults = defaultProfile();
+  normalized.permanentUpgrades = {
+    ...defaults.permanentUpgrades,
+    ...normalized.permanentUpgrades,
+  };
+  for (const upgrade of PERMANENT_UPGRADES) {
+    const state = normalized.permanentUpgrades[upgrade.key];
+    if (!state || typeof state !== 'object') {
+      normalized.permanentUpgrades[upgrade.key] = { ...defaults.permanentUpgrades[upgrade.key] };
+      continue;
+    }
+    if (typeof state.rank !== 'number' || Number.isNaN(state.rank)) {
+      state.rank = 0;
+    }
+    if (typeof state.enabled !== 'boolean') {
+      state.enabled = false;
+    }
+  }
+
+  if (normalized.run) {
+    normalized.run.powers =
+      normalized.run.powers && typeof normalized.run.powers === 'object'
+        ? normalized.run.powers
+        : {};
+    normalized.run.pendingPowerOffers = Array.isArray(normalized.run.pendingPowerOffers)
+      ? normalized.run.pendingPowerOffers
+      : [];
+    normalized.run.pendingStoreOffers = Array.isArray(normalized.run.pendingStoreOffers)
+      ? normalized.run.pendingStoreOffers
+      : [];
+    if (!normalized.run.board || !Array.isArray(normalized.run.board.bricks)) {
+      normalized.run.board = { turn: 1, objectiveBrickId: null, objectiveBrickIds: [], bricks: [] };
+    }
+    if (typeof normalized.run.board.turn !== 'number' || Number.isNaN(normalized.run.board.turn)) {
+      normalized.run.board.turn = 1;
+    }
+    if (!Array.isArray((normalized.run.board as BoardState).objectiveBrickIds)) {
+      (normalized.run.board as BoardState).objectiveBrickIds = [];
+    }
+    if (typeof normalized.run.board.objectiveBrickId !== 'string') {
+      normalized.run.board.objectiveBrickId = null;
+    }
+    normalized.run.board.bricks = normalized.run.board.bricks.map((brick) => ({
+      ...brick,
+      kind: brick.kind ?? 'standard',
+      coreVariant: brick.kind === 'objective' ? (brick.coreVariant ?? 'yellow') : brick.coreVariant,
+    }));
+    const objectiveBrickIds = (normalized.run.board as BoardState).objectiveBrickIds
+      .filter((id): id is string => typeof id === 'string')
+      .filter((id, index, ids) => ids.indexOf(id) === index)
+      .filter((id) => normalized.run?.board.bricks.some((brick) => brick.id === id));
+    const fallbackObjectiveIds = normalized.run.board.objectiveBrickId
+      ? [normalized.run.board.objectiveBrickId]
+      : normalized.run.board.bricks.filter((brick) => brick.kind === 'objective').map((brick) => brick.id);
+    (normalized.run.board as BoardState).objectiveBrickIds =
+      objectiveBrickIds.length > 0 ? objectiveBrickIds : fallbackObjectiveIds;
+    normalized.run.board.objectiveBrickId =
+      (normalized.run.board as BoardState).objectiveBrickIds[0] ?? null;
+    if (typeof normalized.run.homingBarrageReady !== 'boolean') {
+      normalized.run.homingBarrageReady = false;
+    }
+    if (typeof normalized.run.coreCharge !== 'number' || Number.isNaN(normalized.run.coreCharge)) {
+      const objectiveBrick = normalized.run.board.bricks.find(
+        (brick) => brick.id === normalized.run?.board.objectiveBrickId
+      );
+      normalized.run.coreCharge = objectiveBrick
+        ? Math.max(0, Math.min(1, 1 - objectiveBrick.hp / Math.max(1, objectiveBrick.maxHp)))
+        : 0;
+    }
+    if (typeof normalized.run.boardShotsTaken !== 'number' || Number.isNaN(normalized.run.boardShotsTaken)) {
+      normalized.run.boardShotsTaken = 0;
+    }
+    if (typeof normalized.run.boardBounceCount !== 'number' || Number.isNaN(normalized.run.boardBounceCount)) {
+      normalized.run.boardBounceCount = 0;
+    }
+    if (!normalized.run.lastBoardSummary || typeof normalized.run.lastBoardSummary !== 'object') {
+      normalized.run.lastBoardSummary = null;
+    } else {
+      if (typeof normalized.run.lastBoardSummary.shotsTaken !== 'number') {
+        normalized.run.lastBoardSummary.shotsTaken = 0;
+      }
+      if (typeof normalized.run.lastBoardSummary.bounceCount !== 'number') {
+        normalized.run.lastBoardSummary.bounceCount = 0;
+      }
+      if (!Array.isArray(normalized.run.lastBoardSummary.achievements)) {
+        normalized.run.lastBoardSummary.achievements = [];
+      }
+    }
+    if (typeof normalized.run.boardSummaryAcknowledged !== 'boolean') {
+      normalized.run.boardSummaryAcknowledged = normalized.run.lastBoardSummary ? false : true;
+    }
+  }
+  return normalized;
+}
+
 function cloneProfile(profile: RogueBrickProfile): RogueBrickProfile {
   return JSON.parse(JSON.stringify(profile)) as RogueBrickProfile;
 }
@@ -341,46 +572,318 @@ function getBrickWidth(): number {
   return (CANVAS_WIDTH - BRICK_GAP * (BRICK_COLUMNS + 1)) / BRICK_COLUMNS;
 }
 
-function pickBrickKind(run: RogueRunState): BrickKind {
-  const roll = nextRandom(run);
-  if (run.level >= 6 && roll < 0.08) {
-    return 'splinter';
+function getObjectiveSizeScale(brick: Brick): number {
+  if (brick.kind !== 'objective') {
+    return 1;
   }
-  if (run.level >= 5 && roll < 0.17) {
-    return 'exploding';
+  const hpPct = Math.max(0, Math.min(1, brick.hp / Math.max(1, brick.maxHp)));
+  if ((brick.coreVariant ?? 'yellow') === 'blue') {
+    return BLUE_CORE_MIN_SCALE + hpPct * (1 - BLUE_CORE_MIN_SCALE);
   }
-  if (run.level >= 4 && roll < 0.29) {
-    return 'oneway';
-  }
-  if (run.level >= 3 && roll < 0.37) {
-    return 'unbreakable';
-  }
-  if (roll < 0.5) {
-    return 'reinforced';
-  }
-  if (roll < 0.63) {
-    return 'prism';
-  }
-  if (roll < 0.74) {
-    return 'orb';
-  }
-  return 'standard';
+  return CORE_MIN_SCALE + hpPct * (1 - CORE_MIN_SCALE);
 }
 
-function pickWeakSide(run: RogueRunState): OneWaySide {
-  const sides: OneWaySide[] = ['top', 'right', 'bottom', 'left'];
-  return sides[randomInt(run, 0, sides.length - 1)];
+function getObjectiveDimensions(brick: Brick, brickWidth: number): { width: number; height: number } {
+  const scale = getObjectiveSizeScale(brick);
+  const coreVariant = brick.coreVariant ?? 'yellow';
+  if (coreVariant === 'blue') {
+    const diameter = Math.min(brickWidth, BRICK_HEIGHT) * 1.45 * scale;
+    return { width: diameter, height: diameter };
+  }
+  if (coreVariant === 'green') {
+    return {
+      width: brickWidth * 3 * scale,
+      height: BRICK_HEIGHT * 0.92 * scale,
+    };
+  }
+  return {
+    width: brickWidth * scale,
+    height: BRICK_HEIGHT * scale,
+  };
 }
 
-function isBreakableBrick(brick: Brick): boolean {
-  return (brick.kind ?? 'standard') !== 'unbreakable';
+function getCoreVariantLabel(coreVariant?: CoreVariant): string {
+  switch (coreVariant) {
+    case 'blue':
+      return 'Blue Core';
+    case 'green':
+      return 'Green Core';
+    default:
+      return 'Yellow Core';
+  }
 }
 
-function countBreakableBricks(bricks: Brick[]): number {
-  return bricks.filter(isBreakableBrick).length;
+function getCoreVariantColor(coreVariant?: CoreVariant): string {
+  switch (coreVariant) {
+    case 'blue':
+      return '#38bdf8';
+    case 'green':
+      return '#22c55e';
+    default:
+      return '#f59e0b';
+  }
 }
 
-function getImpactSideFromVelocity(ball: BallRuntime): OneWaySide {
+function getCoreVariantFlashGlow(coreVariant?: CoreVariant): string {
+  switch (coreVariant) {
+    case 'blue':
+      return 'rgb(56 189 248 / 0.3)';
+    case 'green':
+      return 'rgb(34 197 94 / 0.3)';
+    default:
+      return 'rgb(251 191 36 / 0.28)';
+  }
+}
+
+function getCoreVariantFlashText(coreVariant?: CoreVariant): string {
+  switch (coreVariant) {
+    case 'blue':
+      return 'rgb(224 242 254 / 0.96)';
+    case 'green':
+      return 'rgb(220 252 231 / 0.96)';
+    default:
+      return 'rgb(254 240 138 / 0.96)';
+  }
+}
+
+function getCoreVariantFlashShadow(coreVariant?: CoreVariant): string {
+  switch (coreVariant) {
+    case 'blue':
+      return 'rgb(14 116 144 / 0.68)';
+    case 'green':
+      return 'rgb(22 101 52 / 0.68)';
+    default:
+      return 'rgb(245 158 11 / 0.65)';
+  }
+}
+
+function getObjectiveCountForLevel(level: number): number {
+  if (level <= 30) {
+    return 1;
+  }
+  if (level <= 45) {
+    return 2;
+  }
+  return 3;
+}
+
+function getObjectiveBrickIds(board: BoardState): string[] {
+  if (Array.isArray(board.objectiveBrickIds) && board.objectiveBrickIds.length > 0) {
+    return board.objectiveBrickIds;
+  }
+  return board.objectiveBrickId ? [board.objectiveBrickId] : [];
+}
+
+function getBrickBounds(
+  brick: Brick,
+  brickX: number,
+  brickY: number,
+  brickWidth: number
+): { x: number; y: number; width: number; height: number } {
+  const { width, height } = getObjectiveDimensions(brick, brickWidth);
+  return {
+    x: brickX + (brickWidth - width) * 0.5,
+    y: brickY + (BRICK_HEIGHT - height) * 0.5,
+    width,
+    height,
+  };
+}
+
+type CuratedCellSymbol = '.' | 's' | 'r' | 'o' | 'p' | 'u' | 'C';
+
+interface CuratedBoardDesign {
+  id: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  rows: string[];
+}
+
+const CURATED_BASE_PATTERNS: string[][] = [
+  ['..s.s..', '.s...s.', '..r.r..', '...C...', '..r.r..', '.s...s.', '..s.s..'],
+  ['...s...', '..s.s..', '.r...r.', '..s.s..', '...C...', '..s.s..', '.s...s.', '..s.s..'],
+  ['.s...s.', '..r.r..', '.s...s.', '...C...', '.s...s.', '..r.r..', '.s...s.'],
+  ['..o.o..', '.s...s.', '..r.r..', '...C...', '..r.r..', '.s...s.', '..o.o..'],
+  ['...r...', '..s.s..', '.s...s.', '..s.s..', '...C...', '.s...s.', '..s.s..', '...r...'],
+  ['.r...r.', '..s.s..', '.s...s.', '..r.r..', '...C...', '..r.r..', '.s...s.', '..s.s..'],
+  ['..s.s..', '.r...r.', '..s.s..', '...C...', '..s.s..', '.r...r.', '..s.s..'],
+  ['...s...', '.s...s.', '..r.r..', '.s...s.', '...C...', '.s...s.', '..r.r..', '.s...s.'],
+  ['.s...s.', '..o.o..', '.r...r.', '..s.s..', '...C...', '..s.s..', '.r...r.', '..o.o..'],
+  ['..r.r..', '.s...s.', '...s...', '..s.s..', '...C...', '..s.s..', '...s...', '.s...s.', '..r.r..'],
+  ['..s.s..', '.s...s.', '..p.p..', '.r...r.', '...C...', '.r...r.', '..p.p..', '.s...s.'],
+  ['...s...', '..r.r..', '.s...s.', '..o.o..', '...C...', '..o.o..', '.s...s.', '..r.r..'],
+  ['.s...s.', '..s.s..', '.r...r.', '..s.s..', '...C...', '..s.s..', '.r...r.', '..s.s..', '.s...s.'],
+  ['..o.o..', '.r...r.', '..s.s..', '.s...s.', '...C...', '.s...s.', '..s.s..', '.r...r.', '..o.o..'],
+  ['...r...', '.s...s.', '..s.s..', '.r...r.', '...C...', '.r...r.', '..s.s..', '.s...s.', '...r...'],
+  ['.r...r.', '..o.o..', '.s...s.', '..r.r..', '...C...', '..r.r..', '.s...s.', '..o.o..', '.r...r.'],
+  ['..s.s..', '.r...r.', '..s.s..', '.s...s.', '...C...', '.s...s.', '..s.s..', '.r...r.', '..s.s..'],
+  ['...s...', '.r...r.', '..s.s..', '.o...o.', '...C...', '.o...o.', '..s.s..', '.r...r.', '...s...'],
+  ['.s...s.', '..r.r..', '.o...o.', '..s.s..', '...C...', '..s.s..', '.o...o.', '..r.r..', '.s...s.'],
+  ['..r.r..', '.s...s.', '..o.o..', '.s...s.', '...C...', '.s...s.', '..o.o..', '.s...s.', '..r.r..'],
+];
+
+function applyCuratedVariant(baseRows: string[], variant: number): string[] {
+  const midRow = Math.floor(baseRows.length / 2);
+  return baseRows.map((row, rowIndex) => row.split('').map((char, colIndex) => {
+    const symbol = char as CuratedCellSymbol;
+    if (symbol === '.' || symbol === 'C') {
+      return symbol;
+    }
+
+    const edgeCell = colIndex <= 1 || colIndex >= BRICK_COLUMNS - 2;
+    const lowerHalf = rowIndex > midRow;
+    if (variant === 0) {
+      if (edgeCell && rowIndex <= 1) {
+        return '.';
+      }
+      if (symbol === 'u' || symbol === 'r') {
+        return 's';
+      }
+      return symbol;
+    }
+    if (variant === 1) {
+      if (symbol === 'u') {
+        return 'r';
+      }
+      return symbol;
+    }
+    if (variant === 2) {
+      if (symbol === 'u') {
+        return 'r';
+      }
+      return symbol;
+    }
+    if (variant === 3) {
+      if (lowerHalf && symbol === 's') {
+        return 'r';
+      }
+      return symbol;
+    }
+    if (symbol === 's' && lowerHalf) {
+      return 'r';
+    }
+    if (symbol === 'r' && lowerHalf) {
+      return 'u';
+    }
+    return symbol;
+  }).join(''));
+}
+
+function enforceIndirectCorePath(rows: string[]): string[] {
+  const coreRow = rows.findIndex((row) => row.includes('C'));
+  if (coreRow < 0) {
+    return rows;
+  }
+  const coreCol = rows[coreRow].indexOf('C');
+  if (coreCol < 0) {
+    return rows;
+  }
+
+  const hasBlockerBelowCore = rows
+    .slice(coreRow + 1)
+    .some((row) => row[coreCol] && row[coreCol] !== '.');
+  if (hasBlockerBelowCore) {
+    return rows;
+  }
+
+  const targetRowIndex = Math.min(rows.length - 1, coreRow + 1);
+  const targetRow = rows[targetRowIndex].split('');
+  if (targetRow[coreCol] === '.') {
+    targetRow[coreCol] = 'r';
+  }
+  const nextRows = [...rows];
+  nextRows[targetRowIndex] = targetRow.join('');
+  return nextRows;
+}
+
+function shiftCuratedRows(rows: string[], offset: number): string[] {
+  if (offset === 0) {
+    return rows;
+  }
+
+  const shiftedRows: string[] = [];
+  for (const row of rows) {
+    const nextRow = Array.from({ length: BRICK_COLUMNS }, () => '.');
+    for (let col = 0; col < BRICK_COLUMNS; col += 1) {
+      const symbol = row[col];
+      if (!symbol || symbol === '.') {
+        continue;
+      }
+      const nextCol = col + offset;
+      if (nextCol >= 0 && nextCol < BRICK_COLUMNS) {
+        nextRow[nextCol] = symbol;
+      }
+    }
+    shiftedRows.push(nextRow.join(''));
+  }
+  return shiftedRows;
+}
+
+function pickCoreLaneOffset(rows: string[], run: RogueRunState): number {
+  let minOccupiedCol = BRICK_COLUMNS - 1;
+  let maxOccupiedCol = 0;
+  let hasOccupied = false;
+
+  for (const row of rows) {
+    for (let col = 0; col < BRICK_COLUMNS; col += 1) {
+      if (row[col] && row[col] !== '.') {
+        hasOccupied = true;
+        minOccupiedCol = Math.min(minOccupiedCol, col);
+        maxOccupiedCol = Math.max(maxOccupiedCol, col);
+      }
+    }
+  }
+
+  if (!hasOccupied) {
+    return 0;
+  }
+
+  const minOffset = -minOccupiedCol;
+  const maxOffset = BRICK_COLUMNS - 1 - maxOccupiedCol;
+  const allowedOffsets: number[] = [];
+  for (let offset = minOffset; offset <= maxOffset; offset += 1) {
+    allowedOffsets.push(offset);
+  }
+  const nonZeroOffsets = allowedOffsets.filter((offset) => offset !== 0);
+  if (nonZeroOffsets.length === 0) {
+    return 0;
+  }
+
+  const useNonCenterLane = randomInt(run, 0, 99) < 80;
+  if (useNonCenterLane) {
+    return nonZeroOffsets[randomInt(run, 0, nonZeroOffsets.length - 1)];
+  }
+  return 0;
+}
+
+function buildCuratedBoardCatalog(): CuratedBoardDesign[] {
+  const boards: CuratedBoardDesign[] = [];
+  for (let variant = 0; variant < 5; variant += 1) {
+    const difficulty: CuratedBoardDesign['difficulty'] =
+      variant <= 1 ? 'easy' : variant <= 3 ? 'medium' : 'hard';
+    for (let patternIndex = 0; patternIndex < CURATED_BASE_PATTERNS.length; patternIndex += 1) {
+      const variantRows = applyCuratedVariant(CURATED_BASE_PATTERNS[patternIndex], variant);
+      boards.push({
+        id: `v${variant + 1}-p${patternIndex + 1}`,
+        difficulty,
+        rows: enforceIndirectCorePath(variantRows),
+      });
+    }
+  }
+  return boards;
+}
+
+const CURATED_BOARD_CATALOG = buildCuratedBoardCatalog();
+
+function clampCoordinate(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function getImpactSideFromVelocity(ball: BallRuntime, normal?: { x: number; y: number }): OneWaySide {
+  if (normal) {
+    if (Math.abs(normal.x) > Math.abs(normal.y)) {
+      return normal.x < 0 ? 'left' : 'right';
+    }
+    return normal.y < 0 ? 'top' : 'bottom';
+  }
   if (Math.abs(ball.vx) > Math.abs(ball.vy)) {
     return ball.vx > 0 ? 'left' : 'right';
   }
@@ -388,97 +891,149 @@ function getImpactSideFromVelocity(ball: BallRuntime): OneWaySide {
 }
 
 function generateBoard(run: RogueRunState): BoardState {
-  const bricks: Brick[] = [];
-  const initialRows = run.level <= 2 ? 3 : Math.min(4 + Math.floor(run.level / 4), 8);
-  const density = run.level <= 2 ? 0.62 : Math.min(0.68 + run.level * 0.018, 0.92);
-  const hpBase = run.level <= 2 ? 2 : 2 + Math.floor(run.level * 1.05);
+  const progress = (Math.max(1, run.level) - 1) / Math.max(1, run.maxLevels - 1);
+  let poolStart = 0;
+  let poolSize = 40;
+  if (progress > 0.72) {
+    poolStart = 80;
+    poolSize = 20;
+  } else if (progress > 0.35) {
+    poolStart = 40;
+    poolSize = 40;
+  }
+  const selectedIndex =
+    poolStart +
+    ((run.boardsCleared + run.level + randomInt(run, 0, poolSize - 1)) % poolSize);
+  const design = CURATED_BOARD_CATALOG[selectedIndex];
+  const coreLaneOffset = pickCoreLaneOffset(design.rows, run);
+  const boardRows = enforceIndirectCorePath(shiftCuratedRows(design.rows, coreLaneOffset));
 
-  for (let row = 0; row < initialRows; row += 1) {
+  const bricks: Brick[] = [];
+  const hpBase = Math.max(2, 2 + Math.floor(run.level * 0.55));
+  let objectiveRow = Math.floor(boardRows.length / 2);
+  let objectiveCol = Math.floor(BRICK_COLUMNS / 2);
+  let objectiveMaxHp = Math.max(8, Math.round(BALANCE.objectiveHpBase + run.level * 2.4));
+  const objectiveCount = getObjectiveCountForLevel(run.level);
+  const objectiveCoreVariant = CORE_VARIANTS[randomInt(run, 0, CORE_VARIANTS.length - 1)];
+
+  for (let row = 0; row < boardRows.length; row += 1) {
+    const rowPattern = boardRows[row];
     for (let col = 0; col < BRICK_COLUMNS; col += 1) {
-      if (nextRandom(run) > density) {
+      const symbol = rowPattern[col] as CuratedCellSymbol;
+      if (!symbol || symbol === '.') {
         continue;
       }
-      const kind = pickBrickKind(run);
-      const hpVariance = run.level <= 3 ? randomInt(run, 1, 3) : randomInt(run, 1, 6 + Math.floor(run.level / 3));
-      const variantBonus =
-        kind === 'reinforced' ? 2 + Math.floor(run.level * 0.25)
-          : kind === 'prism' ? 1 + Math.floor(run.level * 0.15)
-            : kind === 'orb' ? Math.floor(run.level * 0.1)
-              : kind === 'exploding' ? 1
-                : kind === 'splinter' ? 2
-                  : kind === 'oneway' ? 3
-                    : kind === 'unbreakable' ? 999
-              : 0;
-      const hp = hpBase + hpVariance + row + variantBonus;
+
+      if (symbol === 'C') {
+        objectiveRow = row;
+        objectiveCol = col;
+        const coreHpMultiplier = objectiveCoreVariant === 'green' ? 3.5 : 1;
+        objectiveMaxHp = Math.max(
+          Math.round((design.difficulty === 'easy' ? 10 : design.difficulty === 'medium' ? 14 : 20) * coreHpMultiplier),
+          Math.round((BALANCE.objectiveHpBase + run.level * BALANCE.objectiveHpPerLevel) * coreHpMultiplier)
+        );
+        continue;
+      }
+
+      let kind: BrickKind = 'standard';
+      if (symbol === 'p') {
+        kind = 'prism';
+      } else if (symbol === 'r') {
+        kind = 'reinforced';
+      } else if (symbol === 'u') {
+        kind = 'unbreakable';
+      }
+
+      const rowBias = Math.max(0, row - objectiveRow) * 0.65;
+      const difficultyBias =
+        design.difficulty === 'easy' ? -1 : design.difficulty === 'medium' ? 0.5 : 1.5;
+      const hp =
+        kind === 'unbreakable'
+          ? 999
+          : Math.max(
+              1,
+              Math.round(
+                hpBase +
+                rowBias +
+                difficultyBias +
+                (kind === 'reinforced' ? 1.8 : kind === 'prism' ? 0.6 : 0) +
+                randomInt(run, 0, 2)
+              )
+            );
+
       bricks.push({
-        id: `${run.level}-${row}-${col}-${Math.round(nextRandom(run) * 1_000_000)}`,
+        id: `${design.id}-${run.level}-${row}-${col}-${Math.round(nextRandom(run) * 1_000_000)}`,
         row,
         col,
         hp,
         maxHp: hp,
         kind,
-        weakSide: kind === 'oneway' ? pickWeakSide(run) : undefined,
       });
     }
   }
 
-  if (countBreakableBricks(bricks) === 0) {
-    const col = randomInt(run, 0, BRICK_COLUMNS - 1);
-    bricks.push({
-      id: `${run.level}-fallback-${col}-${Math.round(nextRandom(run) * 1_000_000)}`,
-      row: 0,
-      col,
-      hp: hpBase,
-      maxHp: hpBase,
-      kind: 'standard',
-    });
+  const objectiveId = `${design.id}-objective-${run.level}-${objectiveRow}-${objectiveCol}-${Math.round(nextRandom(run) * 1_000_000)}`;
+  bricks.push({
+    id: objectiveId,
+    row: objectiveRow,
+    col: objectiveCol,
+    hp: objectiveMaxHp,
+    maxHp: objectiveMaxHp,
+    kind: 'objective',
+    coreVariant: objectiveCoreVariant,
+  });
+
+  const objectiveBrickIds = [objectiveId];
+  if (objectiveCount > 1 && bricks.length > 1) {
+    const candidateIndexes = bricks
+      .map((_, index) => index)
+      .filter((index) => bricks[index].kind !== 'objective');
+    const extraCount = Math.min(objectiveCount - 1, candidateIndexes.length);
+    const selectedIndexes: number[] = [];
+    while (selectedIndexes.length < extraCount) {
+      const nextIndex = candidateIndexes.splice(randomInt(run, 0, candidateIndexes.length - 1), 1)[0];
+      if (typeof nextIndex !== 'number') {
+        break;
+      }
+      selectedIndexes.push(nextIndex);
+    }
+
+    const buildObjectiveHp = (variant: CoreVariant): number => {
+      const coreHpMultiplier = variant === 'green' ? 3.5 : 1;
+      return Math.max(
+        Math.round((design.difficulty === 'easy' ? 10 : design.difficulty === 'medium' ? 14 : 20) * coreHpMultiplier),
+        Math.round((BALANCE.objectiveHpBase + run.level * BALANCE.objectiveHpPerLevel) * coreHpMultiplier)
+      );
+    };
+
+    for (const index of selectedIndexes) {
+      const objectiveBrick = bricks[index];
+      const variant = CORE_VARIANTS[randomInt(run, 0, CORE_VARIANTS.length - 1)];
+      const extraObjectiveHp = buildObjectiveHp(variant);
+      objectiveBrick.kind = 'objective';
+      objectiveBrick.coreVariant = variant;
+      objectiveBrick.hp = extraObjectiveHp;
+      objectiveBrick.maxHp = extraObjectiveHp;
+      objectiveBrickIds.push(objectiveBrick.id);
+    }
   }
 
   return {
     turn: 1,
+    objectiveBrickId: objectiveBrickIds[0] ?? null,
+    objectiveBrickIds,
     bricks,
   };
 }
 
 function calculateLevelGoal(initialBrickCount: number): number {
-  return Math.max(1, Math.min(initialBrickCount, Math.round(initialBrickCount * 0.9)));
+  return Math.max(1, initialBrickCount);
 }
 
-function appendDifficultyRow(run: RogueRunState, board: BoardState): void {
-  const hpBase = Math.max(3, 2 + Math.floor(run.level * 1.05) + Math.floor(board.turn * 0.4));
+function advanceBoardRows(board: BoardState): void {
   for (const brick of board.bricks) {
     brick.row += 1;
   }
-
-  const newRow: Brick[] = [];
-  for (let col = 0; col < BRICK_COLUMNS; col += 1) {
-    if (nextRandom(run) < 0.14) {
-      continue;
-    }
-
-    const kind = pickBrickKind(run);
-    const variantBonus =
-      kind === 'reinforced' ? 2 + Math.floor(run.level * 0.25)
-        : kind === 'prism' ? 1 + Math.floor(run.level * 0.15)
-          : kind === 'orb' ? Math.floor(run.level * 0.1)
-            : kind === 'exploding' ? 1
-              : kind === 'splinter' ? 2
-                : kind === 'oneway' ? 3
-                  : kind === 'unbreakable' ? 999
-            : 0;
-    const hp = hpBase + randomInt(run, 1, 5 + Math.floor(run.level / 4)) + variantBonus;
-    newRow.push({
-      id: `${run.level}-turn-${board.turn}-${col}-${Math.round(nextRandom(run) * 1_000_000)}`,
-      row: 0,
-      col,
-      hp,
-      maxHp: hp,
-      kind,
-      weakSide: kind === 'oneway' ? pickWeakSide(run) : undefined,
-    });
-  }
-
-  board.bricks.push(...newRow);
   board.turn += 1;
 }
 
@@ -492,12 +1047,13 @@ function makePowerOffers(run: RogueRunState): PowerOffer[] {
       continue;
     }
     picked.add(template.id);
-    const levelScale = 1 + Math.floor(run.level / 4) * 0.12;
+    const levelScale =
+      1 + Math.floor(run.level / BALANCE.powerOfferLevelStepBoards) * BALANCE.powerOfferLevelScalePerStep;
     offers.push({
       id: template.id,
       name: template.name,
       description: template.description,
-      manaCost: Math.max(8, Math.round(template.baseManaCost * levelScale)),
+      manaCost: Math.max(BALANCE.powerOfferMinManaCost, Math.round(template.baseManaCost * levelScale)),
     });
   }
 
@@ -508,23 +1064,34 @@ function makeStoreOffers(run: RogueRunState): StoreOffer[] {
   const offers: StoreOffer[] = [];
   const picked = new Set<string>();
 
-  while (offers.length < 4 && picked.size < STORE_POOL.length) {
+  while (offers.length < BALANCE.storeOfferCount && picked.size < STORE_POOL.length) {
     const template = STORE_POOL[randomInt(run, 0, STORE_POOL.length - 1)];
     if (picked.has(template.id)) {
       continue;
     }
     picked.add(template.id);
-    const levelScale = 1 + Math.floor(run.level / 5) * 0.15;
+    const levelScale =
+      1 + Math.floor(run.level / BALANCE.storeOfferLevelStepBoards) * BALANCE.storeOfferLevelScalePerStep;
     offers.push({
       id: template.id,
       name: template.name,
       description: template.description,
-      coinCost: Math.max(8, Math.round(template.baseCoinCost * levelScale)),
+      coinCost: Math.max(BALANCE.storeOfferMinCoinCost, Math.round(template.baseCoinCost * levelScale)),
       purchased: false,
     });
   }
 
   return offers;
+}
+
+function completeStoreStop(runState: RogueRunState, message: string): void {
+  runState.nextStoreBoard =
+    runState.boardsCleared +
+    randomInt(runState, BALANCE.storeIntervalMinBoards, BALANCE.storeIntervalMaxBoards);
+  runState.pendingStoreOffers = [];
+  runState.stage = 'hub';
+  const boardsUntilStore = Math.max(1, runState.nextStoreBoard - runState.boardsCleared);
+  runState.hubMessage = `${message} Next store in ${boardsUntilStore} board${boardsUntilStore === 1 ? '' : 's'}.`;
 }
 
 function toMetaEarned(run: RogueRunState, victory: boolean): number {
@@ -570,6 +1137,22 @@ function calculateOverallProgress(run: RogueRunState | null, liveHud: LiveHudSta
   );
 }
 
+function buildBoardAchievements(summary: BoardSummary): string[] {
+  const achievements: string[] = [];
+  if (summary.shotsTaken === 1) {
+    achievements.push('One Shot Wonder');
+  }
+  if (summary.bounceCount >= 30) {
+    achievements.push('Pinball Wizard');
+  } else if (summary.bounceCount >= 16) {
+    achievements.push('Bank Shot Specialist');
+  }
+  if (summary.shotsTaken <= 2 && summary.bounceCount >= 10) {
+    achievements.push('Core Killer');
+  }
+  return achievements;
+}
+
 function parseProgress(json: string): RogueBrickProfile | null {
   try {
     const parsed = JSON.parse(json) as RogueBrickProfile;
@@ -579,13 +1162,11 @@ function parseProgress(json: string): RogueBrickProfile | null {
     if (!parsed.permanentUpgrades || typeof parsed.permanentUpgrades !== 'object') {
       return null;
     }
-    if (parsed.run?.board?.bricks) {
-      parsed.run.board.bricks = parsed.run.board.bricks.map((brick) => ({
-        ...brick,
-        kind: brick.kind ?? 'standard',
-      }));
+    const normalized = normalizeProfile(parsed);
+    if (normalized.run && (typeof normalized.run.nextStoreBoard !== 'number' || Number.isNaN(normalized.run.nextStoreBoard))) {
+      normalized.run.nextStoreBoard = normalized.run.boardsCleared + 4;
     }
-    return parsed;
+    return normalized;
   } catch {
     return null;
   }
@@ -603,10 +1184,28 @@ export default function RogueBrickPage() {
   const launchElapsedRef = useRef(0);
   const pendingRewardsRef = useRef<TurnRewards>({ mana: 0, coins: 0 });
   const pendingDestroyedBricksRef = useRef(0);
+  const pendingBounceCountRef = useRef(0);
+  const coreChargeRef = useRef(0);
+  const homingBarrageUsedRef = useRef(false);
+  const homingBulletTimeHitsRef = useRef(0);
+  const finalBrickCinematicUntilRef = useRef(0);
+  const coreShakeUntilRef = useRef(0);
+  const gambleRevealTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const brickVisualRef = useRef<Map<string, BrickVisualState>>(new Map());
   const breakParticlesRef = useRef<BreakParticle[]>([]);
+  const boardAdvanceAnimationRef = useRef<BoardAdvanceAnimationState | null>(null);
+  const coreBreachFlashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const coreBreachLaunchFrameRef = useRef<number | null>(null);
+  const breachCleanupQueuedRef = useRef(false);
+  const coreBreachHandledThisTurnRef = useRef(false);
+  const launchShotRef = useRef<(
+    direction: { x: number; y: number },
+    options?: { forceHoming?: boolean }
+  ) => void>(() => {});
   const frameNowRef = useRef(0);
   const shotInFlightRef = useRef(false);
+  const idleAnimationRef = useRef<number | null>(null);
+  const powersStripRef = useRef<HTMLElement | null>(null);
   const [profile, setProfile] = useState<RogueBrickProfile | null>(null);
   const [pendingSync, setPendingSync] = useState(false);
   const [serverUpdatedAt, setServerUpdatedAt] = useState(0);
@@ -617,6 +1216,15 @@ export default function RogueBrickPage() {
   const [aimPoint, setAimPoint] = useState<{ x: number; y: number } | null>(null);
   const [shotInProgress, setShotInProgress] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
+  const [selectedPowerId, setSelectedPowerId] = useState<string | null>(null);
+  const [selectedResourceHelp, setSelectedResourceHelp] = useState<ResourceHelpKey | null>(null);
+  const [showGambleConfirm, setShowGambleConfirm] = useState(false);
+  const [isGambleRevealing, setIsGambleRevealing] = useState(false);
+  const [gambleOutcome, setGambleOutcome] = useState<GambleOutcome | null>(null);
+  const [autoHomingLaunchPending, setAutoHomingLaunchPending] = useState(false);
+  const [isCoreBreachFlashing, setIsCoreBreachFlashing] = useState(false);
+  const [coreBreachFlashVariant, setCoreBreachFlashVariant] = useState<CoreVariant>('yellow');
+  const [powerPopoverLayout, setPowerPopoverLayout] = useState({ left: 8, arrow: 136 });
   const [liveHud, setLiveHud] = useState<LiveHudState>({
     destroyedBricks: 0,
     manaEarned: 0,
@@ -657,6 +1265,23 @@ export default function RogueBrickPage() {
 
     const brickWidth = getBrickWidth();
     const bricksToDraw = shotInFlightRef.current ? bricksRef.current : runSnapshot.board.bricks;
+    const objectiveBrickInView = runSnapshot.board.objectiveBrickId
+      ? bricksToDraw.find((brick) => brick.id === runSnapshot.board.objectiveBrickId) ?? null
+      : null;
+    const objectiveCharge = objectiveBrickInView
+      ? Math.max(0, Math.min(1, 1 - objectiveBrickInView.hp / Math.max(1, objectiveBrickInView.maxHp)))
+      : runSnapshot.coreCharge ?? 1;
+    const boardAdvanceAnimation = boardAdvanceAnimationRef.current;
+    let boardAdvanceOffset = 0;
+    if (boardAdvanceAnimation) {
+      const elapsedMs = Math.max(0, now - boardAdvanceAnimation.startedAt);
+      const progress = Math.min(1, elapsedMs / boardAdvanceAnimation.durationMs);
+      const easedProgress = progress * progress * (3 - 2 * progress);
+      boardAdvanceOffset = boardAdvanceAnimation.offsetPx * (1 - easedProgress);
+      if (progress >= 1) {
+        boardAdvanceAnimationRef.current = null;
+      }
+    }
 
     for (const brick of bricksToDraw) {
       const visual = brickVisualRef.current.get(brick.id);
@@ -666,30 +1291,76 @@ export default function RogueBrickPage() {
       }
 
       const x = BRICK_GAP + brick.col * (brickWidth + BRICK_GAP);
-      const y = BRICK_TOP + brick.row * (BRICK_HEIGHT + BRICK_GAP);
+      const y = BRICK_TOP + brick.row * BRICK_ROW_STEP - boardAdvanceOffset;
       const kind = brick.kind ?? 'standard';
       const hpPct = Math.max(0, Math.min(1, brick.hp / Math.max(1, brick.maxHp)));
-      const red = Math.round(
-        (kind === 'reinforced' || kind === 'unbreakable'
-          ? 185
-          : kind === 'orb' || kind === 'splinter'
-            ? 145
-            : kind === 'exploding'
-              ? 238
-              : 220) - hpPct * 115
-      );
-      const green = Math.round(
-        (kind === 'reinforced'
-          ? 120
-          : kind === 'prism'
-            ? 90
-            : kind === 'exploding'
-              ? 140
-              : kind === 'splinter'
-                ? 110
-                : 105) + hpPct * 105
-      );
-      const blue = 240;
+      const styleByKind = (() => {
+        if (kind === 'objective') {
+          return {
+            top: { r: 86, g: 52, b: 16 },
+            bottom: { r: 38, g: 22, b: 6 },
+            edge: 'rgba(255, 210, 120, 0.5)',
+          };
+        }
+        if (kind === 'unbreakable') {
+          return {
+            top: { r: 58, g: 72, b: 96 },
+            bottom: { r: 28, g: 37, b: 56 },
+            edge: 'rgba(210, 224, 240, 0.5)',
+          };
+        }
+        if (kind === 'oneway') {
+          return {
+            top: { r: 42, g: 62, b: 88 },
+            bottom: { r: 20, g: 34, b: 52 },
+            edge: 'rgba(124, 212, 255, 0.46)',
+          };
+        }
+        if (kind === 'exploding') {
+          return {
+            top: { r: 88, g: 40, b: 34 },
+            bottom: { r: 44, g: 20, b: 18 },
+            edge: 'rgba(255, 163, 137, 0.46)',
+          };
+        }
+        if (kind === 'prism') {
+          return {
+            top: { r: 58, g: 46, b: 96 },
+            bottom: { r: 30, g: 24, b: 58 },
+            edge: 'rgba(196, 181, 253, 0.44)',
+          };
+        }
+        if (kind === 'reinforced') {
+          return {
+            top: { r: 64, g: 58, b: 86 },
+            bottom: { r: 34, g: 29, b: 52 },
+            edge: 'rgba(203, 213, 225, 0.45)',
+          };
+        }
+        if (kind === 'splinter') {
+          return {
+            top: { r: 48, g: 72, b: 54 },
+            bottom: { r: 24, g: 40, b: 30 },
+            edge: 'rgba(167, 243, 208, 0.42)',
+          };
+        }
+        return {
+          top: { r: 46, g: 66, b: 94 },
+          bottom: { r: 20, g: 33, b: 55 },
+          edge: 'rgba(186, 230, 253, 0.42)',
+        };
+      })();
+      const hpBoost = Math.round(hpPct * 14);
+      const topColor = {
+        r: Math.min(255, styleByKind.top.r + hpBoost),
+        g: Math.min(255, styleByKind.top.g + hpBoost),
+        b: Math.min(255, styleByKind.top.b + hpBoost),
+      };
+      const bottomColor = {
+        r: Math.max(0, styleByKind.bottom.r + Math.round(hpPct * 8)),
+        g: Math.max(0, styleByKind.bottom.g + Math.round(hpPct * 8)),
+        b: Math.max(0, styleByKind.bottom.b + Math.round(hpPct * 8)),
+      };
       const centerX = x + brickWidth / 2;
       const centerY = y + BRICK_HEIGHT / 2;
       const hitScale = 1 + hitIntensity * 0.06;
@@ -702,24 +1373,14 @@ export default function RogueBrickPage() {
       const gradient = ctx.createLinearGradient(x, y, x, y + BRICK_HEIGHT);
       gradient.addColorStop(
         0,
-        `rgba(${Math.min(255, red + 20)}, ${Math.min(255, green + 35)}, ${Math.min(255, blue + 10)}, 1)`
+        `rgba(${topColor.r}, ${topColor.g}, ${topColor.b}, 1)`
       );
-      gradient.addColorStop(1, `rgba(${red}, ${green}, ${blue}, 1)`);
+      gradient.addColorStop(1, `rgba(${bottomColor.r}, ${bottomColor.g}, ${bottomColor.b}, 1)`);
 
       ctx.fillStyle = gradient;
-      ctx.strokeStyle = `rgba(9, 12, 20, ${0.4 - hitIntensity * 0.14})`;
+      ctx.strokeStyle = styleByKind.edge;
 
-      if (kind === 'orb') {
-        const radius = Math.min(brickWidth, BRICK_HEIGHT) * 0.42;
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-        ctx.strokeStyle = 'rgba(255,255,255,0.22)';
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius * 0.68, 0, Math.PI * 2);
-        ctx.stroke();
-      } else if (kind === 'prism') {
+      if (kind === 'prism') {
         ctx.beginPath();
         ctx.moveTo(centerX, y + 1.5);
         ctx.lineTo(x + brickWidth - 1.5, centerY);
@@ -740,6 +1401,185 @@ export default function RogueBrickPage() {
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
+      } else if (kind === 'objective') {
+        const objectiveBounds = getBrickBounds(brick, x, y, brickWidth);
+        const objectiveX = objectiveBounds.x;
+        const objectiveY = objectiveBounds.y;
+        const objectiveWidth = objectiveBounds.width;
+        const objectiveHeight = objectiveBounds.height;
+        const coreVariant = brick.coreVariant ?? 'yellow';
+        const corePalette =
+          coreVariant === 'blue'
+            ? {
+                auraOuter: 'rgba(96, 165, 250, 0)',
+                auraMid: 'rgba(59, 130, 246, 0.12)',
+                auraCore: 'rgba(125, 211, 252, 0.18)',
+                shellTop: 'rgba(191, 219, 254, 1)',
+                shellMid: 'rgba(59, 130, 246, 1)',
+                shellBottom: 'rgba(30, 64, 175, 1)',
+                edge: 'rgba(191, 219, 254, 0.58)',
+                accent: 'rgba(224, 242, 254, 0.88)',
+                text: 'rgba(239, 246, 255, 0.95)',
+              }
+            : coreVariant === 'green'
+              ? {
+                  auraOuter: 'rgba(34, 197, 94, 0)',
+                  auraMid: 'rgba(34, 197, 94, 0.14)',
+                  auraCore: 'rgba(134, 239, 172, 0.2)',
+                  shellTop: 'rgba(187, 247, 208, 1)',
+                  shellMid: 'rgba(34, 197, 94, 1)',
+                  shellBottom: 'rgba(21, 128, 61, 1)',
+                  edge: 'rgba(134, 239, 172, 0.62)',
+                  accent: 'rgba(220, 252, 231, 0.92)',
+                  text: 'rgba(240, 253, 244, 0.96)',
+                }
+            : {
+                auraOuter: 'rgba(245, 158, 11, 0)',
+                auraMid: 'rgba(245, 158, 11, 0.12)',
+                auraCore: 'rgba(254, 240, 138, 0.18)',
+                shellTop: 'rgba(255, 228, 146, 1)',
+                shellMid: 'rgba(245, 158, 11, 1)',
+                shellBottom: 'rgba(154, 52, 18, 1)',
+                edge: 'rgba(255, 210, 120, 0.5)',
+                accent: 'rgba(255, 247, 205, 0.9)',
+                text: 'rgba(255, 252, 229, 0.95)',
+              };
+        const pulsePhase = now / 280 + brick.row * 0.35 + brick.col * 0.22;
+        const pulse = 0.5 + Math.sin(pulsePhase) * 0.5;
+        const transfer = Math.max(0, Math.min(1, 1 - brick.hp / Math.max(1, brick.maxHp)));
+        const coreGlow = 1 - transfer;
+        const shakeMsRemaining = coreShakeUntilRef.current - now;
+        const coreShakeIntensity = shakeMsRemaining > 0 ? Math.min(3.5, shakeMsRemaining / 36) : 0;
+        const coreShakeX = Math.sin(now * 0.16 + brick.col) * coreShakeIntensity;
+        const coreShakeY = Math.cos(now * 0.2 + brick.row) * coreShakeIntensity * 0.7;
+        ctx.save();
+        ctx.translate(coreShakeX, coreShakeY);
+        const auraRadius = Math.max(objectiveWidth, objectiveHeight) * (0.62 + pulse * 0.24);
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const aura = ctx.createRadialGradient(centerX, centerY, 2, centerX, centerY, auraRadius);
+        aura.addColorStop(0, `rgba(255, 255, 255, ${(0.08 + pulse * 0.12) * coreGlow})`);
+        aura.addColorStop(0.32, corePalette.auraCore);
+        aura.addColorStop(0.62, corePalette.auraMid);
+        aura.addColorStop(1, corePalette.auraOuter);
+        ctx.fillStyle = aura;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, auraRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        const coreGradient = ctx.createRadialGradient(
+          centerX,
+          centerY,
+          Math.max(2, objectiveHeight * 0.1),
+          centerX,
+          centerY,
+          Math.max(objectiveWidth, objectiveHeight) * 0.62
+        );
+        coreGradient.addColorStop(0, corePalette.shellTop);
+        coreGradient.addColorStop(0.45, corePalette.shellMid);
+        coreGradient.addColorStop(1, corePalette.shellBottom);
+        ctx.fillStyle = coreGradient;
+        ctx.strokeStyle = corePalette.edge;
+
+        if (coreVariant === 'blue') {
+          const blueRadius = Math.max(6.2, Math.min(objectiveWidth, objectiveHeight) * 0.5);
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          const blueGlow = ctx.createRadialGradient(centerX, centerY, 1, centerX, centerY, blueRadius * 1.9);
+          blueGlow.addColorStop(0, 'rgba(255, 255, 255, 0.28)');
+          blueGlow.addColorStop(0.18, 'rgba(191, 219, 254, 0.22)');
+          blueGlow.addColorStop(0.55, 'rgba(59, 130, 246, 0.14)');
+          blueGlow.addColorStop(1, 'rgba(30, 64, 175, 0)');
+          ctx.fillStyle = blueGlow;
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, blueRadius * 1.9, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, blueRadius, 0, Math.PI * 2);
+          ctx.fillStyle = coreGradient;
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, Math.max(2.2, blueRadius * 0.72), 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(239, 246, 255, 0.92)';
+          ctx.fill();
+          ctx.restore();
+          ctx.restore();
+          continue;
+        }
+
+        ctx.save();
+        ctx.beginPath();
+        if (coreVariant === 'green') {
+          ctx.roundRect(objectiveX, objectiveY, objectiveWidth, objectiveHeight, objectiveHeight / 2);
+        } else {
+          ctx.roundRect(objectiveX, objectiveY, objectiveWidth, objectiveHeight, Math.min(7, objectiveHeight * 0.4));
+        }
+        ctx.lineWidth = 1.4 + pulse * 0.8;
+        ctx.fill();
+        ctx.stroke();
+        ctx.clip();
+        ctx.fillStyle = corePalette.accent;
+        ctx.fillRect(
+          objectiveX + 2 + pulse * 2,
+          objectiveY + 2 + pulse * 1.5,
+          Math.max(6, objectiveWidth * (0.32 + pulse * 0.1)),
+          Math.max(3, objectiveHeight * (0.26 + pulse * 0.12))
+        );
+        ctx.restore();
+
+        const pulseInset = 3 + pulse * 1.2;
+        ctx.strokeStyle = corePalette.text;
+        ctx.lineWidth = 1 + pulse * 0.4;
+        ctx.beginPath();
+        if (coreVariant === 'green') {
+          ctx.roundRect(
+            objectiveX + pulseInset,
+            objectiveY + pulseInset,
+            Math.max(2, objectiveWidth - pulseInset * 2),
+            Math.max(2, objectiveHeight - pulseInset * 2),
+            Math.max(2, (objectiveHeight - pulseInset * 2) / 2)
+          );
+        } else {
+          ctx.roundRect(
+            objectiveX + pulseInset,
+            objectiveY + pulseInset,
+            Math.max(2, objectiveWidth - pulseInset * 2),
+            Math.max(2, objectiveHeight - pulseInset * 2),
+            Math.min(6, objectiveHeight * 0.35)
+          );
+        }
+        ctx.stroke();
+
+        const coreRadius = Math.max(3.5, objectiveHeight * (0.17 + pulse * 0.08));
+        ctx.fillStyle = coreVariant === 'green'
+          ? 'rgba(240, 253, 244, 0.88)'
+          : 'rgba(255, 252, 229, 0.85)';
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, coreRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = corePalette.text;
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([3, 2]);
+        ctx.lineDashOffset = -now / 45;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, coreRadius + 2.6 + pulse * 2, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = `rgba(255, 247, 205, ${(0.28 + pulse * 0.2) * coreGlow})`;
+        ctx.beginPath();
+        ctx.moveTo(centerX, objectiveY + 3);
+        ctx.lineTo(centerX, objectiveY + objectiveHeight - 3);
+        ctx.moveTo(objectiveX + 3, centerY);
+        ctx.lineTo(objectiveX + objectiveWidth - 3, centerY);
+        ctx.stroke();
+        ctx.restore();
       } else if (kind === 'unbreakable') {
         const metalGradient = ctx.createLinearGradient(x, y, x, y + BRICK_HEIGHT);
         metalGradient.addColorStop(0, 'rgba(248, 250, 252, 1)');
@@ -783,9 +1623,9 @@ export default function RogueBrickPage() {
         ctx.strokeRect(x + 0.5, y + 0.5, brickWidth - 1, BRICK_HEIGHT - 1);
       }
 
-      if (kind !== 'orb' && kind !== 'prism') {
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.11 + hitIntensity * 0.18})`;
-        ctx.fillRect(x + 2, y + 2, brickWidth - 4, 5);
+      if (kind !== 'prism') {
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.08 + hitIntensity * 0.12})`;
+        ctx.fillRect(x + 2, y + 2, brickWidth - 4, 3);
       }
 
       if (kind === 'unbreakable') {
@@ -799,38 +1639,57 @@ export default function RogueBrickPage() {
         ctx.stroke();
         ctx.lineWidth = 1;
       } else if (kind === 'oneway' && brick.weakSide) {
-        ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-        ctx.fillStyle = 'rgba(255,255,255,0.35)';
         const side = brick.weakSide;
+        const arrowSize = Math.max(6, Math.min(9, Math.min(brickWidth, BRICK_HEIGHT) * 0.42));
+        ctx.fillStyle = 'rgba(34, 211, 238, 0.26)';
+        if (side === 'top') {
+          ctx.fillRect(x + 1.5, y + 1.5, brickWidth - 3, 5);
+        } else if (side === 'bottom') {
+          ctx.fillRect(x + 1.5, y + BRICK_HEIGHT - 6.5, brickWidth - 3, 5);
+        } else if (side === 'left') {
+          ctx.fillRect(x + 1.5, y + 1.5, 5, BRICK_HEIGHT - 3);
+        } else {
+          ctx.fillRect(x + brickWidth - 6.5, y + 1.5, 5, BRICK_HEIGHT - 3);
+        }
+
+        ctx.fillStyle = '#fef08a';
+        ctx.strokeStyle = 'rgba(2, 6, 23, 0.95)';
+        ctx.lineWidth = 1.8;
+        ctx.lineJoin = 'round';
         if (side === 'top') {
           ctx.beginPath();
-          ctx.moveTo(centerX, y + 5);
-          ctx.lineTo(centerX - 6, y + 12);
-          ctx.lineTo(centerX + 6, y + 12);
+          ctx.moveTo(centerX, y + 3.5);
+          ctx.lineTo(centerX - arrowSize, y + 3.5 + arrowSize + 1);
+          ctx.lineTo(centerX + arrowSize, y + 3.5 + arrowSize + 1);
           ctx.closePath();
+          ctx.stroke();
           ctx.fill();
         } else if (side === 'bottom') {
           ctx.beginPath();
-          ctx.moveTo(centerX, y + BRICK_HEIGHT - 5);
-          ctx.lineTo(centerX - 6, y + BRICK_HEIGHT - 12);
-          ctx.lineTo(centerX + 6, y + BRICK_HEIGHT - 12);
+          ctx.moveTo(centerX, y + BRICK_HEIGHT - 3.5);
+          ctx.lineTo(centerX - arrowSize, y + BRICK_HEIGHT - 3.5 - arrowSize - 1);
+          ctx.lineTo(centerX + arrowSize, y + BRICK_HEIGHT - 3.5 - arrowSize - 1);
           ctx.closePath();
+          ctx.stroke();
           ctx.fill();
         } else if (side === 'left') {
           ctx.beginPath();
-          ctx.moveTo(x + 5, centerY);
-          ctx.lineTo(x + 12, centerY - 6);
-          ctx.lineTo(x + 12, centerY + 6);
+          ctx.moveTo(x + 3.5, centerY);
+          ctx.lineTo(x + 3.5 + arrowSize + 1, centerY - arrowSize);
+          ctx.lineTo(x + 3.5 + arrowSize + 1, centerY + arrowSize);
           ctx.closePath();
+          ctx.stroke();
           ctx.fill();
         } else {
           ctx.beginPath();
-          ctx.moveTo(x + brickWidth - 5, centerY);
-          ctx.lineTo(x + brickWidth - 12, centerY - 6);
-          ctx.lineTo(x + brickWidth - 12, centerY + 6);
+          ctx.moveTo(x + brickWidth - 3.5, centerY);
+          ctx.lineTo(x + brickWidth - 3.5 - arrowSize - 1, centerY - arrowSize);
+          ctx.lineTo(x + brickWidth - 3.5 - arrowSize - 1, centerY + arrowSize);
           ctx.closePath();
+          ctx.stroke();
           ctx.fill();
         }
+        ctx.lineWidth = 1;
       }
 
       if (brick.hp <= Math.ceil(brick.maxHp * 0.45)) {
@@ -842,21 +1701,75 @@ export default function RogueBrickPage() {
         ctx.stroke();
       }
 
-      const label = kind === 'unbreakable' ? 'LOCK' : String(Math.max(0, Math.ceil(brick.hp)));
-      ctx.font = kind === 'unbreakable' ? 'bold 11px monospace' : 'bold 14px sans-serif';
+      const drawRoundedRectPath = (left: number, top: number, width: number, height: number, radius: number) => {
+        const clampedRadius = Math.min(radius, width * 0.5, height * 0.5);
+        ctx.beginPath();
+        ctx.moveTo(left + clampedRadius, top);
+        ctx.lineTo(left + width - clampedRadius, top);
+        ctx.quadraticCurveTo(left + width, top, left + width, top + clampedRadius);
+        ctx.lineTo(left + width, top + height - clampedRadius);
+        ctx.quadraticCurveTo(left + width, top + height, left + width - clampedRadius, top + height);
+        ctx.lineTo(left + clampedRadius, top + height);
+        ctx.quadraticCurveTo(left, top + height, left, top + height - clampedRadius);
+        ctx.lineTo(left, top + clampedRadius);
+        ctx.quadraticCurveTo(left, top, left + clampedRadius, top);
+        ctx.closePath();
+      };
+
+      const label = String(Math.max(0, Math.ceil(brick.hp)));
+      if (kind === 'unbreakable') {
+        const iconBadgeSize = Math.min(15, BRICK_HEIGHT - 6);
+        const iconBadgeX = centerX - iconBadgeSize * 0.5;
+        const iconBadgeY = centerY - iconBadgeSize * 0.5;
+        drawRoundedRectPath(iconBadgeX, iconBadgeY, iconBadgeSize, iconBadgeSize, 3);
+        ctx.fillStyle = 'rgba(6, 12, 24, 0.74)';
+        ctx.fill();
+
+        const lockBodyWidth = Math.max(5, iconBadgeSize * 0.5);
+        const lockBodyHeight = Math.max(4, iconBadgeSize * 0.34);
+        const lockBodyX = centerX - lockBodyWidth / 2;
+        const lockBodyY = centerY - lockBodyHeight / 2 + 1;
+        const shackleRadius = lockBodyWidth * 0.34;
+        const shackleY = lockBodyY - shackleRadius + 0.5;
+
+        ctx.strokeStyle = 'rgba(239, 246, 255, 0.96)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(centerX, shackleY, shackleRadius, Math.PI * 1.05, Math.PI * 1.95);
+        ctx.stroke();
+
+        drawRoundedRectPath(lockBodyX, lockBodyY, lockBodyWidth, lockBodyHeight, 1.5);
+        ctx.fillStyle = 'rgba(239, 246, 255, 0.98)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(8, 15, 30, 0.88)';
+        ctx.lineWidth = 0.9;
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(8, 15, 30, 0.92)';
+        ctx.beginPath();
+        ctx.arc(centerX, lockBodyY + lockBodyHeight * 0.46, 0.9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(centerX - 0.45, lockBodyY + lockBodyHeight * 0.46, 0.9, 1.7);
+        ctx.restore();
+        continue;
+      }
+      if (kind === 'objective') {
+        ctx.restore();
+        continue;
+      }
+
+      ctx.font = '700 12px "Segoe UI", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#f8fafc';
-      ctx.strokeStyle = 'rgba(4, 8, 18, 0.92)';
-      ctx.lineWidth = 3.2;
+      ctx.strokeStyle = 'rgba(3, 8, 19, 0.75)';
+      ctx.lineWidth = 1.8;
       ctx.lineJoin = 'round';
-
-      // Soft halo behind number for dark-mode readability without a hard badge box.
-      ctx.shadowColor = 'rgba(4, 8, 18, 0.85)';
-      ctx.shadowBlur = 7;
       ctx.strokeText(label, centerX, centerY);
-      ctx.shadowBlur = 0;
+      ctx.shadowColor = 'rgba(3, 8, 19, 0.45)';
+      ctx.shadowBlur = 2;
       ctx.fillText(label, centerX, centerY);
+      ctx.shadowBlur = 0;
       ctx.restore();
     }
 
@@ -865,10 +1778,23 @@ export default function RogueBrickPage() {
       if (alpha <= 0) {
         continue;
       }
+      ctx.save();
+      ctx.translate(particle.x, particle.y);
+      ctx.rotate(particle.rotation);
       ctx.fillStyle = particle.color.replace('ALPHA', alpha.toFixed(3));
-      ctx.beginPath();
-      ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.shadowColor = particle.color.replace('ALPHA', Math.min(1, alpha * 0.9).toFixed(3));
+      ctx.shadowBlur = particle.glow * alpha;
+
+      if (particle.kind === 'shard') {
+        const shardWidth = particle.radius * 1.9;
+        const shardHeight = Math.max(1.5, particle.radius * 0.62);
+        ctx.fillRect(-shardWidth * 0.5, -shardHeight * 0.5, shardWidth, shardHeight);
+      } else {
+        ctx.beginPath();
+        ctx.arc(0, 0, particle.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
     }
 
     ctx.strokeStyle = 'rgba(255,255,255,0.12)';
@@ -891,23 +1817,84 @@ export default function RogueBrickPage() {
       ctx.lineWidth = 1;
     }
 
-    ctx.fillStyle = '#f8fafc';
     for (const ball of ballsRef.current) {
       if (!ball.active) {
         continue;
       }
-      ctx.beginPath();
-      ctx.arc(ball.x, ball.y, BALL_RADIUS, 0, Math.PI * 2);
-      ctx.fill();
+      if (ball.coreCharged) {
+        const speed = Math.hypot(ball.vx, ball.vy);
+        const dirX = speed > 0.001 ? ball.vx / speed : 0;
+        const dirY = speed > 0.001 ? ball.vy / speed : -1;
+        for (let i = 1; i <= 4; i += 1) {
+          const trailX = ball.x - dirX * i * 4.7 + Math.sin(now * 0.04 + i * 0.9) * 0.5;
+          const trailY = ball.y - dirY * i * 4.7 + Math.cos(now * 0.05 + i * 0.8) * 0.5;
+          const size = Math.max(1.5, 4 - i * 0.62);
+          const alpha = Math.max(0.2, 0.62 - i * 0.1);
+          ctx.fillStyle = `rgba(56, 189, 248, ${alpha.toFixed(3)})`;
+          ctx.fillRect(trailX - size * 0.5, trailY - size * 0.5, size, size);
+        }
+
+        ctx.save();
+        ctx.shadowColor = 'rgba(56, 189, 248, 0.85)';
+        ctx.shadowBlur = 10;
+        const chargedGradient = ctx.createRadialGradient(
+          ball.x - 1.5,
+          ball.y - 1.5,
+          1,
+          ball.x,
+          ball.y,
+          BALL_RADIUS + 1.2
+        );
+        chargedGradient.addColorStop(0, 'rgba(224, 242, 254, 1)');
+        chargedGradient.addColorStop(0.35, 'rgba(125, 211, 252, 1)');
+        chargedGradient.addColorStop(1, 'rgba(2, 132, 199, 1)');
+        ctx.fillStyle = chargedGradient;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, BALL_RADIUS + 0.35, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.strokeStyle = 'rgba(186, 230, 253, 0.95)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, BALL_RADIUS + 0.2, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+      } else {
+        ctx.fillStyle = '#f8fafc';
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, BALL_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
-    ctx.fillStyle = '#22d3ee';
+    const shooterGlow = Math.max(0, Math.min(1, objectiveCharge));
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const shooterAura = ctx.createRadialGradient(
+      CANVAS_WIDTH / 2,
+      LAUNCHER_Y,
+      2,
+      CANVAS_WIDTH / 2,
+      LAUNCHER_Y,
+      16 + shooterGlow * 9
+    );
+    shooterAura.addColorStop(0, `rgba(254, 240, 138, ${0.1 + shooterGlow * 0.5})`);
+    shooterAura.addColorStop(1, 'rgba(254, 240, 138, 0)');
+    ctx.fillStyle = shooterAura;
     ctx.beginPath();
-    ctx.arc(CANVAS_WIDTH / 2, LAUNCHER_Y, 8, 0, Math.PI * 2);
+    ctx.arc(CANVAS_WIDTH / 2, LAUNCHER_Y, 16 + shooterGlow * 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = shooterGlow > 0.05
+      ? `rgba(255, ${222 + Math.round(shooterGlow * 26)}, ${104 + Math.round(shooterGlow * 70)}, 1)`
+      : '#22d3ee';
+    ctx.beginPath();
+    ctx.arc(CANVAS_WIDTH / 2, LAUNCHER_Y, 8 + shooterGlow * 2.8, 0, Math.PI * 2);
     ctx.fill();
   }, [aimPoint, isDragging]);
 
-  const spawnBreakParticles = useCallback((brick: Brick) => {
+  const spawnBreakParticles = useCallback((brick: Brick, slowCinematic = false) => {
     const brickWidth = getBrickWidth();
     const x = BRICK_GAP + brick.col * (brickWidth + BRICK_GAP);
     const y = BRICK_TOP + brick.row * (BRICK_HEIGHT + BRICK_GAP);
@@ -916,18 +1903,25 @@ export default function RogueBrickPage() {
     const green = Math.round(90 + hpPct * 110);
     const blue = 240;
 
-    for (let i = 0; i < 7; i += 1) {
-      const speed = 80 + Math.random() * 110;
+    for (let i = 0; i < 12; i += 1) {
+      const speedBase = slowCinematic ? 24 : 75;
+      const speedRange = slowCinematic ? 56 : 135;
+      const speed = speedBase + Math.random() * speedRange;
       const angle = Math.random() * Math.PI * 2;
+      const isShard = i % 3 === 0;
       breakParticlesRef.current.push({
         x: x + brickWidth * (0.2 + Math.random() * 0.6),
         y: y + BRICK_HEIGHT * (0.2 + Math.random() * 0.6),
         vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - 30,
-        radius: 1.8 + Math.random() * 2.6,
-        lifeMs: 210 + Math.random() * 140,
+        vy: Math.sin(angle) * speed - (slowCinematic ? 8 : 30),
+        radius: isShard ? 1.5 + Math.random() * 1.6 : 1.8 + Math.random() * 2.4,
+        lifeMs: (slowCinematic ? 1300 : 220) + Math.random() * (slowCinematic ? 420 : 180),
         ageMs: 0,
         color: `rgba(${red}, ${green}, ${blue}, ALPHA)`,
+        kind: isShard ? 'shard' : 'spark',
+        rotation: Math.random() * Math.PI * 2,
+        rotationVelocity: (Math.random() - 0.5) * (slowCinematic ? 4 : 11),
+        glow: slowCinematic ? (isShard ? 7 : 12) : (isShard ? 5 : 9),
       });
     }
   }, []);
@@ -955,6 +1949,60 @@ export default function RogueBrickPage() {
     }
     draw();
   }, [profile, draw, shotInProgress]);
+
+  useEffect(() => {
+    const run = profile?.run;
+    if (!run || run.stage !== 'board' || !run.homingBarrageReady || shotInFlightRef.current) {
+      return;
+    }
+
+    setIsCoreBreachFlashing(true);
+    const launchFrame = window.requestAnimationFrame(() => {
+      const latestRun = profileRef.current?.run;
+      if (!latestRun || latestRun.stage !== 'board' || !latestRun.homingBarrageReady || shotInFlightRef.current) {
+        return;
+      }
+      launchShotRef.current({ x: 0, y: -1 }, { forceHoming: true });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(launchFrame);
+    };
+  }, [profile?.run?.homingBarrageReady, profile?.run?.stage]);
+
+  useEffect(() => {
+    if (shotInFlightRef.current || profile?.run?.stage !== 'board') {
+      return;
+    }
+
+    const animateIdleBoard = (timestamp: number) => {
+      if (shotInFlightRef.current) {
+        idleAnimationRef.current = null;
+        return;
+      }
+      const runSnapshot = profileRef.current?.run;
+      if (!runSnapshot || runSnapshot.stage !== 'board') {
+        idleAnimationRef.current = null;
+        return;
+      }
+      frameNowRef.current = timestamp;
+      draw();
+      const hasObjective = runSnapshot.board.bricks.some((brick) => (brick.kind ?? 'standard') === 'objective');
+      if (hasObjective || boardAdvanceAnimationRef.current) {
+        idleAnimationRef.current = requestAnimationFrame(animateIdleBoard);
+      } else {
+        idleAnimationRef.current = null;
+      }
+    };
+
+    idleAnimationRef.current = requestAnimationFrame(animateIdleBoard);
+    return () => {
+      if (idleAnimationRef.current !== null) {
+        cancelAnimationFrame(idleAnimationRef.current);
+        idleAnimationRef.current = null;
+      }
+    };
+  }, [draw, profile?.run, shotInProgress]);
 
   useEffect(() => {
     const handleOnlineState = () => setIsOnline(navigator.onLine);
@@ -992,8 +2040,15 @@ export default function RogueBrickPage() {
       if (storedRaw) {
         try {
           const parsed = JSON.parse(storedRaw) as StoredEnvelope;
-          if (parsed?.profile?.permanentUpgrades) {
-            localEnvelope = parsed;
+          if (parsed?.profile && typeof parsed.profile === 'object') {
+            localEnvelope = {
+              profile: normalizeProfile(parsed.profile as RogueBrickProfile),
+              pendingSync: Boolean(parsed.pendingSync),
+              serverUpdatedAt:
+                typeof parsed.serverUpdatedAt === 'number' && !Number.isNaN(parsed.serverUpdatedAt)
+                  ? parsed.serverUpdatedAt
+                  : 0,
+            };
           }
         } catch {
           localEnvelope = null;
@@ -1127,6 +2182,7 @@ export default function RogueBrickPage() {
     shotInFlightRef.current = false;
     brickVisualRef.current.clear();
     breakParticlesRef.current = [];
+    finalBrickCinematicUntilRef.current = 0;
     if (animationRef.current !== null) {
       cancelAnimationFrame(animationRef.current);
       animationRef.current = null;
@@ -1135,56 +2191,138 @@ export default function RogueBrickPage() {
     const brickSnapshot = bricksRef.current.map((brick) => ({ ...brick }));
     const rewards = { ...pendingRewardsRef.current };
     const destroyedThisTurn = pendingDestroyedBricksRef.current;
+    const bounceCountThisTurn = pendingBounceCountRef.current;
+    const postTurnCoreCharge = coreChargeRef.current;
+    const usedHomingBarrage = homingBarrageUsedRef.current;
+    const handledCoreBreachThisTurn = coreBreachHandledThisTurnRef.current;
+    homingBarrageUsedRef.current = false;
     pendingRewardsRef.current = { mana: 0, coins: 0 };
     pendingDestroyedBricksRef.current = 0;
+    pendingBounceCountRef.current = 0;
 
-    commitProfile((draft) => {
-      if (!draft.run || draft.run.stage !== 'board') {
-        return;
-      }
-
-      const runState = draft.run;
-      runState.mana += Math.round(rewards.mana);
-      runState.coins += Math.round(rewards.coins);
-      runState.board.bricks = brickSnapshot;
-      runState.levelBricksDestroyed = (runState.levelBricksDestroyed ?? 0) + destroyedThisTurn;
-      runState.levelGoalBricks = Math.max(
-        1,
-        runState.levelGoalBricks ?? calculateLevelGoal(Math.max(1, countBreakableBricks(runState.board.bricks)))
-      );
-
-      if (runState.levelBricksDestroyed >= runState.levelGoalBricks || runState.board.bricks.length === 0) {
-        runState.boardsCleared += 1;
-        runState.level += 1;
-        runState.hubMessage = `Climb target reached. Ascend to level ${runState.level}. +${Math.round(rewards.mana)} mana, +${Math.round(rewards.coins)} coins.`;
-
-        if (runState.level > runState.maxLevels) {
-          runState.stage = 'hub';
-          runState.board = { turn: 1, bricks: [] };
+    let shouldFlashCoreBreach = false;
+    let flashVariant: CoreVariant = coreBreachFlashVariant;
+    const shouldAnimateBoardAdvance = brickSnapshot.length > 0;
+    const commitTurnResolution = () =>
+      commitProfile((draft) => {
+        if (!draft.run || draft.run.stage !== 'board') {
           return;
         }
 
-        if (runState.boardsCleared % 3 === 0) {
-          runState.stage = 'powerup';
-          runState.pendingPowerOffers = makePowerOffers(runState);
-          runState.pendingStoreOffers = [];
-        } else {
-          runState.stage = 'hub';
-          runState.pendingStoreOffers = makeStoreOffers(runState);
-          runState.pendingPowerOffers = [];
+        const runState = draft.run;
+        runState.mana += Math.round(rewards.mana);
+        runState.coins += Math.round(rewards.coins);
+        runState.board.bricks = brickSnapshot;
+        runState.coreCharge = postTurnCoreCharge;
+        if (usedHomingBarrage) {
+          runState.homingBarrageReady = false;
+        }
+        runState.levelBricksDestroyed = (runState.levelBricksDestroyed ?? 0) + destroyedThisTurn;
+        runState.boardShotsTaken = (runState.boardShotsTaken ?? 0) + 1;
+        runState.boardBounceCount = (runState.boardBounceCount ?? 0) + bounceCountThisTurn;
+        runState.levelGoalBricks = Math.max(
+          1,
+          runState.levelGoalBricks ?? calculateLevelGoal(Math.max(1, runState.board.bricks.length))
+        );
+        const objectiveIds = getObjectiveBrickIds(runState.board);
+        const remainingObjectiveIds = objectiveIds.filter((id) =>
+          runState.board.bricks.some((brick) => brick.id === id)
+        );
+        const objectiveRemoved = objectiveIds.length > 0 && remainingObjectiveIds.length < objectiveIds.length;
+        if (objectiveRemoved && !handledCoreBreachThisTurn) {
+          runState.board.objectiveBrickIds = remainingObjectiveIds;
+          runState.board.objectiveBrickId = remainingObjectiveIds[0] ?? null;
+          const currentObjective = remainingObjectiveIds.length
+            ? runState.board.bricks.find((brick) => brick.id === remainingObjectiveIds[0]) ?? null
+            : null;
+          runState.coreCharge = currentObjective
+            ? Math.max(0, Math.min(1, 1 - currentObjective.hp / Math.max(1, currentObjective.maxHp)))
+            : 0;
+          runState.homingBarrageReady = false;
+          runState.hubMessage =
+            remainingObjectiveIds.length > 0
+              ? `${remainingObjectiveIds.length} core${remainingObjectiveIds.length === 1 ? '' : 's'} remain.`
+              : 'Core drained! Next shot is a guaranteed homing barrage.';
+          shouldFlashCoreBreach = true;
+          flashVariant = currentObjective?.coreVariant ?? flashVariant;
         }
 
-        runState.board = { turn: 1, bricks: [] };
-        return;
-      }
+        if (runState.board.bricks.length === 0) {
+          const boardSummary: BoardSummary = {
+            shotsTaken: runState.boardShotsTaken,
+            bounceCount: runState.boardBounceCount,
+            achievements: [],
+          };
+          boardSummary.achievements = buildBoardAchievements(boardSummary);
+          runState.lastBoardSummary = boardSummary;
+          runState.boardSummaryAcknowledged = false;
+          runState.boardsCleared += 1;
+          runState.level += 1;
+          const storeUnlocked = runState.boardsCleared === runState.nextStoreBoard;
+          runState.hubMessage = `Board cleared. Ascend to level ${runState.level}. +${Math.round(rewards.mana)} mana, +${Math.round(rewards.coins)} coins.${storeUnlocked ? ' The store caravan has arrived.' : ''}`;
 
-      appendDifficultyRow(runState, runState.board);
-      if (runState.board.bricks.some((brick) => brick.row >= LOSE_ROW)) {
-        runState.stage = 'hub';
-        runState.hubMessage = 'A brick crossed the threshold.';
+          if (runState.level > runState.maxLevels) {
+            runState.stage = 'hub';
+            runState.board = { turn: 1, objectiveBrickId: null, objectiveBrickIds: [], bricks: [] };
+            runState.coreCharge = 0;
+            runState.homingBarrageReady = false;
+            runState.boardShotsTaken = 0;
+            runState.boardBounceCount = 0;
+            return;
+          }
+
+          if (runState.boardsCleared % BALANCE.powerChoiceEveryBoards === 0) {
+            runState.stage = 'powerup';
+            runState.pendingPowerOffers = makePowerOffers(runState);
+            runState.pendingStoreOffers = storeUnlocked ? makeStoreOffers(runState) : [];
+          } else {
+            runState.stage = 'hub';
+            runState.pendingStoreOffers = storeUnlocked ? makeStoreOffers(runState) : [];
+            runState.pendingPowerOffers = [];
+          }
+
+          runState.board = { turn: 1, objectiveBrickId: null, objectiveBrickIds: [], bricks: [] };
+          runState.coreCharge = 0;
+          runState.homingBarrageReady = false;
+          return;
+        }
+
+        advanceBoardRows(runState.board);
+        if (runState.board.bricks.some((brick) => brick.row >= LOSE_ROW)) {
+          runState.stage = 'hub';
+          runState.hubMessage = 'A brick crossed the threshold.';
+        }
+      }, true);
+    if (shouldAnimateBoardAdvance) {
+      boardAdvanceAnimationRef.current = {
+        startedAt: performance.now(),
+        durationMs: BOARD_ROW_ADVANCE_ANIMATION_MS,
+        offsetPx: BRICK_ROW_STEP,
+      };
+    }
+    commitTurnResolution();
+
+    if (shouldFlashCoreBreach) {
+      setCoreBreachFlashVariant(flashVariant);
+      setIsCoreBreachFlashing(true);
+      if (coreBreachFlashTimeoutRef.current !== null) {
+        window.clearTimeout(coreBreachFlashTimeoutRef.current);
       }
-    }, true);
+      coreBreachFlashTimeoutRef.current = window.setTimeout(() => {
+        coreBreachFlashTimeoutRef.current = null;
+        setIsCoreBreachFlashing(false);
+      }, CORE_BREACH_FLASH_MS);
+    }
+    if (handledCoreBreachThisTurn) {
+      coreBreachHandledThisTurnRef.current = false;
+    }
   }, [commitProfile]);
+
+  useEffect(() => {
+    if (!autoHomingLaunchPending) {
+      return;
+    }
+  }, [autoHomingLaunchPending]);
 
   useEffect(() => {
     if (!profile?.run) {
@@ -1201,34 +2339,60 @@ export default function RogueBrickPage() {
   }, [profile, endRun]);
 
   const launchShot = useCallback(
-    (direction: { x: number; y: number }) => {
+    (direction: { x: number; y: number }, options?: { forceHoming?: boolean }) => {
       const currentRun = profileRef.current?.run;
       if (!currentRun || currentRun.stage !== 'board') {
         return;
       }
-      if (shotInFlightRef.current || currentRun.board.bricks.length === 0) {
+      if (
+        (shotInFlightRef.current && !options?.forceHoming) ||
+        currentRun.board.bricks.length === 0
+      ) {
         return;
       }
 
       setIsDragging(false);
       setAimPoint(null);
+      setAutoHomingLaunchPending(false);
+      if (options?.forceHoming) {
+        breachCleanupQueuedRef.current = false;
+      }
+      if (coreBreachFlashTimeoutRef.current !== null) {
+        window.clearTimeout(coreBreachFlashTimeoutRef.current);
+        coreBreachFlashTimeoutRef.current = null;
+      }
+      if (coreBreachLaunchFrameRef.current !== null) {
+        window.cancelAnimationFrame(coreBreachLaunchFrameRef.current);
+        coreBreachLaunchFrameRef.current = null;
+      }
+      boardAdvanceAnimationRef.current = null;
+      const sourceBricks = options?.forceHoming ? bricksRef.current : currentRun.board.bricks;
+      if (sourceBricks.length === 0) {
+        return;
+      }
       shotInFlightRef.current = true;
       setShotInProgress(true);
       setLiveHud({
         destroyedBricks: 0,
         manaEarned: 0,
         coinsEarned: 0,
-        remainingBricks: currentRun.board.bricks.length,
+        remainingBricks: sourceBricks.length,
       });
+      const homingBarrageActive = Boolean(currentRun.homingBarrageReady || options?.forceHoming);
+      homingBarrageUsedRef.current = homingBarrageActive;
       ballsRef.current = [];
-      bricksRef.current = currentRun.board.bricks.map((brick) => ({ ...brick }));
+      bricksRef.current = sourceBricks.map((brick) => ({ ...brick }));
       launchQueueRef.current = Array.from({ length: currentRun.ballCount }, (_, index) => ({
-        delayMs: index * 70,
+        delayMs: index * BALANCE.launchStaggerMs,
       }));
       launchDirectionRef.current = direction;
       launchElapsedRef.current = 0;
       pendingRewardsRef.current = { mana: 0, coins: 0 };
       pendingDestroyedBricksRef.current = 0;
+      pendingBounceCountRef.current = 0;
+      coreChargeRef.current = currentRun.coreCharge ?? 0;
+      homingBulletTimeHitsRef.current = 0;
+      finalBrickCinematicUntilRef.current = 0;
       let noHitElapsedMs = 0;
       let speedMultiplier = 1;
 
@@ -1240,7 +2404,13 @@ export default function RogueBrickPage() {
           return;
         }
 
-        const dtSeconds = Math.min((timestamp - previousTs) / 1000, 0.033) * speedMultiplier;
+        homingBulletTimeHitsRef.current =
+          homingBarrageActive && bricksRef.current.length === 1 ? 1 : 0;
+        const bulletTimeScale =
+          homingBarrageActive && homingBulletTimeHitsRef.current > 0
+            ? HOMING_BULLET_TIME_SCALE
+            : 1;
+        const dtSeconds = Math.min((timestamp - previousTs) / 1000, 0.033) * speedMultiplier * bulletTimeScale;
         previousTs = timestamp;
         launchElapsedRef.current += dtSeconds * 1000;
         let touchedBrickThisFrame = false;
@@ -1251,26 +2421,51 @@ export default function RogueBrickPage() {
         ) {
           launchQueueRef.current.shift();
           const scatter = (Math.random() - 0.5) * 0.05;
-          const vx = (launchDirectionRef.current.x + scatter) * BALL_SPEED;
-          const vy = launchDirectionRef.current.y * BALL_SPEED;
+          const vx = homingBarrageActive
+            ? Math.cos(-Math.PI * 0.5 + (Math.random() - 0.5) * 0.8) * BALL_SPEED * 1.2
+            : (launchDirectionRef.current.x + scatter) * BALL_SPEED;
+          const vy = homingBarrageActive
+            ? Math.sin(-Math.PI * 0.5 + (Math.random() - 0.5) * 0.8) * BALL_SPEED * 1.2
+            : launchDirectionRef.current.y * BALL_SPEED;
           ballsRef.current.push({
             x: CANVAS_WIDTH / 2,
             y: LAUNCHER_Y,
             vx,
             vy,
             active: true,
+            coreCharged: false,
           });
         }
 
         const rewards = pendingRewardsRef.current;
         const brickWidth = getBrickWidth();
         const processedExplosions = new Set<string>();
-
+        const activeObjectiveBrickIds = getObjectiveBrickIds(activeRun.board);
+        const activeObjectiveBricks = activeObjectiveBrickIds
+          .map((id) => bricksRef.current.find((brick) => brick.id === id) ?? null)
+          .filter((brick): brick is Brick => Boolean(brick));
+        const objectiveCharge = activeObjectiveBricks.length
+          ? Math.max(
+              ...activeObjectiveBricks.map((brick) =>
+                Math.max(0, Math.min(1, 1 - brick.hp / Math.max(1, brick.maxHp)))
+              )
+            )
+          : homingBarrageActive
+            ? 1
+            : activeRun.coreCharge ?? 1;
+        coreChargeRef.current = objectiveCharge;
+        const blueCoreBricks = activeObjectiveBricks.filter((brick) => (brick.coreVariant ?? 'yellow') === 'blue');
+        const finalBrickCinematicActive = finalBrickCinematicUntilRef.current > timestamp;
+        const particleTimeScale = finalBrickCinematicActive ? 0.12 : 1;
+        const particleDtSeconds = dtSeconds * particleTimeScale;
         for (const particle of breakParticlesRef.current) {
-          particle.ageMs += dtSeconds * 1000;
-          particle.x += particle.vx * dtSeconds;
-          particle.y += particle.vy * dtSeconds;
-          particle.vy += 280 * dtSeconds;
+          particle.ageMs += particleDtSeconds * 1000;
+          particle.x += particle.vx * particleDtSeconds;
+          particle.y += particle.vy * particleDtSeconds;
+          particle.vx *= 0.985;
+          particle.vy *= 0.99;
+          particle.vy += 280 * particleDtSeconds;
+          particle.rotation += particle.rotationVelocity * particleDtSeconds;
         }
         breakParticlesRef.current = breakParticlesRef.current.filter(
           (particle) => particle.ageMs < particle.lifeMs
@@ -1278,9 +2473,41 @@ export default function RogueBrickPage() {
 
         const destroyBrick = (brick: Brick, sourceBall: BallRuntime | null) => {
           pendingDestroyedBricksRef.current += 1;
-          rewards.coins += activeRun.coinMultiplier * (2 + Math.max(1, brick.maxHp) * 0.2);
-          spawnBreakParticles(brick);
+          const isObjective = (brick.kind ?? 'standard') === 'objective';
+          const isUnbreakable = (brick.kind ?? 'standard') === 'unbreakable';
+          const baseCoinReward = isObjective
+            ? BALANCE.objectiveCoinRewardFlat + Math.max(1, brick.maxHp) * BALANCE.objectiveCoinRewardHpScale
+            : isUnbreakable
+              ? 4
+            : BALANCE.brickCoinRewardFlat + Math.max(1, brick.maxHp) * BALANCE.brickCoinRewardHpScale;
+          rewards.coins += activeRun.coinMultiplier * baseCoinReward;
+          const bricksRemainingAfterHit = bricksRef.current.reduce(
+            (count, entry) => count + (entry.hp > 0 ? 1 : 0),
+            0
+          );
+          const isFinalBrickExplosion = bricksRemainingAfterHit === 0;
+          const remainingObjectiveCount = bricksRef.current.reduce(
+            (count, entry) => count + ((entry.kind ?? 'standard') === 'objective' && entry.hp > 0 ? 1 : 0),
+            0
+          );
+          if (isFinalBrickExplosion) {
+            finalBrickCinematicUntilRef.current = timestamp + 1800;
+          }
+          spawnBreakParticles(brick, isFinalBrickExplosion);
           brickVisualRef.current.delete(brick.id);
+          if (isObjective && remainingObjectiveCount === 0) {
+            coreBreachHandledThisTurnRef.current = true;
+            breachCleanupQueuedRef.current = true;
+            setCoreBreachFlashVariant(brick.coreVariant ?? 'yellow');
+            setIsCoreBreachFlashing(true);
+            if (coreBreachFlashTimeoutRef.current !== null) {
+              window.clearTimeout(coreBreachFlashTimeoutRef.current);
+            }
+            coreBreachFlashTimeoutRef.current = window.setTimeout(() => {
+              coreBreachFlashTimeoutRef.current = null;
+              setIsCoreBreachFlashing(false);
+            }, CORE_BREACH_FLASH_MS);
+          }
 
           if ((brick.kind ?? 'standard') === 'splinter' && sourceBall) {
             if (ballsRef.current.length < MAX_ACTIVE_BALLS) {
@@ -1301,6 +2528,7 @@ export default function RogueBrickPage() {
                   vx: Math.cos(angle) * speed,
                   vy: Math.sin(angle) * speed,
                   active: true,
+                  coreCharged: sourceBall.coreCharged,
                 });
               }
             }
@@ -1334,76 +2562,292 @@ export default function RogueBrickPage() {
             continue;
           }
 
-          ball.x += ball.vx * dtSeconds;
-          ball.y += ball.vy * dtSeconds;
-
-          if (ball.x <= BALL_RADIUS) {
-            ball.x = BALL_RADIUS;
-            ball.vx = Math.abs(ball.vx);
-          } else if (ball.x >= CANVAS_WIDTH - BALL_RADIUS) {
-            ball.x = CANVAS_WIDTH - BALL_RADIUS;
-            ball.vx = -Math.abs(ball.vx);
-          }
-
-          if (ball.y <= BALL_RADIUS) {
-            ball.y = BALL_RADIUS;
-            ball.vy = Math.abs(ball.vy);
-          }
-
-          for (const brick of bricksRef.current) {
-            if (brick.hp <= 0) {
-              continue;
-            }
-            const brickX = BRICK_GAP + brick.col * (brickWidth + BRICK_GAP);
-            const brickY = BRICK_TOP + brick.row * (BRICK_HEIGHT + BRICK_GAP);
-            if (
-              ball.x + BALL_RADIUS < brickX ||
-              ball.x - BALL_RADIUS > brickX + brickWidth ||
-              ball.y + BALL_RADIUS < brickY ||
-              ball.y - BALL_RADIUS > brickY + BRICK_HEIGHT
-            ) {
-              continue;
-            }
-
-            const isCrit = Math.random() < activeRun.critChance;
-            const baseDamage = activeRun.damage * (isCrit ? 2 : 1);
-            const variant = brick.kind ?? 'standard';
-            const damage =
-              variant === 'reinforced'
-                ? Math.max(1, Math.round(baseDamage * 0.75))
-                : variant === 'orb'
-                  ? Math.max(1, Math.round(baseDamage * 1.1))
-                  : variant === 'splinter'
-                  ? Math.max(1, Math.round(baseDamage * 0.9))
-                  : baseDamage;
-            const impactSide = getImpactSideFromVelocity(ball);
-            const canDamage =
-              variant !== 'unbreakable' &&
-              (variant !== 'oneway' || !brick.weakSide || brick.weakSide === impactSide);
-
-            if (canDamage) {
-              brick.hp -= damage;
-              touchedBrickThisFrame = true;
-              brickVisualRef.current.set(brick.id, { hitUntil: timestamp + 120 });
-              rewards.mana += activeRun.manaMultiplier * (isCrit ? 1.5 : 1);
-              if (brick.hp <= 0) {
-                destroyBrick(brick, ball);
+          if (blueCoreBricks.length > 0 && !homingBarrageActive) {
+            let nearestBlueCore: Brick | null = null;
+            let nearestBlueDistanceSq = Number.POSITIVE_INFINITY;
+            for (const blueCoreBrick of blueCoreBricks) {
+              const blueCoreWidth = getBrickWidth();
+              const blueCoreBounds = getBrickBounds(
+                blueCoreBrick,
+                BRICK_GAP + blueCoreBrick.col * (blueCoreWidth + BRICK_GAP),
+                BRICK_TOP + blueCoreBrick.row * (BRICK_HEIGHT + BRICK_GAP),
+                blueCoreWidth
+              );
+              const blueCoreX = blueCoreBounds.x + blueCoreBounds.width * 0.5;
+              const blueCoreY = blueCoreBounds.y + blueCoreBounds.height * 0.5;
+              const deltaX = blueCoreX - ball.x;
+              const deltaY = blueCoreY - ball.y;
+              const distanceSq = deltaX * deltaX + deltaY * deltaY;
+              if (distanceSq < nearestBlueDistanceSq) {
+                nearestBlueDistanceSq = distanceSq;
+                nearestBlueCore = blueCoreBrick;
               }
-            } else {
-              brickVisualRef.current.set(brick.id, { hitUntil: timestamp + 80 });
             }
-
-            const centerX = brickX + brickWidth / 2;
-            const centerY = brickY + BRICK_HEIGHT / 2;
-            if (Math.abs(ball.x - centerX) > Math.abs(ball.y - centerY)) {
-              ball.vx *= -1;
-            } else {
-              ball.vy *= -1;
+            if (nearestBlueCore) {
+              const blueCoreWidth = getBrickWidth();
+              const blueCoreBounds = getBrickBounds(
+                nearestBlueCore,
+                BRICK_GAP + nearestBlueCore.col * (blueCoreWidth + BRICK_GAP),
+                BRICK_TOP + nearestBlueCore.row * (BRICK_HEIGHT + BRICK_GAP),
+                blueCoreWidth
+              );
+              const awayX = ball.x - (blueCoreBounds.x + blueCoreBounds.width * 0.5);
+              const awayY = ball.y - (blueCoreBounds.y + blueCoreBounds.height * 0.5);
+              const awayDistance = Math.hypot(awayX, awayY);
+              if (awayDistance > 0.001) {
+                const blueCoreSizeScale = getObjectiveSizeScale(nearestBlueCore);
+                const blueCoreForceScale = 1 + (1 - blueCoreSizeScale) * 1.8;
+                const blueCoreInfluenceRadius = 205 + (1 - blueCoreSizeScale) * 85;
+                if (awayDistance < blueCoreInfluenceRadius) {
+                  const repelStrength =
+                    ((blueCoreInfluenceRadius - awayDistance) / blueCoreInfluenceRadius) * 390 * blueCoreForceScale;
+                  const resistance = ball.coreCharged ? 0.65 : 1;
+                  ball.vx += (awayX / awayDistance) * repelStrength * resistance * dtSeconds;
+                  ball.vy += (awayY / awayDistance) * repelStrength * resistance * dtSeconds;
+                }
+              }
             }
-            break;
           }
 
-          if (ball.y >= CANVAS_HEIGHT + 12) {
+          if (homingBarrageActive && bricksRef.current.length > 0) {
+            let nearestBrick: Brick | null = null;
+            let nearestDistanceSq = Number.POSITIVE_INFINITY;
+            for (const brick of bricksRef.current) {
+              if (brick.hp <= 0) {
+                continue;
+              }
+              const targetX = BRICK_GAP + brick.col * (brickWidth + BRICK_GAP) + brickWidth * 0.5;
+              const targetY = BRICK_TOP + brick.row * (BRICK_HEIGHT + BRICK_GAP) + BRICK_HEIGHT * 0.5;
+              const dx = targetX - ball.x;
+              const dy = targetY - ball.y;
+              const distanceSq = dx * dx + dy * dy;
+              if (distanceSq < nearestDistanceSq) {
+                nearestDistanceSq = distanceSq;
+                nearestBrick = brick;
+              }
+            }
+            if (nearestBrick) {
+              const targetX = BRICK_GAP + nearestBrick.col * (brickWidth + BRICK_GAP) + brickWidth * 0.5;
+              const targetY = BRICK_TOP + nearestBrick.row * (BRICK_HEIGHT + BRICK_GAP) + BRICK_HEIGHT * 0.5;
+              const toTargetX = targetX - ball.x;
+              const toTargetY = targetY - ball.y;
+              const toTargetLength = Math.hypot(toTargetX, toTargetY);
+              if (toTargetLength > 0.001) {
+                const homingSpeed = BALL_SPEED * 1.45;
+                ball.vx = (toTargetX / toTargetLength) * homingSpeed;
+                ball.vy = (toTargetY / toTargetLength) * homingSpeed;
+              }
+            }
+          }
+
+          const travelX = ball.vx * dtSeconds;
+          const travelY = ball.vy * dtSeconds;
+          const travelDistance = Math.hypot(travelX, travelY);
+          const subSteps = Math.max(1, Math.min(6, Math.ceil(travelDistance / (BALL_RADIUS * 0.65))));
+          const stepX = travelX / subSteps;
+          const stepY = travelY / subSteps;
+
+          for (let stepIndex = 0; stepIndex < subSteps; stepIndex += 1) {
+            ball.x += stepX;
+            ball.y += stepY;
+
+            if (ball.x <= BALL_RADIUS) {
+              ball.x = BALL_RADIUS;
+              ball.vx = Math.abs(ball.vx);
+              ball.coreCharged = true;
+              pendingBounceCountRef.current += 1;
+            } else if (ball.x >= CANVAS_WIDTH - BALL_RADIUS) {
+              ball.x = CANVAS_WIDTH - BALL_RADIUS;
+              ball.vx = -Math.abs(ball.vx);
+              ball.coreCharged = true;
+              pendingBounceCountRef.current += 1;
+            }
+
+            if (ball.y <= BALL_RADIUS) {
+              ball.y = BALL_RADIUS;
+              ball.vy = Math.abs(ball.vy);
+              ball.coreCharged = true;
+              pendingBounceCountRef.current += 1;
+            }
+            if (homingBarrageActive && ball.y >= CANVAS_HEIGHT - BALL_RADIUS) {
+              ball.y = CANVAS_HEIGHT - BALL_RADIUS;
+              ball.vy = -Math.abs(ball.vy);
+              pendingBounceCountRef.current += 1;
+            }
+
+            let hitBrick = false;
+            for (const brick of bricksRef.current) {
+              if (brick.hp <= 0) {
+                continue;
+              }
+              const brickX = BRICK_GAP + brick.col * (brickWidth + BRICK_GAP);
+              const brickY = BRICK_TOP + brick.row * (BRICK_HEIGHT + BRICK_GAP);
+              const brickBounds = getBrickBounds(brick, brickX, brickY, brickWidth);
+              const collisionX = brickBounds.x;
+              const collisionY = brickBounds.y;
+              const collisionWidth = brickBounds.width;
+              const collisionHeight = brickBounds.height;
+              if (
+                ball.x + BALL_RADIUS < collisionX ||
+                ball.x - BALL_RADIUS > collisionX + collisionWidth ||
+                ball.y + BALL_RADIUS < collisionY ||
+                ball.y - BALL_RADIUS > collisionY + collisionHeight
+              ) {
+                continue;
+              }
+
+              const nearestX = clampCoordinate(ball.x, collisionX, collisionX + collisionWidth);
+              const nearestY = clampCoordinate(ball.y, collisionY, collisionY + collisionHeight);
+              const deltaX = ball.x - nearestX;
+              const deltaY = ball.y - nearestY;
+              const distanceSq = deltaX * deltaX + deltaY * deltaY;
+              const radiusSq = BALL_RADIUS * BALL_RADIUS;
+              if (distanceSq > radiusSq) {
+                continue;
+              }
+              const hitVerticalEdge =
+                Math.abs(nearestX - collisionX) < 0.001 || Math.abs(nearestX - (collisionX + collisionWidth)) < 0.001;
+              const hitHorizontalEdge =
+                Math.abs(nearestY - collisionY) < 0.001 || Math.abs(nearestY - (collisionY + collisionHeight)) < 0.001;
+              const cornerHit = hitVerticalEdge && hitHorizontalEdge;
+
+              const isCrit = Math.random() < activeRun.critChance;
+              const baseDamage = activeRun.damage * (isCrit ? 2 : 1);
+              const chargedDamage = Math.max(1, Math.round(baseDamage * (1 + objectiveCharge * 1.4)));
+              const variant = brick.kind ?? 'standard';
+              const damage =
+                variant === 'reinforced'
+                  ? Math.max(1, Math.round(chargedDamage * 0.75))
+                  : variant === 'splinter'
+                    ? Math.max(1, Math.round(chargedDamage * 0.9))
+                    : chargedDamage;
+
+              let normalX = 0;
+              let normalY = 0;
+              if (distanceSq > 0.0001) {
+                const distance = Math.sqrt(distanceSq);
+                normalX = deltaX / distance;
+                normalY = deltaY / distance;
+              } else if (Math.abs(ball.vx) > Math.abs(ball.vy)) {
+                normalX = ball.vx > 0 ? -1 : 1;
+              } else {
+                normalY = ball.vy > 0 ? -1 : 1;
+              }
+
+              const impactSide = getImpactSideFromVelocity(ball, { x: normalX, y: normalY });
+              const objectiveCanTakeDamage =
+                variant !== 'objective' ||
+                homingBarrageActive ||
+                ball.coreCharged ||
+                (brick.coreVariant ?? 'yellow') !== 'yellow';
+              if (variant === 'objective' && !objectiveCanTakeDamage) {
+                brickVisualRef.current.set(brick.id, { hitUntil: timestamp + 95 });
+                for (let burst = 0; burst < 10; burst += 1) {
+                  const angle = (Math.PI * 2 * burst) / 10 + Math.random() * 0.35;
+                  const speed = 70 + Math.random() * 85;
+                  breakParticlesRef.current.push({
+                    x: ball.x,
+                    y: ball.y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 25,
+                    radius: 1.6 + Math.random() * 1.5,
+                    lifeMs: 180 + Math.random() * 120,
+                    ageMs: 0,
+                    color: 'rgba(248, 113, 113, ALPHA)',
+                    kind: burst % 2 === 0 ? 'spark' : 'shard',
+                    rotation: Math.random() * Math.PI * 2,
+                    rotationVelocity: (Math.random() - 0.5) * 9,
+                    glow: 8,
+                  });
+                }
+                ball.active = false;
+                hitBrick = true;
+                break;
+              }
+              const canDamage =
+                objectiveCanTakeDamage &&
+                (homingBarrageActive || variant !== 'unbreakable' || objectiveCharge >= 1) &&
+                (variant !== 'oneway' || !brick.weakSide || brick.weakSide === impactSide);
+
+              if (canDamage) {
+                if (homingBarrageActive || (variant === 'unbreakable' && objectiveCharge >= 1)) {
+                  brick.hp = 0;
+                } else {
+                  brick.hp -= damage;
+                }
+                touchedBrickThisFrame = true;
+                brickVisualRef.current.set(brick.id, { hitUntil: timestamp + 120 });
+                const isObjective = variant === 'objective';
+                if (isObjective) {
+                  coreShakeUntilRef.current = Math.max(coreShakeUntilRef.current, timestamp + 170);
+                  ball.coreCharged = false;
+                }
+                const baseManaReward = isObjective
+                  ? (isCrit ? BALANCE.objectiveManaRewardCrit : BALANCE.objectiveManaRewardNormal)
+                  : isCrit
+                  ? BALANCE.brickManaRewardCrit
+                  : BALANCE.brickManaRewardNormal;
+                rewards.mana += activeRun.manaMultiplier * baseManaReward;
+                if (brick.hp <= 0) {
+                  destroyBrick(brick, ball);
+                }
+              } else {
+                brickVisualRef.current.set(brick.id, { hitUntil: timestamp + 80 });
+              }
+
+              const penetration = BALL_RADIUS - Math.sqrt(Math.max(distanceSq, 0));
+              if (penetration > 0) {
+                ball.x += normalX * (penetration + 0.05);
+                ball.y += normalY * (penetration + 0.05);
+              }
+              const velocityDotNormal = ball.vx * normalX + ball.vy * normalY;
+              if (velocityDotNormal < 0) {
+                ball.vx -= 2 * velocityDotNormal * normalX;
+                ball.vy -= 2 * velocityDotNormal * normalY;
+              } else if (Math.abs(normalX) > Math.abs(normalY)) {
+                ball.vx *= -1;
+              } else {
+                ball.vy *= -1;
+              }
+              pendingBounceCountRef.current += 1;
+              if (variant !== 'objective') {
+                ball.coreCharged = true;
+              }
+
+              if (cornerHit) {
+                const speed = Math.hypot(ball.vx, ball.vy);
+                const minCornerComponent = speed * 0.45;
+                if (Math.abs(ball.vx) < minCornerComponent) {
+                  const horizontalSign = ball.vx === 0 ? (normalX !== 0 ? normalX : 1) : Math.sign(ball.vx);
+                  ball.vx = horizontalSign * minCornerComponent;
+                }
+                if (Math.abs(ball.vy) < minCornerComponent) {
+                  const verticalSign = ball.vy === 0 ? (normalY !== 0 ? normalY : -1) : Math.sign(ball.vy);
+                  ball.vy = verticalSign * minCornerComponent;
+                }
+                const normalizedSpeed = Math.hypot(ball.vx, ball.vy);
+                if (normalizedSpeed > 0.0001) {
+                  const speedScale = speed / normalizedSpeed;
+                  ball.vx *= speedScale;
+                  ball.vy *= speedScale;
+                }
+              }
+
+              if (homingBarrageActive) {
+                ball.vx = -ball.vx * 0.72 + (Math.random() - 0.5) * 120;
+                ball.vy = -Math.sign(ball.vy || -1) * Math.max(120, Math.abs(ball.vy) * 0.72);
+              }
+
+              hitBrick = true;
+              break;
+            }
+
+            if (hitBrick) {
+              break;
+            }
+          }
+
+          if (!homingBarrageActive && ball.y >= CANVAS_HEIGHT + 12) {
             ball.active = false;
           }
         }
@@ -1416,6 +2860,30 @@ export default function RogueBrickPage() {
           }
         }
         ballsRef.current = ballsRef.current.filter((ball) => ball.active);
+        if (breachCleanupQueuedRef.current) {
+          breachCleanupQueuedRef.current = false;
+          ballsRef.current = [];
+          launchQueueRef.current = [];
+          if (bricksRef.current.length > 0) {
+            launchShotRef.current({ x: 0, y: -1 }, { forceHoming: true });
+            return;
+          }
+        }
+        if (homingBarrageActive) {
+          if (bricksRef.current.length === 0) {
+            ballsRef.current = [];
+            launchQueueRef.current = [];
+          } else if (ballsRef.current.length === 0) {
+            ballsRef.current.push({
+              x: CANVAS_WIDTH / 2,
+              y: LAUNCHER_Y,
+              vx: 0,
+              vy: -BALL_SPEED * 1.35,
+              active: true,
+              coreCharged: false,
+            });
+          }
+        }
 
         if (touchedBrickThisFrame) {
           noHitElapsedMs = 0;
@@ -1434,7 +2902,12 @@ export default function RogueBrickPage() {
         draw();
 
         const finished = launchQueueRef.current.length === 0 && ballsRef.current.length === 0;
+        const shouldHoldForFinalExplosion = finalBrickCinematicUntilRef.current > timestamp;
         if (finished) {
+          if (shouldHoldForFinalExplosion) {
+            animationRef.current = requestAnimationFrame(frame);
+            return;
+          }
           finalizeTurn();
           return;
         }
@@ -1447,6 +2920,20 @@ export default function RogueBrickPage() {
     [draw, finalizeTurn, spawnBreakParticles]
   );
 
+  useEffect(
+    () => () => {
+      if (coreBreachFlashTimeoutRef.current !== null) {
+        window.clearTimeout(coreBreachFlashTimeoutRef.current);
+        coreBreachFlashTimeoutRef.current = null;
+      }
+      if (coreBreachLaunchFrameRef.current !== null) {
+        window.cancelAnimationFrame(coreBreachLaunchFrameRef.current);
+        coreBreachLaunchFrameRef.current = null;
+      }
+    },
+    []
+  );
+
   const reclaimShot = useCallback(() => {
     if (!shotInFlightRef.current) {
       return;
@@ -1457,8 +2944,61 @@ export default function RogueBrickPage() {
     finalizeTurn();
   }, [finalizeTurn]);
 
+  const resetGame = useCallback(() => {
+    const confirmed = window.confirm(
+      'Reset all Rogue Brick progress and abandon the current run? This cannot be undone.'
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    if (idleAnimationRef.current !== null) {
+      cancelAnimationFrame(idleAnimationRef.current);
+      idleAnimationRef.current = null;
+    }
+    if (animationRef.current !== null) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
+
+    shotInFlightRef.current = false;
+    setShotInProgress(false);
+    setIsDragging(false);
+    setAimPoint(null);
+    launchQueueRef.current = [];
+    launchElapsedRef.current = 0;
+    ballsRef.current = [];
+    bricksRef.current = [];
+    breakParticlesRef.current = [];
+    brickVisualRef.current.clear();
+    pendingRewardsRef.current = { mana: 0, coins: 0 };
+    pendingDestroyedBricksRef.current = 0;
+    setAutoHomingLaunchPending(false);
+    setIsCoreBreachFlashing(false);
+    setLiveHud({
+      destroyedBricks: 0,
+      manaEarned: 0,
+      coinsEarned: 0,
+      remainingBricks: 0,
+    });
+
+    const resetProfile = defaultProfile();
+    profileRef.current = resetProfile;
+    setProfile(resetProfile);
+    setPendingSync(true);
+    setServerUpdatedAt(0);
+    setSyncStatus('pending');
+
+    if (storageKey) {
+      localStorage.removeItem(storageKey);
+    }
+  }, [storageKey]);
+
   useEffect(() => {
     return () => {
+      if (idleAnimationRef.current !== null) {
+        cancelAnimationFrame(idleAnimationRef.current);
+      }
       if (animationRef.current !== null) {
         cancelAnimationFrame(animationRef.current);
       }
@@ -1466,6 +3006,8 @@ export default function RogueBrickPage() {
   }, []);
 
   const startRun = useCallback(() => {
+    setAutoHomingLaunchPending(false);
+    setIsCoreBreachFlashing(false);
     commitProfile((draft) => {
       const seed = Math.floor(Math.random() * 4_000_000_000) >>> 0;
       const upgrades = draft.permanentUpgrades;
@@ -1484,8 +3026,9 @@ export default function RogueBrickPage() {
         rngState: seed,
         stage: 'board',
         level: 1,
-        maxLevels: 18,
+        maxLevels: BALANCE.maxLevels,
         boardsCleared: 0,
+        nextStoreBoard: 0,
         mana: startingMana,
         coins: startingCoins,
         ballCount: startingBalls,
@@ -1496,15 +3039,24 @@ export default function RogueBrickPage() {
         powers: {},
         levelGoalBricks: 1,
         levelBricksDestroyed: 0,
-        board: { turn: 1, bricks: [] },
+        coreCharge: 0,
+        homingBarrageReady: false,
+        board: { turn: 1, objectiveBrickId: null, objectiveBrickIds: [], bricks: [] },
         pendingPowerOffers: [],
         pendingStoreOffers: [],
         hubMessage: 'Run started.',
+        boardShotsTaken: 0,
+        boardBounceCount: 0,
+        lastBoardSummary: null,
+        boardSummaryAcknowledged: true,
       };
+      runState.nextStoreBoard = randomInt(runState, BALANCE.storeIntervalMinBoards, BALANCE.storeIntervalMaxBoards);
 
       runState.board = generateBoard(runState);
-      runState.levelGoalBricks = calculateLevelGoal(countBreakableBricks(runState.board.bricks));
+      runState.levelGoalBricks = calculateLevelGoal(runState.board.bricks.length);
       runState.levelBricksDestroyed = 0;
+      runState.coreCharge = 0;
+      runState.homingBarrageReady = false;
       draft.run = runState;
       draft.lastRunSummary = null;
     }, true);
@@ -1517,6 +3069,8 @@ export default function RogueBrickPage() {
   }, [commitProfile]);
 
   const continueToBoard = useCallback(() => {
+    setAutoHomingLaunchPending(false);
+    setIsCoreBreachFlashing(false);
     commitProfile((draft) => {
       if (!draft.run) {
         return;
@@ -1526,11 +3080,22 @@ export default function RogueBrickPage() {
       }
       draft.run.stage = 'board';
       draft.run.board = generateBoard(draft.run);
-      draft.run.levelGoalBricks = calculateLevelGoal(countBreakableBricks(draft.run.board.bricks));
+      draft.run.levelGoalBricks = calculateLevelGoal(draft.run.board.bricks.length);
       draft.run.levelBricksDestroyed = 0;
+      draft.run.coreCharge = 0;
+      draft.run.homingBarrageReady = false;
+      if (draft.run.pendingStoreOffers.length > 0) {
+        draft.run.nextStoreBoard =
+          draft.run.boardsCleared +
+          randomInt(draft.run, BALANCE.storeIntervalMinBoards, BALANCE.storeIntervalMaxBoards);
+      }
       draft.run.pendingPowerOffers = [];
       draft.run.pendingStoreOffers = [];
       draft.run.hubMessage = `Entering board ${draft.run.level} of ${draft.run.maxLevels}.`;
+      draft.run.boardShotsTaken = 0;
+      draft.run.boardBounceCount = 0;
+      draft.run.lastBoardSummary = null;
+      draft.run.boardSummaryAcknowledged = true;
     }, true);
     setLiveHud({
       destroyedBricks: 0,
@@ -1540,41 +3105,75 @@ export default function RogueBrickPage() {
     });
   }, [commitProfile]);
 
-  const visitStore = useCallback(() => {
+  const acknowledgeBoardSummary = useCallback(() => {
     commitProfile((draft) => {
-      if (!draft.run || draft.run.stage !== 'hub') {
+      if (!draft.run || draft.run.stage === 'board') {
         return;
       }
-      draft.run.stage = 'store';
-      if (draft.run.pendingStoreOffers.length === 0) {
-        draft.run.pendingStoreOffers = makeStoreOffers(draft.run);
-      }
+      draft.run.boardSummaryAcknowledged = true;
     }, true);
   }, [commitProfile]);
 
-  const gambleForPower = useCallback(() => {
-    commitProfile((draft) => {
-      if (!draft.run || draft.run.stage !== 'hub') {
-        return;
-      }
-      const runState = draft.run;
-      const gambleCost = 20;
-      if (runState.coins < gambleCost) {
-        runState.hubMessage = 'Not enough coins to gamble.';
-        return;
-      }
+  const gambleForPower = useCallback((): GambleOutcome | null => {
+    const currentProfile = profileRef.current;
+    if (!currentProfile?.run || (currentProfile.run.stage !== 'hub' && currentProfile.run.stage !== 'store')) {
+      return null;
+    }
+
+    const nextProfile = cloneProfile(currentProfile);
+    if (!nextProfile.run || (nextProfile.run.stage !== 'hub' && nextProfile.run.stage !== 'store')) {
+      return null;
+    }
+
+    const runState = nextProfile.run;
+    const gambleCost = BALANCE.gambleBaseCost + Math.floor(runState.level * BALANCE.gambleCostPerLevel);
+    let outcome: GambleOutcome;
+
+    if (runState.coins < gambleCost) {
+      outcome = {
+        tone: 'failure',
+        title: 'Gamble Failed',
+        message: 'Not enough coins to gamble.',
+      };
+    } else {
       runState.coins -= gambleCost;
-      const lucky = nextRandom(runState) < 0.7;
-      if (!lucky) {
-        runState.hubMessage = 'The gamble failed. Better luck next time.';
-        return;
-      }
+      const roll = nextRandom(runState);
 
-      const template = POWER_POOL[randomInt(runState, 0, POWER_POOL.length - 1)];
-      template.apply(runState);
-      runState.hubMessage = `Gamble success: ${template.name}.`;
-    }, true);
-  }, [commitProfile]);
+      if (roll >= BALANCE.gambleSuccessChance) {
+        if (roll >= BALANCE.gambleBackfireThreshold) {
+          runState.ballCount = Math.max(BALANCE.gambleBackfireMinBalls, runState.ballCount - 1);
+          runState.damage = Math.max(1, runState.damage - 1);
+          runState.mana = Math.max(0, runState.mana - BALANCE.gambleBackfireManaLoss);
+          outcome = {
+            tone: 'backfire',
+            title: 'Backfire',
+            message: 'You lost 1 ball, 1 damage, and some mana.',
+          };
+        } else {
+          outcome = {
+            tone: 'failure',
+            title: 'Gamble Failed',
+            message: 'Coins spent. No power gained.',
+          };
+        }
+      } else {
+        const template = POWER_POOL[randomInt(runState, 0, POWER_POOL.length - 1)];
+        template.apply(runState);
+        outcome = {
+          tone: 'success',
+          title: 'Gamble Success',
+          message: `You gained ${template.name}.`,
+        };
+      }
+      completeStoreStop(runState, 'Gamble resolved.');
+    }
+
+    nextProfile.updatedAt = Date.now();
+    setProfile(nextProfile);
+    setPendingSync(true);
+    setSyncStatus('pending');
+    return outcome;
+  }, []);
 
   const choosePowerUp = useCallback(
     (offerId: string) => {
@@ -1600,12 +3199,15 @@ export default function RogueBrickPage() {
         template.apply(runState);
         runState.pendingPowerOffers = [];
         runState.stage = 'hub';
-        runState.pendingStoreOffers = makeStoreOffers(runState);
         runState.hubMessage = `${template.name} acquired.`;
       }, true);
     },
     [commitProfile]
   );
+
+  useEffect(() => {
+    launchShotRef.current = launchShot;
+  }, [launchShot]);
 
   const skipPowerUp = useCallback(() => {
     commitProfile((draft) => {
@@ -1614,7 +3216,6 @@ export default function RogueBrickPage() {
       }
       draft.run.pendingPowerOffers = [];
       draft.run.stage = 'hub';
-      draft.run.pendingStoreOffers = makeStoreOffers(draft.run);
       draft.run.hubMessage = 'Skipped power-up selection.';
     }, true);
   }, [commitProfile]);
@@ -1622,7 +3223,7 @@ export default function RogueBrickPage() {
   const buyStoreOffer = useCallback(
     (offerId: string) => {
       commitProfile((draft) => {
-        if (!draft.run || draft.run.stage !== 'store') {
+        if (!draft.run || (draft.run.stage !== 'store' && draft.run.stage !== 'hub')) {
           return;
         }
         const runState = draft.run;
@@ -1642,8 +3243,7 @@ export default function RogueBrickPage() {
 
         runState.coins -= offer.coinCost;
         template.apply(runState);
-        offer.purchased = true;
-        runState.hubMessage = `Purchased ${offer.name}.`;
+        completeStoreStop(runState, `Purchased ${offer.name}.`);
       }, true);
     },
     [commitProfile]
@@ -1654,8 +3254,8 @@ export default function RogueBrickPage() {
       if (!draft.run || draft.run.stage !== 'store') {
         return;
       }
-      draft.run.stage = 'hub';
-      draft.run.hubMessage = 'Left the store.';
+      const runState = draft.run;
+      completeStoreStop(runState, 'Left the store.');
     }, true);
   }, [commitProfile]);
 
@@ -1766,6 +3366,81 @@ export default function RogueBrickPage() {
     clearAim();
   }, [clearAim]);
 
+  const handlePowerChipClick = useCallback((powerId: string, chipElement: HTMLButtonElement) => {
+    if (selectedPowerId === powerId) {
+      setSelectedPowerId(null);
+      return;
+    }
+
+    const stripRect = powersStripRef.current?.getBoundingClientRect();
+    const chipRect = chipElement.getBoundingClientRect();
+    if (stripRect) {
+      const chipCenter = chipRect.left - stripRect.left + chipRect.width / 2;
+      const maxLeft = Math.max(8, stripRect.width - POWER_POPOVER_WIDTH_PX - 8);
+      const left = Math.min(maxLeft, Math.max(8, chipCenter - POWER_POPOVER_WIDTH_PX / 2));
+      const arrow = Math.min(POWER_POPOVER_WIDTH_PX - 18, Math.max(18, chipCenter - left));
+      setPowerPopoverLayout({ left, arrow });
+    }
+    setSelectedPowerId(powerId);
+  }, [selectedPowerId]);
+
+  useEffect(() => {
+    if (!run || run.stage === 'board') {
+      setSelectedResourceHelp(null);
+    }
+  }, [run]);
+
+  useEffect(() => {
+    if (!run || (run.stage !== 'hub' && run.stage !== 'store')) {
+      if (gambleRevealTimeoutRef.current) {
+        clearTimeout(gambleRevealTimeoutRef.current);
+        gambleRevealTimeoutRef.current = null;
+      }
+      setShowGambleConfirm(false);
+      setIsGambleRevealing(false);
+      setGambleOutcome(null);
+    }
+  }, [run]);
+
+  useEffect(
+    () => () => {
+      if (gambleRevealTimeoutRef.current) {
+        clearTimeout(gambleRevealTimeoutRef.current);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!selectedPowerId && !selectedResourceHelp && !showGambleConfirm && !isGambleRevealing && !gambleOutcome) {
+      return;
+    }
+
+    const handleGlobalPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+      if (target.closest('[data-popover-surface="true"]')) {
+        return;
+      }
+      if (isGambleRevealing) {
+        return;
+      }
+      if (gambleOutcome) {
+        return;
+      }
+      setSelectedPowerId(null);
+      setSelectedResourceHelp(null);
+      setShowGambleConfirm(false);
+    };
+
+    document.addEventListener('pointerdown', handleGlobalPointerDown);
+    return () => {
+      document.removeEventListener('pointerdown', handleGlobalPointerDown);
+    };
+  }, [selectedPowerId, selectedResourceHelp, showGambleConfirm, isGambleRevealing, gambleOutcome]);
+
   const syncLabel = useMemo(() => {
     if (!isOnline) {
       return 'Offline (local progress only)';
@@ -1782,6 +3457,30 @@ export default function RogueBrickPage() {
     return 'Idle';
   }, [isOnline, pendingSync, syncStatus]);
 
+  const gambleCoinCost = run
+    ? BALANCE.gambleBaseCost + Math.floor(run.level * BALANCE.gambleCostPerLevel)
+    : BALANCE.gambleBaseCost;
+  const canAffordGamble = (run?.coins ?? 0) >= gambleCoinCost;
+  const startGambleReveal = useCallback(() => {
+    if (isGambleRevealing || !canAffordGamble) {
+      return;
+    }
+    setShowGambleConfirm(false);
+    setGambleOutcome(null);
+    setIsGambleRevealing(true);
+    if (gambleRevealTimeoutRef.current) {
+      clearTimeout(gambleRevealTimeoutRef.current);
+    }
+    gambleRevealTimeoutRef.current = setTimeout(() => {
+      gambleRevealTimeoutRef.current = null;
+      setIsGambleRevealing(false);
+      const outcome = gambleForPower();
+      if (outcome) {
+        setGambleOutcome(outcome);
+      }
+    }, 900);
+  }, [canAffordGamble, gambleForPower, isGambleRevealing]);
+
   if (isLoading || !profile) {
     return <div className="loading">Loading hidden module...</div>;
   }
@@ -1794,6 +3493,30 @@ export default function RogueBrickPage() {
   const boardBricksRemaining = run?.board.bricks.length ?? 0;
   const displayBricksRemaining =
     shotInProgress && hasActiveRun ? liveHud.remainingBricks : boardBricksRemaining;
+  const activeBoardBricks = shotInProgress && hasActiveRun ? bricksRef.current : (run?.board.bricks ?? []);
+  const objectiveBrickIds = run ? getObjectiveBrickIds(run.board) : [];
+  const objectiveBricks = objectiveBrickIds
+    .map((id) => activeBoardBricks.find((brick) => brick.id === id) ?? null)
+    .filter((brick): brick is Brick => Boolean(brick));
+  const objectiveCount = objectiveBricks.length;
+  const coreChargeProgress = objectiveBricks.length
+    ? Math.max(
+        ...objectiveBricks.map((brick) => Math.max(0, Math.min(1, 1 - brick.hp / Math.max(1, brick.maxHp))))
+      )
+    : hasActiveRun
+      ? run?.coreCharge ?? 1
+      : 0;
+  const barrageReady = Boolean(run?.homingBarrageReady);
+  const powerShotBonusPct = Math.round(coreChargeProgress * 140);
+  const objectiveStatusLabel = objectiveBricks.length
+    ? `${objectiveCount > 1 ? `${objectiveCount} cores active | ` : ''}${
+        objectiveBricks
+          .map((brick) => getCoreVariantLabel(brick.coreVariant))
+          .join(' • ')
+      } | Power Shot +${powerShotBonusPct}%`
+    : hasActiveRun
+      ? `Core drained | Power Shot +${powerShotBonusPct}%${barrageReady ? ' | Barrage ready' : ''}`
+      : 'No active core';
   const boardHpRemaining = run
     ? Math.round(run.board.bricks.reduce((sum, brick) => sum + Math.max(0, brick.hp), 0))
     : 0;
@@ -1809,6 +3532,120 @@ export default function RogueBrickPage() {
   const overallScore = calculateOverallScore(run, liveHud);
   const overallProgressPct = calculateOverallProgress(run, liveHud);
   const showBoardOverlay = !hasActiveRun || run?.stage !== 'board';
+  const isBetweenLevelHub = run?.stage === 'hub';
+  const permanentPowerIndicators: ActivePowerIndicator[] = PERMANENT_UPGRADES.map((upgrade) => {
+    const state = profile.permanentUpgrades[upgrade.key];
+    return {
+      id: `perm-${upgrade.key}`,
+      name: upgrade.name,
+      description: upgrade.description,
+      currentLevel: state.rank,
+      barSlots: upgrade.maxRank,
+      baseColor: POWER_BASE_COLORS[upgrade.key] ?? '#22d3ee',
+      backdropIcon: POWER_BACKDROP_ICONS[upgrade.key] ?? '◌',
+      levelLabel: `L${state.rank}`,
+      statusLabel: state.rank > 0 ? (state.enabled ? 'Enabled' : 'Owned') : 'Not owned',
+      maxLevelLabel: `L${upgrade.maxRank}`,
+    };
+  });
+  const runPowerTemplates = [...POWER_POOL, ...STORE_POOL];
+  const runPowerIndicators: ActivePowerIndicator[] = runPowerTemplates
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((template) => {
+      const rank = run?.powers?.[template.id] ?? 0;
+      return {
+        id: `run-${template.id}`,
+        name: template.name,
+        description: template.description,
+        currentLevel: rank,
+        barSlots: 5,
+        baseColor: POWER_BASE_COLORS[template.id] ?? '#60a5fa',
+        backdropIcon: POWER_BACKDROP_ICONS[template.id] ?? '◌',
+        levelLabel: `x${rank}`,
+        statusLabel: rank > 0 ? 'Purchased' : 'Not purchased',
+        maxLevelLabel: 'Uncapped',
+      };
+    });
+  const activePowerIndicators = [...permanentPowerIndicators, ...runPowerIndicators];
+  const selectedPower =
+    activePowerIndicators.find((power) => power.id === selectedPowerId) ?? null;
+  const powerPopoverStyle = {
+    '--power-popover-left': `${powerPopoverLayout.left}px`,
+    '--power-popover-arrow': `${powerPopoverLayout.arrow}px`,
+  } as CSSProperties;
+  const boardSummary = run?.lastBoardSummary ?? null;
+  const shouldGateBoardChoices =
+    run?.stage !== 'board' &&
+    Boolean(boardSummary) &&
+    run?.boardSummaryAcknowledged === false;
+  const shouldShowStoreGamble = Boolean(
+    run &&
+    !shouldGateBoardChoices &&
+    (run.stage === 'hub' || run.stage === 'store')
+  );
+  const renderStoreOfferCard = (offer: StoreOffer) => {
+    const currentLevel = run?.powers?.[offer.id] ?? 0;
+    const nextLevel = currentLevel + 1;
+    const startsNewStack = currentLevel === 0;
+    const previewSlots = 5;
+    const currentActive = Math.min(currentLevel, previewSlots);
+    const nextActive = Math.min(nextLevel, previewSlots);
+    const baseColor = POWER_BASE_COLORS[offer.id] ?? '#60a5fa';
+    const backdropIcon = POWER_BACKDROP_ICONS[offer.id] ?? '◌';
+
+    return (
+      <button
+        type="button"
+        key={offer.id}
+        className="rogue-choice-card"
+        onClick={() => buyStoreOffer(offer.id)}
+        disabled={offer.purchased}
+      >
+        <strong>{offer.name}</strong>
+        <span>{offer.description}</span>
+        <div className="rogue-store-offer-preview">
+          <span className="rogue-store-offer-preview-label">
+            {startsNewStack ? 'Starts new stack' : 'Adds to existing stack'}
+          </span>
+          <div className="rogue-store-offer-bars" aria-hidden="true">
+            <span
+              className="rogue-active-power-chip rogue-store-power-chip"
+              style={{ '--power-base-color': baseColor } as CSSProperties}
+            >
+              <span className="rogue-active-power-backdrop">{backdropIcon}</span>
+              <span className="rogue-active-power-stack">
+                {Array.from({ length: previewSlots }, (_, index) => (
+                  <span
+                    key={`${offer.id}-current-${index}`}
+                    className={`rogue-active-power-segment${index < currentActive ? ' is-active' : ''}`}
+                  />
+                ))}
+              </span>
+            </span>
+            <span className="rogue-store-power-arrow">→</span>
+            <span
+              className="rogue-active-power-chip rogue-store-power-chip is-after"
+              style={{ '--power-base-color': baseColor } as CSSProperties}
+            >
+              <span className="rogue-active-power-backdrop">{backdropIcon}</span>
+              <span className="rogue-active-power-stack">
+                {Array.from({ length: previewSlots }, (_, index) => (
+                  <span
+                    key={`${offer.id}-next-${index}`}
+                    className={`rogue-active-power-segment${index < nextActive ? ' is-active' : ''}`}
+                  />
+                ))}
+              </span>
+            </span>
+          </div>
+          <span className="rogue-store-offer-levels">
+            Current x{currentLevel} → New x{nextLevel}
+          </span>
+        </div>
+        <span>{offer.purchased ? 'Purchased' : `Cost: ${offer.coinCost} coins`}</span>
+      </button>
+    );
+  };
 
   return (
     <div className="rogue-brick-page">
@@ -1849,10 +3686,30 @@ export default function RogueBrickPage() {
               Progress {overallProgressPct}%
               {hasActiveRun ? ` - Level ${run?.level}/${run?.maxLevels}` : ''}
             </span>
-            {hasActiveRun && (
-              <span className="rogue-brick-top-hud-meta">
-                {displayDestroyedBricks}/{run?.levelGoalBricks ?? 0} bricks
-              </span>
+            {hasActiveRun && objectiveBricks.length > 0 && (
+              <div
+                className="rogue-core-progress-visual"
+                aria-label={`Core progress for ${objectiveBricks.length} active core${objectiveBricks.length === 1 ? '' : 's'}`}
+              >
+                {objectiveBricks.map((brick, index) => {
+                  const coreDestroyedPct = Math.round(
+                    Math.max(0, Math.min(1, 1 - brick.hp / Math.max(1, brick.maxHp))) * 100
+                  );
+                  const variantColor = getCoreVariantColor(brick.coreVariant);
+                  return (
+                    <span
+                      key={brick.id}
+                      className="rogue-core-progress-ring"
+                      style={{
+                        background: `conic-gradient(${variantColor} ${coreDestroyedPct * 3.6}deg, rgb(51 65 85 / 0.9) 0deg)`,
+                      }}
+                      aria-label={`${getCoreVariantLabel(brick.coreVariant)} ${index + 1} ${coreDestroyedPct}% complete`}
+                    >
+                      <span className="rogue-core-progress-ring-value">{coreDestroyedPct}%</span>
+                    </span>
+                  );
+                })}
+              </div>
             )}
           </div>
           <div
@@ -1869,10 +3726,75 @@ export default function RogueBrickPage() {
 
         <div className={`rogue-brick-layout${isFocusMode ? ' is-focus-mode' : ''}`}>
           <div className="rogue-brick-canvas-wrap">
-            <div className="rogue-brick-board-frame">
+            <div className={`rogue-brick-board-frame${isBetweenLevelHub ? ' is-between-level' : ''}`}>
               {showBoardOverlay && (
                 <div className="rogue-board-overlay">
-                  <section className="rogue-board-overlay-content">
+                  <section
+                    className={`rogue-board-overlay-content${isBetweenLevelHub ? ' is-between-level' : ''}`}
+                  >
+                    {hasActiveRun && run?.stage !== 'board' && (
+                      <div className="rogue-overlay-resources" aria-label="Current run resources">
+                        <div className="rogue-overlay-resource-wrap">
+                          <button
+                            type="button"
+                            className="rogue-overlay-resource rogue-overlay-resource-button"
+                            onClick={() => setSelectedResourceHelp(selectedResourceHelp === 'mana' ? null : 'mana')}
+                            aria-label={`Mana ${displayMana}. Show details`}
+                            title={`Mana ${displayMana}`}
+                            data-popover-surface="true"
+                          >
+                            <span className="rogue-overlay-resource-icon rogue-overlay-resource-icon-mana" aria-hidden="true" />
+                            <strong>{displayMana}</strong>
+                          </button>
+                          {selectedResourceHelp === 'mana' && (
+                            <section
+                              className="rogue-overlay-resource-popover"
+                              role="dialog"
+                              aria-label="Mana details"
+                              data-popover-surface="true"
+                            >
+                              <div className="rogue-overlay-resource-popover-head">
+                                <strong>Mana</strong>
+                                <button type="button" className="btn-text" onClick={() => setSelectedResourceHelp(null)}>
+                                  Close
+                                </button>
+                              </div>
+                              <p>Mana is spent on between-board power-up choices to improve your current run.</p>
+                            </section>
+                          )}
+                        </div>
+                        <div className="rogue-overlay-resource-wrap">
+                          <button
+                            type="button"
+                            className="rogue-overlay-resource rogue-overlay-resource-button"
+                            onClick={() => setSelectedResourceHelp(selectedResourceHelp === 'coins' ? null : 'coins')}
+                            aria-label={`Coins ${displayCoins}. Show details`}
+                            title={`Coins ${displayCoins}`}
+                            data-popover-surface="true"
+                          >
+                            <span className="rogue-overlay-resource-icon rogue-overlay-resource-icon-coins" aria-hidden="true" />
+                            <strong>{displayCoins}</strong>
+                          </button>
+                          {selectedResourceHelp === 'coins' && (
+                            <section
+                              className="rogue-overlay-resource-popover"
+                              role="dialog"
+                              aria-label="Coin details"
+                              data-popover-surface="true"
+                            >
+                              <div className="rogue-overlay-resource-popover-head">
+                                <strong>Coins</strong>
+                                <button type="button" className="btn-text" onClick={() => setSelectedResourceHelp(null)}>
+                                  Close
+                                </button>
+                              </div>
+                              <p>Coins are used for gambling in hub and for purchases when the store caravan appears.</p>
+                            </section>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     {!hasActiveRun && (
                       <button
                         type="button"
@@ -1884,21 +3806,23 @@ export default function RogueBrickPage() {
                       </button>
                     )}
 
-                    {run?.stage === 'hub' && (
-                      <div className="rogue-choice-grid">
-                        <button type="button" className="btn-primary" onClick={continueToBoard}>
-                          Face Next Board
-                        </button>
-                        <button type="button" className="btn-secondary" onClick={gambleForPower}>
-                          Gamble for Power (20 coins)
-                        </button>
-                        <button type="button" className="btn-secondary" onClick={visitStore}>
-                          Visit Store
-                        </button>
-                      </div>
+                    {run?.stage === 'hub' && !shouldGateBoardChoices && (
+                      <>
+                        <div className="rogue-hub-actions-row">
+                          <button
+                            type="button"
+                            className="btn-primary rogue-hub-action-icon"
+                            onClick={continueToBoard}
+                            aria-label="Face next board"
+                            title="Face next board"
+                          >
+                            ▶
+                          </button>
+                        </div>
+                      </>
                     )}
 
-                    {run?.stage === 'powerup' && (
+                    {run?.stage === 'powerup' && !shouldGateBoardChoices && (
                       <>
                         <h2>Choose a Power-Up (Mana)</h2>
                         <div className="rogue-choice-grid">
@@ -1921,23 +3845,52 @@ export default function RogueBrickPage() {
                       </>
                     )}
 
-                    {run?.stage === 'store' && (
+                    {run?.stage === 'hub' && !shouldGateBoardChoices && run.pendingStoreOffers.length > 0 && (
                       <>
                         <h2>Store</h2>
                         <div className="rogue-choice-grid">
-                          {run.pendingStoreOffers.map((offer) => (
-                            <button
-                              type="button"
-                              key={offer.id}
-                              className="rogue-choice-card"
-                              onClick={() => buyStoreOffer(offer.id)}
-                              disabled={offer.purchased}
-                            >
-                              <strong>{offer.name}</strong>
-                              <span>{offer.description}</span>
-                              <span>{offer.purchased ? 'Purchased' : `Cost: ${offer.coinCost} coins`}</span>
-                            </button>
-                          ))}
+                          {run.pendingStoreOffers.map((offer) => renderStoreOfferCard(offer))}
+                          <button
+                            type="button"
+                            className="rogue-choice-card rogue-store-gamble-card"
+                            onClick={() => {
+                              if (!isGambleRevealing && !gambleOutcome) {
+                                setShowGambleConfirm((prev) => !prev);
+                              }
+                            }}
+                            disabled={isGambleRevealing || Boolean(gambleOutcome)}
+                            data-popover-surface="true"
+                          >
+                            <strong>Gamble</strong>
+                            <span>Take a chance for a random power-up.</span>
+                            <span className="rogue-store-gamble-dice" aria-hidden="true">🎲</span>
+                            <span>{`Cost: ${gambleCoinCost} coin${gambleCoinCost === 1 ? '' : 's'}`}</span>
+                          </button>
+                        </div>
+                      </>
+                    )}
+
+                    {run?.stage === 'store' && !shouldGateBoardChoices && (
+                      <>
+                        <h2>Store</h2>
+                        <div className="rogue-choice-grid">
+                          {run.pendingStoreOffers.map((offer) => renderStoreOfferCard(offer))}
+                          <button
+                            type="button"
+                            className="rogue-choice-card rogue-store-gamble-card"
+                            onClick={() => {
+                              if (!isGambleRevealing && !gambleOutcome) {
+                                setShowGambleConfirm((prev) => !prev);
+                              }
+                            }}
+                            disabled={isGambleRevealing || Boolean(gambleOutcome)}
+                            data-popover-surface="true"
+                          >
+                            <strong>Gamble</strong>
+                            <span>Take a chance for a random power-up.</span>
+                            <span className="rogue-store-gamble-dice" aria-hidden="true">🎲</span>
+                            <span>{`Cost: ${gambleCoinCost} coin${gambleCoinCost === 1 ? '' : 's'}`}</span>
+                          </button>
                         </div>
                         <button type="button" className="btn-primary" onClick={leaveStore}>
                           Return
@@ -1946,7 +3899,115 @@ export default function RogueBrickPage() {
                     )}
 
                     {run?.hubMessage && <p className="rogue-hub-message">{run.hubMessage}</p>}
+                    {shouldShowStoreGamble && (showGambleConfirm || isGambleRevealing || gambleOutcome) && (
+                      <div
+                        className="rogue-gamble-modal-backdrop"
+                        role="presentation"
+                        onClick={() => {
+                          if (!isGambleRevealing && !gambleOutcome) {
+                            setShowGambleConfirm(false);
+                          }
+                        }}
+                      >
+                        <section
+                          className={`rogue-gamble-modal${gambleOutcome ? ` is-${gambleOutcome.tone}` : ''}`}
+                          role="dialog"
+                          aria-label={
+                            isGambleRevealing
+                              ? 'Resolving gamble'
+                              : gambleOutcome
+                                ? 'Gamble result'
+                                : 'Confirm gamble'
+                          }
+                          data-popover-surface="true"
+                        >
+                          {isGambleRevealing ? (
+                            <>
+                              <div className="rogue-gamble-reveal-dice" aria-hidden="true">
+                                🎲
+                              </div>
+                              <p className="rogue-gamble-modal-copy">Rolling fate...</p>
+                            </>
+                          ) : gambleOutcome ? (
+                            <>
+                              <div
+                                className={`rogue-gamble-outcome-icon rogue-gamble-outcome-icon-${gambleOutcome.tone === 'success' ? 'success' : 'bad'}`}
+                                aria-hidden="true"
+                              >
+                                {gambleOutcome.tone === 'success' ? '✓' : '✕'}
+                              </div>
+                              <p className="rogue-gamble-modal-copy">{gambleOutcome.message}</p>
+                              <div className="rogue-gamble-modal-actions">
+                                <button
+                                  type="button"
+                                  className="btn-primary"
+                                  onClick={() => setGambleOutcome(null)}
+                                >
+                                  OK
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <h3>Confirm Gamble</h3>
+                              <p>
+                                Spend <strong>{gambleCoinCost}</strong> coin{gambleCoinCost === 1 ? '' : 's'} to gamble for a random power?
+                              </p>
+                              <div className="rogue-gamble-modal-actions">
+                                <button type="button" className="btn-primary" disabled={!canAffordGamble} onClick={startGambleReveal}>
+                                  Gamble
+                                </button>
+                                <button type="button" className="btn-secondary" onClick={() => setShowGambleConfirm(false)}>
+                                  Cancel
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </section>
+                      </div>
+                    )}
+                    {shouldGateBoardChoices && boardSummary && (
+                      <div className="rogue-board-summary-modal-backdrop">
+                        <section
+                          className="rogue-board-summary rogue-board-summary-modal"
+                          aria-label="Board summary"
+                          role="dialog"
+                          aria-modal="true"
+                        >
+                          <h3>Board Summary</h3>
+                          <ul>
+                            <li>Shots Taken: <strong>{boardSummary.shotsTaken}</strong></li>
+                            <li>Bounce Count: <strong>{boardSummary.bounceCount}</strong></li>
+                          </ul>
+                          {boardSummary.achievements.length > 0 && (
+                            <div className="rogue-board-summary-achievements">
+                              {boardSummary.achievements.map((achievement) => (
+                                <span key={achievement}>{achievement}</span>
+                              ))}
+                            </div>
+                          )}
+                          <button type="button" className="btn-primary" onClick={acknowledgeBoardSummary}>
+                            OK
+                          </button>
+                        </section>
+                      </div>
+                    )}
                   </section>
+                </div>
+              )}
+              {isCoreBreachFlashing && !showBoardOverlay && (
+                <div
+                  className="rogue-core-breach-flash"
+                  style={
+                    {
+                      '--core-breach-glow': getCoreVariantFlashGlow(coreBreachFlashVariant),
+                      '--core-breach-text': getCoreVariantFlashText(coreBreachFlashVariant),
+                      '--core-breach-shadow': getCoreVariantFlashShadow(coreBreachFlashVariant),
+                    } as CSSProperties
+                  }
+                  aria-hidden="true"
+                >
+                  <span>CORE BREACHED</span>
                 </div>
               )}
               <canvas
@@ -1960,16 +4021,85 @@ export default function RogueBrickPage() {
                 onPointerCancel={handlePointerCancel}
               />
             </div>
-            <div className="rogue-brick-board-actions">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={reclaimShot}
-                disabled={!shotInProgress || run?.stage !== 'board'}
-              >
-                Reclaim Balls
-              </button>
-            </div>
+            <section
+              ref={powersStripRef}
+              className="rogue-active-powers-strip"
+              aria-label="Owned and active powers"
+            >
+              <div className="rogue-active-powers-header">Powers</div>
+              <div className="rogue-active-powers-row">
+                {activePowerIndicators.length > 0 ? (
+                  <div className="rogue-active-powers-grid" role="list">
+                    {activePowerIndicators.map((power) => (
+                      <button
+                        type="button"
+                        key={power.id}
+                        className={`rogue-active-power-chip${selectedPowerId === power.id ? ' is-selected' : ''}`}
+                        title={power.name}
+                        aria-label={`${power.name}: ${power.statusLabel}`}
+                        onClick={(event) => handlePowerChipClick(power.id, event.currentTarget)}
+                        style={{ '--power-base-color': power.baseColor } as CSSProperties}
+                        data-popover-surface="true"
+                      >
+                        <span className="rogue-active-power-backdrop" aria-hidden="true">
+                          {power.backdropIcon}
+                        </span>
+                        <span className="rogue-active-power-stack" aria-hidden="true">
+                          {Array.from({ length: power.barSlots }, (_, index) => {
+                            const activeThreshold = Math.min(power.currentLevel, power.barSlots);
+                            const isActive = index < activeThreshold;
+                            return (
+                              <span
+                                key={`${power.id}-${index}`}
+                                className={`rogue-active-power-segment${isActive ? ' is-active' : ''}`}
+                              />
+                            );
+                          })}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="rogue-active-powers-empty">No upgrades or powers owned yet.</p>
+                )}
+                <button
+                  type="button"
+                  className="btn-secondary rogue-active-powers-reclaim"
+                  onClick={reclaimShot}
+                  disabled={!shotInProgress || run?.stage !== 'board'}
+                  aria-label="Reclaim balls"
+                  title="Reclaim balls"
+                >
+                  ⇊
+                </button>
+              </div>
+              {selectedPower && (
+                <section
+                  className="rogue-active-power-hover-card"
+                  style={powerPopoverStyle}
+                  role="dialog"
+                  aria-label={`${selectedPower.name} details`}
+                  data-popover-surface="true"
+                >
+                  <div className="rogue-active-power-detail-head">
+                    <strong>{selectedPower.name}</strong>
+                    <button
+                      type="button"
+                      className="btn-text"
+                      onClick={() => setSelectedPowerId(null)}
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <p>{selectedPower.description}</p>
+                  <div className="rogue-active-power-detail-stats">
+                    <span>Status: {selectedPower.statusLabel}</span>
+                    <span>Current: {selectedPower.levelLabel}</span>
+                    <span>Max: {selectedPower.maxLevelLabel}</span>
+                  </div>
+                </section>
+              )}
+            </section>
         </div>
 
         <aside className="rogue-brick-sidebar">
@@ -1994,12 +4124,15 @@ export default function RogueBrickPage() {
                 <ul className="rogue-stat-list">
                   <li>Level: {run?.level}/{run?.maxLevels}</li>
                   <li>Boards Cleared: {run?.boardsCleared}</li>
+                  <li>{objectiveStatusLabel}</li>
                   <li>Bricks Remaining: {displayBricksRemaining}</li>
                   <li>Board HP Remaining: {boardHpRemaining}</li>
                   <li>Mana: {displayMana}</li>
                   <li>Coins: {displayCoins}</li>
                   <li>Balls: {run?.ballCount}</li>
                   <li>Damage: {run?.damage}</li>
+                  <li>Power Shot: +{powerShotBonusPct}%</li>
+                  <li>Barrage: {barrageReady ? 'Ready' : 'Charging'}</li>
                   <li>Crit: {Math.round((run?.critChance ?? 0) * 100)}%</li>
                 </ul>
               </>
@@ -2013,6 +4146,9 @@ export default function RogueBrickPage() {
             <p>Meta Currency: <strong>{profile.metaCurrency}</strong></p>
             <p>Best Level: <strong>{profile.bestLevel}</strong></p>
             <p>Total Runs: <strong>{profile.totalRuns}</strong></p>
+            <button type="button" className="btn-secondary" onClick={resetGame}>
+              Reset Game (Abandon Run)
+            </button>
           </section>
 
           {!hasActiveRun && profile.lastRunSummary && (
