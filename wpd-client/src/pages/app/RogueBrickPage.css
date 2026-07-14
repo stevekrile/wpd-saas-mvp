@@ -204,6 +204,7 @@ body.rogue-brick-focus-mode {
 }
 
 .rogue-brick-layout {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: 1rem;
@@ -230,12 +231,218 @@ body.rogue-brick-focus-mode {
   justify-content: center;
   align-items: stretch;
   gap: 0.75rem;
-  width: 100%;
+  width: min(100%, 420px);
   overflow: visible;
   touch-action: none;
   overscroll-behavior: contain;
-  max-width: 720px;
+  max-width: 420px;
+  flex: 0 0 auto;
   margin-inline: auto;
+}
+
+.rogue-essence-sidebar {
+  position: absolute;
+  left: 0.5rem;
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 0.7rem;
+}
+
+.rogue-essence-pip-layer {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 6;
+}
+
+.rogue-essence-hit-pip {
+  position: absolute;
+  width: 0.36rem;
+  height: 0.36rem;
+  border-radius: 999px;
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 0.95;
+  box-shadow: 0 0 8px rgb(255 255 255 / 45%);
+  transition:
+    left 520ms cubic-bezier(0.2, 0.75, 0.1, 1),
+    top 520ms cubic-bezier(0.2, 0.75, 0.1, 1),
+    opacity 520ms ease-out,
+    transform 520ms ease-out;
+}
+
+.rogue-essence-hit-pip.is-yellow {
+  background: rgb(251 191 36 / 95%);
+}
+
+.rogue-essence-hit-pip.is-blue {
+  background: rgb(56 189 248 / 96%);
+}
+
+.rogue-essence-hit-pip.is-green {
+  background: rgb(34 197 94 / 96%);
+}
+
+.rogue-essence-vapor-particle {
+  position: absolute;
+  width: 0.44rem;
+  height: 0.44rem;
+  border-radius: 999px;
+  transform: translate(-50%, -50%) scale(0.92);
+  opacity: 0.48;
+  filter: blur(0.2px);
+  pointer-events: none;
+  transition:
+    left 2900ms cubic-bezier(0.2, 0.55, 0.18, 1),
+    top 2900ms cubic-bezier(0.2, 0.55, 0.18, 1),
+    opacity 2900ms ease-out,
+    transform 2900ms ease-out;
+}
+
+.rogue-essence-vapor-particle.is-yellow {
+  background: radial-gradient(circle at 40% 40%, rgb(254 243 199 / 58%), rgb(251 191 36 / 35%) 62%, rgb(217 119 6 / 16%));
+  box-shadow: 0 0 10px rgb(251 191 36 / 20%);
+}
+
+.rogue-essence-vapor-particle.is-blue {
+  background: radial-gradient(circle at 40% 40%, rgb(224 242 254 / 58%), rgb(56 189 248 / 35%) 62%, rgb(3 105 161 / 16%));
+  box-shadow: 0 0 10px rgb(56 189 248 / 20%);
+}
+
+.rogue-essence-vapor-particle.is-green {
+  background: radial-gradient(circle at 40% 40%, rgb(220 252 231 / 58%), rgb(34 197 94 / 34%) 62%, rgb(21 128 61 / 15%));
+  box-shadow: 0 0 10px rgb(34 197 94 / 20%);
+}
+
+.rogue-essence-bottle-wrap {
+  position: relative;
+}
+
+.rogue-essence-bottle-button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+}
+
+.rogue-essence-bottle-button:focus-visible {
+  outline: 2px solid rgb(186 230 253 / 88%);
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+
+.rogue-essence-bottle {
+  position: relative;
+  width: 1.5rem;
+  height: 3.95rem;
+  display: block;
+}
+
+.rogue-essence-bottle-fill-track {
+  position: absolute;
+  left: 17%;
+  right: 17%;
+  top: 18.5%;
+  bottom: 5.5%;
+  border-radius: 0.36rem 0.36rem 0.52rem 0.52rem;
+  overflow: hidden;
+  background: transparent;
+  box-shadow: none;
+}
+
+.rogue-essence-bottle-shell {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0.42;
+  filter: saturate(0.55) brightness(0.74) contrast(0.84);
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+.rogue-essence-bottle-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transition: height 280ms ease;
+  opacity: 0.95;
+  filter: saturate(1.24) brightness(1.05);
+  box-shadow:
+    inset 0 0.12rem 0.24rem rgb(255 255 255 / 14%),
+    0 0 7px rgb(255 255 255 / 10%);
+  animation: rogue-essence-pulse 2.6s ease-in-out infinite;
+}
+
+.rogue-essence-bottle-button.is-yellow .rogue-essence-bottle-fill {
+  --rogue-essence-glow-color: rgb(251 191 36 / 44%);
+  box-shadow:
+    inset 0 0.12rem 0.26rem rgb(255 255 255 / 12%),
+    0 0 10px rgb(251 191 36 / 34%);
+}
+
+.rogue-essence-bottle-button.is-blue .rogue-essence-bottle-fill {
+  --rogue-essence-glow-color: rgb(56 189 248 / 44%);
+  box-shadow:
+    inset 0 0.12rem 0.26rem rgb(255 255 255 / 12%),
+    0 0 10px rgb(56 189 248 / 34%);
+}
+
+.rogue-essence-bottle-button.is-green .rogue-essence-bottle-fill {
+  --rogue-essence-glow-color: rgb(34 197 94 / 42%);
+  box-shadow:
+    inset 0 0.12rem 0.26rem rgb(255 255 255 / 12%),
+    0 0 10px rgb(34 197 94 / 32%);
+}
+
+@keyframes rogue-essence-pulse {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 0.12rem 0.24rem rgb(255 255 255 / 11%),
+      0 0 8px rgb(255 255 255 / 8%),
+      0 0 9px var(--rogue-essence-glow-color, rgb(255 255 255 / 18%));
+  }
+
+  50% {
+    box-shadow:
+      inset 0 0.14rem 0.3rem rgb(255 255 255 / 19%),
+      0 0 10px rgb(255 255 255 / 14%),
+      0 0 15px var(--rogue-essence-glow-color, rgb(255 255 255 / 24%));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rogue-essence-bottle-fill {
+    animation: none;
+  }
+
+  .rogue-essence-vapor-particle {
+    transition: none;
+  }
+}
+
+.rogue-essence-popover {
+  left: calc(100% + 0.45rem);
+  top: 0;
+  width: 12.5rem;
+}
+
+.rogue-essence-popover::before {
+  left: -0.31rem;
+  top: 0.74rem;
+  border-top: 0;
+  border-left: 0;
+  border-right: 1px solid rgb(148 163 184 / 34%);
+  border-bottom: 1px solid rgb(148 163 184 / 34%);
 }
 
 .rogue-brick-layout.is-focus-mode .rogue-brick-canvas-wrap {
@@ -243,21 +450,24 @@ body.rogue-brick-focus-mode {
   min-height: 0;
   background: transparent;
   box-shadow: none;
-  max-width: none;
+  max-width: 420px;
   justify-content: space-between;
 }
 
 .rogue-brick-board-frame {
   position: relative;
-  flex: 1;
-  min-height: 0;
+  flex: 0 0 auto;
   width: 100%;
+  aspect-ratio: 420 / 720;
   display: flex;
   overflow: hidden;
   border-radius: 0.75rem;
 }
 
 .rogue-brick-board-frame .rogue-brick-canvas {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
   opacity: 1;
   transition: opacity 380ms ease, filter 380ms ease;
 }
@@ -729,6 +939,25 @@ body.rogue-brick-focus-mode {
   overflow: hidden;
 }
 
+.rogue-path-tree-stage {
+  position: absolute;
+  inset: 0;
+}
+
+.rogue-path-tree-graph.is-sliding .rogue-path-tree-stage {
+  animation: rogue-path-slide-down 420ms ease-out;
+}
+
+@keyframes rogue-path-slide-down {
+  from {
+    transform: translateY(-12%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
 .rogue-path-tree-level-rail {
   position: absolute;
   inset: 0 auto 0 0;
@@ -786,6 +1015,21 @@ body.rogue-brick-focus-mode {
   background: rgb(51 65 85 / 95%);
   box-shadow: 0 0 0 1px rgb(2 6 23 / 46%);
   z-index: 3;
+}
+
+.rogue-path-tree-node.is-core-yellow {
+  border-color: rgb(251 191 36 / 88%);
+  background: rgb(217 119 6 / 96%);
+}
+
+.rogue-path-tree-node.is-core-blue {
+  border-color: rgb(56 189 248 / 88%);
+  background: rgb(14 116 144 / 94%);
+}
+
+.rogue-path-tree-node.is-core-green {
+  border-color: rgb(34 197 94 / 88%);
+  background: rgb(22 101 52 / 94%);
 }
 
 .rogue-path-tree-node.is-warden-encounter {
@@ -896,6 +1140,30 @@ body.rogue-brick-focus-mode {
 
 .rogue-path-tree-node.is-playable {
   animation: rogue-path-node-pulse 1.45s ease-out infinite;
+}
+
+.rogue-path-tree-upcoming-warden {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 7;
+  padding: 0.2rem 0.42rem;
+  border-radius: 0.42rem;
+  border: 1px solid rgb(251 191 36 / 56%);
+  background: rgb(2 6 23 / 96%);
+  color: rgb(254 240 138 / 98%);
+  font-size: 0.62rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: left 320ms ease, top 320ms ease, transform 320ms ease;
+}
+
+.rogue-path-tree-upcoming-warden.is-top-pinned {
+  transform: translate(-50%, 0);
+}
+
+.rogue-path-tree-upcoming-warden.is-pinned {
+  transform: translate(-50%, calc(100% + 0.46rem));
 }
 
 button.rogue-path-tree-node {
@@ -1885,5 +2153,19 @@ button.rogue-path-tree-node.is-playable:focus-visible {
 
   .rogue-brick-layout-shell.is-focus-mode .rogue-board-overlay-content {
     padding-bottom: calc(14rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .rogue-brick-layout-shell.is-focus-mode .rogue-essence-sidebar {
+    position: fixed;
+    left: max(0.3rem, env(safe-area-inset-left));
+    top: 50%;
+    bottom: auto;
+    transform: translateY(-50%);
+    z-index: 1210;
+    gap: 0.5rem;
+  }
+
+  .rogue-brick-layout-shell.is-focus-mode .rogue-essence-popover {
+    left: calc(100% + 0.35rem);
   }
 }

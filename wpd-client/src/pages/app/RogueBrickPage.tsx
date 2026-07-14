@@ -3,12 +3,16 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { rogueBrickApi } from '../../api/rogueBrickApi';
 import { useWpdAuth } from '../../features/auth/AuthContext';
+import rogueBrickTargetAtlasUrl from '../../assets/rogue-brick-target-atlas.png';
+import yellowEssenceVialShellUrl from '../../assets/essence-vials/vial-yellow-shell.png';
+import blueEssenceVialShellUrl from '../../assets/essence-vials/vial-blue-shell.png';
+import greenEssenceVialShellUrl from '../../assets/essence-vials/vial-green-shell.png';
 import './RogueBrickPage.css';
 
 const CANVAS_WIDTH = 420;
 const CANVAS_HEIGHT = 720;
 const BRICK_COLUMNS = 7;
-const BRICK_GAP = 3;
+const BRICK_GAP = 1.5;
 const BRICK_HEIGHT = 44;
 const BRICK_SIZE_SCALE = 0.7;
 const STANDARD_BRICK_MIN_SCALE = 0.58;
@@ -38,11 +42,22 @@ const BOARD_ROW_ADVANCE_ANIMATION_MS = 360;
 const BOARD_ROW_ADVANCE_STEP_ROWS = 0.62;
 const CORE_BREACH_FLASH_MS = 1400;
 const CORE_VARIANTS = ['yellow', 'blue', 'green'] as const;
+const ESSENCE_VIAL_SHELL_URL_BY_VARIANT: Record<CoreVariant, string> = {
+  yellow: yellowEssenceVialShellUrl,
+  blue: blueEssenceVialShellUrl,
+  green: greenEssenceVialShellUrl,
+};
 const UNBREAKABLE_INTRO_BOARD = 16;
 const UNBREAKABLE_HALF_BOARD = 48;
 const UNBREAKABLE_MAX_SHARE = 0.5;
-const PATH_PREVIEW_VISIBLE_LEVELS = 5;
-const PATH_MAX_LANE_ABS = 8;
+const BOARD_SIDE_CHANNEL_WIDTH = 44;
+const STANDARD_BRICK_MAX_SCALE = 0.78;
+const PATH_PREVIEW_VISIBLE_LEVELS = 6;
+const PATH_MAX_LANE_ABS = 1;
+const PATH_WARDEN_INTERVAL_LEVELS = 5;
+const PATH_WARDEN_TOTAL = 6;
+const MAX_ESSENCE_RUN_BOARDS_FOR_CAPACITY = 60;
+const PATH_SLIDE_ANIMATION_MS = 420;
 
 const BALANCE_TARGETS = {
   runDurationMinutes: 20,
@@ -53,7 +68,7 @@ const BALANCE_TARGETS = {
 };
 
 const BALANCE = {
-  maxLevels: 60,
+  maxLevels: PATH_WARDEN_INTERVAL_LEVELS * PATH_WARDEN_TOTAL,
   launchStaggerMs: 96,
   spoilsIntervalMinBoards: BALANCE_TARGETS.spoilsEveryBoards[0],
   spoilsIntervalMaxBoards: BALANCE_TARGETS.spoilsEveryBoards[1],
@@ -62,13 +77,21 @@ const BALANCE = {
   objectiveHpBase: 10,
   objectiveHpPerLevel: 3.8,
   objectiveHpLevelScale: 2.4,
-  powerOfferMinManaCost: 16,
+  powerOfferMinManaCost: 26,
   powerOfferLevelStepBoards: 3,
-  powerOfferLevelScalePerStep: 0.35,
-  objectiveManaRewardCrit: 1.2,
-  objectiveManaRewardNormal: 0.8,
-  brickManaRewardCrit: 0.55,
-  brickManaRewardNormal: 0.35,
+  powerOfferLevelScalePerStep: 0.38,
+  powerOfferLateScalePerStep: 0.12,
+  powerOfferOwnershipScalePerRank: 0.45,
+  powerOfferBoardScaleStartBoard: 6,
+  powerOfferBoardScalePerBoard: 0.025,
+  powerOfferGuaranteedAffordableBudgetRatio: 0.92,
+  powerOfferOutOfReachBudgetRatio: 1.12,
+  manaRewardDecayPerBoard: 0.013,
+  manaRewardMinScale: 0.58,
+  objectiveManaRewardCrit: 0.45,
+  objectiveManaRewardNormal: 0.28,
+  brickManaRewardCrit: 0.14,
+  brickManaRewardNormal: 0.08,
 } as const;
 
 const WARDEN_TRIGGERS: Array<{
@@ -76,14 +99,12 @@ const WARDEN_TRIGGERS: Array<{
   domain: DeepwoodDomainKey;
   wardenIndex: number;
 }> = [
-  { level: 4, domain: 'thorn-keep', wardenIndex: 0 },
-  { level: 12, domain: 'black-bog', wardenIndex: 0 },
-  { level: 18, domain: 'crow-spire', wardenIndex: 0 },
-  { level: 24, domain: 'ash-castle', wardenIndex: 0 },
-  { level: 32, domain: 'thorn-keep', wardenIndex: 0 },
-  { level: 40, domain: 'black-bog', wardenIndex: 0 },
-  { level: 48, domain: 'crow-spire', wardenIndex: 0 },
-  { level: 56, domain: 'ash-castle', wardenIndex: 0 },
+  { level: 5, domain: 'thorn-keep', wardenIndex: 0 },
+  { level: 10, domain: 'black-bog', wardenIndex: 0 },
+  { level: 15, domain: 'crow-spire', wardenIndex: 0 },
+  { level: 20, domain: 'ash-castle', wardenIndex: 0 },
+  { level: 25, domain: 'thorn-keep', wardenIndex: 0 },
+  { level: 30, domain: 'black-bog', wardenIndex: 0 },
 ];
 
 type RunStage = 'board' | 'hub' | 'powerup' | 'warden';
@@ -91,6 +112,7 @@ type PathChallengeKey = 'balanced' | 'swarm' | 'fortified' | 'gauntlet';
 type DeepwoodDomainKey = 'black-bog' | 'crow-spire' | 'thorn-keep' | 'ash-castle';
 type DeepwoodCurrencyType = 'mana' | 'spoils' | 'meta';
 type DeepwoodCatalogStatus = 'implemented' | 'planned';
+type TargetArtStyle = 'classic' | 'sigil' | 'relic' | 'atlas';
 type BrickKind =
   | 'standard'
   | 'reinforced'
@@ -149,7 +171,27 @@ interface BoardSummary {
   achievements: string[];
 }
 
-type ResourceHelpKey = 'mana';
+type ResourceHelpKey = 'mana' | 'essence-yellow' | 'essence-blue' | 'essence-green';
+
+const TARGET_ART_STYLE_LABELS: Record<TargetArtStyle, string> = {
+  classic: 'Classic Brick',
+  sigil: 'Runed Sigil',
+  relic: 'Carved Relic',
+  atlas: 'Atlas Paintover',
+};
+
+const TARGET_ART_STYLE_SEQUENCE: TargetArtStyle[] = ['classic', 'sigil', 'relic', 'atlas'];
+const TARGET_ATLAS_TILE_SIZE = 128;
+const BRICK_ASSET_URLS_BY_FILE = Object.fromEntries(
+  Object.entries(
+    import.meta.glob('../../assets/brick-assets/*.png', {
+      eager: true,
+      import: 'default',
+    }) as Record<string, string>
+  ).map(([filePath, fileUrl]) => [filePath.split('/').pop() ?? filePath, fileUrl])
+) as Record<string, string>;
+
+type BrickArtState = 'idle' | 'hit' | 'damaged';
 
 interface RogueRunState {
   seed: number;
@@ -160,6 +202,7 @@ interface RogueRunState {
   boardsCleared: number;
   nextSpoilsBoard: number;
   mana: number;
+  essenceByColor: Record<CoreVariant, number>;
   ballCount: number;
   damage: number;
   critChance: number;
@@ -197,6 +240,7 @@ interface PathNodeState {
   level: number;
   lane: number;
   challenge: PathChallengeKey;
+  primaryCoreVariant: CoreVariant;
 }
 
 interface PathChallengeDefinition {
@@ -299,12 +343,14 @@ interface LaunchQueueItem {
 
 interface TurnRewards {
   mana: number;
+  essenceByColor: Record<CoreVariant, number>;
 }
 
 interface LiveHudState {
   destroyedBricks: number;
   manaEarned: number;
   remainingBricks: number;
+  essenceByColor: Record<CoreVariant, number>;
 }
 
 interface BrickVisualState {
@@ -778,7 +824,7 @@ const POWER_POOL: RuntimePowerTemplate[] = [
     description: `${getDeepwoodSummary('siphon-shell', 'Root channels answer your call.')} Broken masonry bleeds root-sap mana this run.`,
     baseManaCost: 36,
     apply: (run) => {
-      run.manaMultiplier += 0.2;
+      run.manaMultiplier += 0.08;
       run.powers['siphon-shell'] = (run.powers['siphon-shell'] ?? 0) + 1;
     },
   },
@@ -788,8 +834,8 @@ const POWER_POOL: RuntimePowerTemplate[] = [
     description: `${getDeepwoodSummary('golden-thread', 'A gilded thread follows your passage.')} The thread feeds your reserve and steadies your root-sap flow this run.`,
     baseManaCost: 32,
     apply: (run) => {
-      run.mana += 14;
-      run.manaMultiplier += 0.1;
+      run.mana += 6;
+      run.manaMultiplier += 0.04;
       run.powers['golden-thread'] = (run.powers['golden-thread'] ?? 0) + 1;
     },
   },
@@ -870,7 +916,7 @@ const SPOILS_POOL: SpoilsTemplate[] = [
     name: getDeepwoodLabel('shop-mana', 'Sap Flask'),
     description: `${getDeepwoodSummary('shop-mana', 'A flask of distilled root-sap.')} Drink now and let root-sap surge through your reserves.`,
     apply: (run) => {
-      run.mana += 18;
+      run.mana += 8;
       run.powers['shop-mana'] = (run.powers['shop-mana'] ?? 0) + 1;
     },
   },
@@ -1015,6 +1061,15 @@ function normalizeProfile(profile: RogueBrickProfile): RogueBrickProfile {
       normalized.run.powers && typeof normalized.run.powers === 'object'
         ? normalized.run.powers
         : {};
+    const existingEssenceByColor: Partial<Record<CoreVariant, number>> =
+      normalized.run.essenceByColor && typeof normalized.run.essenceByColor === 'object'
+        ? normalized.run.essenceByColor
+        : {};
+    normalized.run.essenceByColor = {
+      yellow: Math.max(0, Math.floor(typeof existingEssenceByColor.yellow === 'number' ? existingEssenceByColor.yellow : 0)),
+      blue: Math.max(0, Math.floor(typeof existingEssenceByColor.blue === 'number' ? existingEssenceByColor.blue : 0)),
+      green: Math.max(0, Math.floor(typeof existingEssenceByColor.green === 'number' ? existingEssenceByColor.green : 0)),
+    };
     if (typeof normalized.run.ballRadiusMultiplier !== 'number' || Number.isNaN(normalized.run.ballRadiusMultiplier)) {
       normalized.run.ballRadiusMultiplier = 1;
     }
@@ -1214,15 +1269,66 @@ function toDeepwoodDomainKey(value: unknown): DeepwoodDomainKey | null {
   return null;
 }
 
-function getFirstWardenTrigger(
-  run: RogueRunState,
-  clearedChallenge: PathChallengeDefinition
-): DeepwoodWardenDefinition | null {
-  const trigger = WARDEN_TRIGGERS.find((t) => t.level === run.level);
-  if (!trigger) {
-    return null;
+function getPathNodePrimaryCoreVariant(seed: number, level: number, lane: number, parentId: string | null): CoreVariant {
+  const colorIndex =
+    hashStringToUint32(`${seed}|${level}|${lane}|${parentId ?? 'root'}|core-variant`) % CORE_VARIANTS.length;
+  return CORE_VARIANTS[colorIndex] ?? 'yellow';
+}
+
+function isWardenLevel(level: number): boolean {
+  return level > 0 && level % PATH_WARDEN_INTERVAL_LEVELS === 0;
+}
+
+function getBoardOrbCountForLevel(level: number, maxLevels: number): number {
+  const progress = Math.max(0, Math.min(1, (Math.max(1, level) - 1) / Math.max(1, maxLevels - 1)));
+  if (progress < 1 / 3) {
+    return 1;
   }
-  if (clearedChallenge.domain !== trigger.domain) {
+  if (progress < 2 / 3) {
+    return 2;
+  }
+  return 3;
+}
+
+function getOrbEssenceHpMultiplier(coreVariant: CoreVariant): number {
+  if (coreVariant === 'green') {
+    return 3.5;
+  }
+  return 1;
+}
+
+function getEssenceCapacityByColorFor60BoardRun(): Record<CoreVariant, number> {
+  let totalOrbCount = 0;
+  for (let level = 1; level <= MAX_ESSENCE_RUN_BOARDS_FOR_CAPACITY; level += 1) {
+    totalOrbCount += getBoardOrbCountForLevel(level, MAX_ESSENCE_RUN_BOARDS_FOR_CAPACITY);
+  }
+  return {
+    yellow: Math.round(totalOrbCount * BALANCE.objectiveHpBase * getOrbEssenceHpMultiplier('yellow')),
+    blue: Math.round(totalOrbCount * BALANCE.objectiveHpBase * getOrbEssenceHpMultiplier('blue')),
+    green: Math.round(totalOrbCount * BALANCE.objectiveHpBase * getOrbEssenceHpMultiplier('green')),
+  };
+}
+
+function getBoardObjectiveVariants(
+  run: RogueRunState,
+  level: number,
+  nodePrimaryCoreVariant: CoreVariant
+): CoreVariant[] {
+  const orbCount = getBoardOrbCountForLevel(level, run.maxLevels);
+  if (orbCount <= 1) {
+    return [nodePrimaryCoreVariant];
+  }
+  if (orbCount === 2) {
+    return [nodePrimaryCoreVariant, nodePrimaryCoreVariant];
+  }
+  const trailingIndex = hashStringToUint32(`${run.seed}|${level}|${run.boardsCleared}|minor-orb`) % CORE_VARIANTS.length;
+  const trailingVariant = CORE_VARIANTS[trailingIndex] ?? nodePrimaryCoreVariant;
+  return [nodePrimaryCoreVariant, nodePrimaryCoreVariant, trailingVariant];
+}
+
+function getFirstWardenTrigger(run: RogueRunState, clearedLevel: number): DeepwoodWardenDefinition | null {
+  const trigger = WARDEN_TRIGGERS.find((t) => t.level === clearedLevel);
+  if (!trigger) {
     return null;
   }
   const domain = getDeepwoodDomainDefinition(trigger.domain);
@@ -1241,10 +1347,6 @@ function getPathNodeWardenForecast(run: RogueRunState, node: PathNodeState): Dee
   if (!trigger) {
     return null;
   }
-  const challenge = getPathChallengeDefinition(node.challenge);
-  if (challenge.domain !== trigger.domain) {
-    return null;
-  }
   const domain = getDeepwoodDomainDefinition(trigger.domain);
   const warden = domain.wardens[trigger.wardenIndex];
   if (!warden) {
@@ -1254,6 +1356,21 @@ function getPathNodeWardenForecast(run: RogueRunState, node: PathNodeState): Dee
     return null;
   }
   return warden;
+}
+
+function getUpcomingWardenTrigger(run: RogueRunState): (typeof WARDEN_TRIGGERS)[number] | null {
+  for (const trigger of WARDEN_TRIGGERS) {
+    const domain = getDeepwoodDomainDefinition(trigger.domain);
+    const warden = domain.wardens[trigger.wardenIndex];
+    if (!warden) {
+      continue;
+    }
+    if (run.wardensDefeated.includes(warden.id)) {
+      continue;
+    }
+    return trigger;
+  }
+  return null;
 }
 
 function makePathNodeId(
@@ -1276,6 +1393,7 @@ function createRootPathNode(seed: number): PathNodeState {
     level: 0,
     lane: 0,
     challenge: 'balanced',
+    primaryCoreVariant: getPathNodePrimaryCoreVariant(seed, 0, 0, null),
   };
 }
 
@@ -1292,9 +1410,14 @@ function ensureRunPathState(run: RogueRunState): void {
     }
     const node = rawNode as Partial<PathNodeState>;
     const nodeLevel = Math.max(0, Math.floor(typeof node.level === 'number' ? node.level : level));
-    const lane = clampPathLane(Math.round(typeof node.lane === 'number' ? node.lane : 0));
+    const rawLane = clampPathLane(Math.round(typeof node.lane === 'number' ? node.lane : 0));
+    const lane = isWardenLevel(nodeLevel) ? 0 : rawLane;
     const challenge = toPathChallengeKey(node.challenge);
     const parentId = typeof node.parentId === 'string' ? node.parentId : null;
+    const primaryCoreVariant =
+      node.primaryCoreVariant === 'yellow' || node.primaryCoreVariant === 'blue' || node.primaryCoreVariant === 'green'
+        ? node.primaryCoreVariant
+        : getPathNodePrimaryCoreVariant(run.seed, nodeLevel, lane, parentId);
     const id =
       typeof node.id === 'string' && node.id.length > 0
         ? node.id
@@ -1305,6 +1428,7 @@ function ensureRunPathState(run: RogueRunState): void {
       level: nodeLevel,
       lane,
       challenge,
+      primaryCoreVariant,
     };
   }
   run.pathNodesByLevel = sanitizedByLevel;
@@ -1319,12 +1443,14 @@ function ensureRunPathState(run: RogueRunState): void {
       continue;
     }
     const parentNode = run.pathNodesByLevel[level - 1] ?? run.pathNodesByLevel[0];
+    const lane = isWardenLevel(level) ? 0 : parentNode.lane;
     run.pathNodesByLevel[level] = {
-      id: makePathNodeId(run.seed, level, parentNode.lane, parentNode.id, 'balanced'),
+      id: makePathNodeId(run.seed, level, lane, parentNode.id, 'balanced'),
       parentId: parentNode.id,
       level,
-      lane: parentNode.lane,
+      lane,
       challenge: 'balanced',
+      primaryCoreVariant: getPathNodePrimaryCoreVariant(run.seed, level, lane, parentNode.id),
     };
   }
 
@@ -1352,35 +1478,59 @@ function derivePathChildren(run: RogueRunState, parentNode: PathNodeState): Path
     return [];
   }
 
-  const branchSeed = hashStringToUint32(`${run.seed}|${parentNode.id}|${level}`);
-  const branchCount = 2 + (branchSeed % 2);
-  const offsets = branchCount === 2 ? [-1, 1] : [-1, 0, 1];
-  const usedLanes = new Set<number>();
-  const children: PathNodeState[] = [];
-
-  for (let index = 0; index < offsets.length; index += 1) {
-    let lane = clampPathLane(parentNode.lane + offsets[index]);
-    if (usedLanes.has(lane)) {
-      lane = clampPathLane(parentNode.lane + offsets[index] + (index % 2 === 0 ? -1 : 1));
-    }
-    usedLanes.add(lane);
-
-    const challengeIndex =
-      (hashStringToUint32(`${branchSeed}|${index}|${lane}`) + level + index) %
-      PATH_CHALLENGES.length;
-    const challenge = PATH_CHALLENGES[challengeIndex].key;
-
-    children.push({
-      id: makePathNodeId(run.seed, level, lane, parentNode.id, challenge),
-      parentId: parentNode.id,
-      level,
-      lane,
-      challenge,
-    });
+  let candidateLanes: number[] = [];
+  if (isWardenLevel(level)) {
+    candidateLanes = [0];
+  } else if (parentNode.lane === 0) {
+    candidateLanes = [-1, 0, 1];
+  } else if (parentNode.lane < 0) {
+    candidateLanes = [-1, 0];
+  } else {
+    candidateLanes = [0, 1];
   }
 
-  children.sort((left, right) => left.lane - right.lane);
-  return children;
+  const dedupedCandidates = Array.from(new Set(candidateLanes.map((lane) => clampPathLane(lane))));
+  const laneRolls = dedupedCandidates.map((lane, index) => {
+    const roll = hashStringToUint32(`${run.seed}|${parentNode.id}|${level}|${lane}|lane-roll|${index}`) % 100;
+    const threshold =
+      parentNode.lane === 0
+        ? lane === 0
+          ? 34
+          : 58
+        : lane === parentNode.lane
+          ? 72
+          : 48;
+    return { lane, roll, keep: roll < threshold };
+  });
+
+  let keptLanes = laneRolls
+    .filter((entry) => entry.keep)
+    .sort((left, right) => left.roll - right.roll)
+    .map((entry) => entry.lane);
+  if (keptLanes.length === 0 && laneRolls.length > 0) {
+    const fallback = laneRolls.sort((left, right) => left.roll - right.roll)[0];
+    keptLanes = fallback ? [fallback.lane] : [];
+  }
+  if (keptLanes.length > 2) {
+    keptLanes = keptLanes.slice(0, 2);
+  }
+
+  return keptLanes
+    .map((lane, index) => {
+      const challengeIndex =
+        (hashStringToUint32(`${run.seed}|${parentNode.id}|${level}|${lane}|${index}`) + level + index) %
+        PATH_CHALLENGES.length;
+      const challenge = PATH_CHALLENGES[challengeIndex]?.key ?? 'balanced';
+      return {
+        id: makePathNodeId(run.seed, level, lane, parentNode.id, challenge),
+        parentId: parentNode.id,
+        level,
+        lane,
+        challenge,
+        primaryCoreVariant: getPathNodePrimaryCoreVariant(run.seed, level, lane, parentNode.id),
+      };
+    })
+    .sort((left, right) => left.lane - right.lane);
 }
 
 function buildPathPreview(run: RogueRunState, shouldGateBoardChoices: boolean): PathPreview {
@@ -1424,18 +1574,7 @@ function buildPathPreview(run: RogueRunState, shouldGateBoardChoices: boolean): 
     const generated: PathNodeState[] = [];
     for (const parentNode of frontier) {
       const children = derivePathChildren(run, parentNode);
-      let previewChildren = children;
-      if (level > run.level) {
-        previewChildren = children.filter((child) => {
-          const visibilityRoll = hashStringToUint32(`${parentNode.id}|${child.id}|preview-edge`) % 100;
-          return visibilityRoll < 68;
-        });
-        if (previewChildren.length === 0 && children.length > 0) {
-          const fallbackIndex = hashStringToUint32(`${parentNode.id}|${level}|preview-fallback`) % children.length;
-          previewChildren = [children[fallbackIndex]];
-        }
-      }
-      for (const child of previewChildren) {
+      for (const child of children) {
         generated.push(child);
         addNode(child, 'future');
         edges.push({ fromId: parentNode.id, toId: child.id });
@@ -1462,9 +1601,8 @@ function buildPathPreview(run: RogueRunState, shouldGateBoardChoices: boolean): 
       return left.lane - right.lane;
     });
 
-  const laneValues = nodes.map((node) => node.lane);
-  const minLane = laneValues.length ? Math.min(...laneValues) : -1;
-  const maxLane = laneValues.length ? Math.max(...laneValues) : 1;
+  const minLane = -PATH_MAX_LANE_ABS;
+  const maxLane = PATH_MAX_LANE_ABS;
 
   return {
     startLevel,
@@ -1477,7 +1615,11 @@ function buildPathPreview(run: RogueRunState, shouldGateBoardChoices: boolean): 
 }
 
 function getBrickWidth(): number {
-  return (CANVAS_WIDTH - BRICK_GAP * (BRICK_COLUMNS + 1)) / BRICK_COLUMNS;
+  return (CANVAS_WIDTH - BOARD_SIDE_CHANNEL_WIDTH * 2 - BRICK_GAP * (BRICK_COLUMNS + 1)) / BRICK_COLUMNS;
+}
+
+function getBrickX(col: number, brickWidth: number): number {
+  return BOARD_SIDE_CHANNEL_WIDTH + BRICK_GAP + col * (brickWidth + BRICK_GAP);
 }
 
 function getRunBallRadius(run: RogueRunState): number {
@@ -1512,7 +1654,7 @@ function getBrickSizeScale(brick: Brick): number {
     return getObjectiveSizeScale(brick);
   }
   const hpPct = Math.max(0, Math.min(1, brick.hp / Math.max(1, brick.maxHp)));
-  return STANDARD_BRICK_MIN_SCALE + hpPct * (1 - STANDARD_BRICK_MIN_SCALE);
+  return STANDARD_BRICK_MIN_SCALE + hpPct * (STANDARD_BRICK_MAX_SCALE - STANDARD_BRICK_MIN_SCALE);
 }
 
 function getObjectiveDimensions(brick: Brick, brickWidth: number): { width: number; height: number } {
@@ -1605,16 +1747,6 @@ function getCoreDestructionMessage(coreVariant?: CoreVariant): string {
     default:
       return 'ESSENCE CONSUMED';
   }
-}
-
-function getObjectiveCountForLevel(level: number): number {
-  if (level < 10) {
-    return 1;
-  }
-  if (level < 45) {
-    return 2;
-  }
-  return 3;
 }
 
 function getObjectiveBrickIds(board: BoardState): string[] {
@@ -1913,17 +2045,8 @@ function generateBoard(run: RogueRunState): BoardState {
     8,
     Math.round((BALANCE.objectiveHpBase + run.level * 2.4) * challengeDefinition.objectiveHpMultiplier)
   );
-  const objectiveCount = getObjectiveCountForLevel(run.level) + challengeDefinition.objectiveCountBonus;
-  const targetObjectiveCount = Math.max(1, Math.min(objectiveCount, CORE_VARIANTS.length));
-  const remainingVariants = [...CORE_VARIANTS];
-  const objectiveVariants: CoreVariant[] = [];
-  while (objectiveVariants.length < targetObjectiveCount && remainingVariants.length > 0) {
-    const nextVariantIndex = randomInt(run, 0, remainingVariants.length - 1);
-    const nextVariant = remainingVariants.splice(nextVariantIndex, 1)[0];
-    if (nextVariant) {
-      objectiveVariants.push(nextVariant);
-    }
-  }
+  const objectiveVariants = getBoardObjectiveVariants(run, run.level, activePathNode.primaryCoreVariant);
+  const targetObjectiveCount = objectiveVariants.length;
   const objectiveCoreVariant = objectiveVariants[0] ?? 'yellow';
 
   for (let row = 0; row < boardRows.length; row += 1) {
@@ -2077,7 +2200,7 @@ function generateBoard(run: RogueRunState): BoardState {
   if (greenObjectives.length > 0) {
     const brickWidth = getBrickWidth();
     const greenObjectiveBounds = greenObjectives.map((objectiveBrick) => {
-      const objectiveX = BRICK_GAP + objectiveBrick.col * (brickWidth + BRICK_GAP);
+      const objectiveX = getBrickX(objectiveBrick.col, brickWidth);
       const objectiveY = BRICK_TOP + objectiveBrick.row * (BRICK_HEIGHT + BRICK_GAP);
       return getBrickBounds(objectiveBrick, objectiveX, objectiveY, brickWidth);
     });
@@ -2085,7 +2208,7 @@ function generateBoard(run: RogueRunState): BoardState {
       if (brick.kind === 'objective') {
         return true;
       }
-      const brickX = BRICK_GAP + brick.col * (brickWidth + BRICK_GAP);
+      const brickX = getBrickX(brick.col, brickWidth);
       const brickY = BRICK_TOP + brick.row * (BRICK_HEIGHT + BRICK_GAP);
       const bounds = getBrickBounds(brick, brickX, brickY, brickWidth);
       return !greenObjectiveBounds.some((objectiveBounds) => doBrickBoundsOverlap(bounds, objectiveBounds));
@@ -2115,6 +2238,10 @@ function advanceBoardRows(board: BoardState): void {
   board.turn += 1;
 }
 
+function getManaYieldScale(boardsCleared: number): number {
+  return clampNumber(1 - boardsCleared * BALANCE.manaRewardDecayPerBoard, BALANCE.manaRewardMinScale, 1);
+}
+
 function makePowerOffers(run: RogueRunState): PowerOffer[] {
   const offers: PowerOffer[] = [];
   const picked = new Set<string>();
@@ -2125,14 +2252,54 @@ function makePowerOffers(run: RogueRunState): PowerOffer[] {
       continue;
     }
     picked.add(template.id);
+    const levelSteps = Math.floor(Math.max(0, run.level - 1) / BALANCE.powerOfferLevelStepBoards);
     const levelScale =
-      1 + Math.floor(run.level / BALANCE.powerOfferLevelStepBoards) * BALANCE.powerOfferLevelScalePerStep;
+      1 +
+      levelSteps * BALANCE.powerOfferLevelScalePerStep +
+      Math.max(0, levelSteps - 4) * BALANCE.powerOfferLateScalePerStep;
+    const ownedRank = run.powers[template.id] ?? 0;
+    const ownershipScale = 1 + ownedRank * BALANCE.powerOfferOwnershipScalePerRank;
+    const boardScale =
+      1 +
+      Math.max(0, run.boardsCleared - BALANCE.powerOfferBoardScaleStartBoard) *
+        BALANCE.powerOfferBoardScalePerBoard;
     offers.push({
       id: template.id,
       name: template.name,
       description: template.description,
-      manaCost: Math.max(BALANCE.powerOfferMinManaCost, Math.round(template.baseManaCost * levelScale)),
+      manaCost: Math.max(
+        BALANCE.powerOfferMinManaCost,
+        Math.round(template.baseManaCost * levelScale * ownershipScale * boardScale)
+      ),
     });
+  }
+
+  if (offers.length > 0 && !offers.some((offer) => offer.manaCost <= run.mana)) {
+    const guaranteedAffordableBudget = Math.max(
+      0,
+      Math.floor(run.mana * BALANCE.powerOfferGuaranteedAffordableBudgetRatio)
+    );
+    let cheapestOffer = offers[0];
+    for (const offer of offers) {
+      if (offer.manaCost < cheapestOffer.manaCost) {
+        cheapestOffer = offer;
+      }
+    }
+    cheapestOffer.manaCost = Math.min(cheapestOffer.manaCost, guaranteedAffordableBudget);
+  }
+
+  if (run.mana > 0 && offers.length > 1 && !offers.some((offer) => offer.manaCost > run.mana)) {
+    let priciestOffer = offers[0];
+    for (const offer of offers) {
+      if (offer.manaCost > priciestOffer.manaCost) {
+        priciestOffer = offer;
+      }
+    }
+    const targetOutOfReachCost = Math.max(
+      priciestOffer.manaCost + 1,
+      Math.ceil(run.mana * BALANCE.powerOfferOutOfReachBudgetRatio)
+    );
+    priciestOffer.manaCost = targetOutOfReachCost;
   }
 
   return offers;
@@ -2254,9 +2421,39 @@ function parseProgress(json: string): RogueBrickProfile | null {
   }
 }
 
+function getBrickAssetFileName(kind: BrickKind, state: BrickArtState, weakSide?: OneWaySide): string {
+  if (kind === 'oneway') {
+    const direction =
+      weakSide === 'left'
+        ? 'left'
+        : weakSide === 'right'
+          ? 'right'
+          : weakSide === 'bottom'
+            ? 'down'
+            : 'up';
+    return `brick_oneway_${direction}_${state}.png`;
+  }
+  const normalizedKind = kind === 'standard' ? 'standard' : kind;
+  return `brick_${normalizedKind}_${state}.png`;
+}
+
 export default function RogueBrickPage() {
   const { wpdUser } = useWpdAuth();
+  const layoutShellRef = useRef<HTMLElement | null>(null);
+  const brickLayoutRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const canvasWrapRef = useRef<HTMLDivElement | null>(null);
+  const boardFrameRef = useRef<HTMLDivElement | null>(null);
+  const essencePipLayerRef = useRef<HTMLDivElement | null>(null);
+  const brickAssetImageCacheRef = useRef<Record<string, HTMLImageElement>>({});
+  const targetAtlasImageRef = useRef<HTMLImageElement | null>(null);
+  const targetAtlasCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const targetAtlasTileBoundsRef = useRef<Record<string, { x: number; y: number; width: number; height: number }>>({});
+  const essenceVialButtonRefs = useRef<Record<CoreVariant, HTMLButtonElement | null>>({
+    yellow: null,
+    blue: null,
+    green: null,
+  });
   const profileRef = useRef<RogueBrickProfile | null>(null);
   const animationRef = useRef<number | null>(null);
   const ballsRef = useRef<BallRuntime[]>([]);
@@ -2264,7 +2461,7 @@ export default function RogueBrickPage() {
   const launchQueueRef = useRef<LaunchQueueItem[]>([]);
   const launchDirectionRef = useRef<{ x: number; y: number }>({ x: 0, y: -1 });
   const launchElapsedRef = useRef(0);
-  const pendingRewardsRef = useRef<TurnRewards>({ mana: 0 });
+  const pendingRewardsRef = useRef<TurnRewards>({ mana: 0, essenceByColor: { yellow: 0, blue: 0, green: 0 } });
   const pendingDestroyedBricksRef = useRef(0);
   const pendingBounceCountRef = useRef(0);
   const coreChargeRef = useRef(0);
@@ -2306,21 +2503,259 @@ export default function RogueBrickPage() {
   const [autoHomingLaunchPending, setAutoHomingLaunchPending] = useState(false);
   const [isCoreBreachFlashing, setIsCoreBreachFlashing] = useState(false);
   const [coreBreachFlashVariant, setCoreBreachFlashVariant] = useState<CoreVariant>('yellow');
+  const [targetArtStyle, setTargetArtStyle] = useState<TargetArtStyle>('atlas');
+  const [isTargetAtlasReady, setIsTargetAtlasReady] = useState(false);
+  const [normalModeEssenceTopPx, setNormalModeEssenceTopPx] = useState<number | null>(null);
+  const [normalModeEssenceLeftPx, setNormalModeEssenceLeftPx] = useState<number | null>(null);
   const [startingRunPowerChoices, setStartingRunPowerChoices] = useState<string[]>([]);
   const [powerPopoverLayout, setPowerPopoverLayout] = useState({ left: 8, top: 0, arrow: 136 });
+  const [isPathSliding, setIsPathSliding] = useState(false);
+  const lastHubLevelRef = useRef<number | null>(null);
   const [liveHud, setLiveHud] = useState<LiveHudState>({
     destroyedBricks: 0,
     manaEarned: 0,
     remainingBricks: 0,
+    essenceByColor: { yellow: 0, blue: 0, green: 0 },
   });
   const [frameUpdateTrigger, setFrameUpdateTrigger] = useState(0);
 
   const run = profile?.run ?? null;
+  const targetArtStyleLabel = TARGET_ART_STYLE_LABELS[targetArtStyle];
+
+  useEffect(() => {
+    if (!run || run.stage !== 'hub') {
+      return;
+    }
+    const previousHubLevel = lastHubLevelRef.current;
+    lastHubLevelRef.current = run.level;
+    if (previousHubLevel === null || run.level <= previousHubLevel) {
+      return;
+    }
+    setIsPathSliding(true);
+    const timer = window.setTimeout(() => {
+      setIsPathSliding(false);
+    }, PATH_SLIDE_ANIMATION_MS);
+    return () => window.clearTimeout(timer);
+  }, [run?.level, run?.stage]);
   
   // Ensure component re-renders when HP updates during shots
   useEffect(() => {
     // This effect just ensures frameUpdateTrigger causes re-renders
   }, [frameUpdateTrigger]);
+
+  useEffect(() => {
+    const image = new Image();
+    image.onload = () => {
+      targetAtlasImageRef.current = image;
+      const canvas = document.createElement('canvas');
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const atlasCtx = canvas.getContext('2d');
+      if (!atlasCtx) {
+        setIsTargetAtlasReady(false);
+        return;
+      }
+      atlasCtx.drawImage(image, 0, 0);
+      const imageData = atlasCtx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      const isLightCheckerPixel = (r: number, g: number, b: number, a: number) => {
+        if (a <= 0) {
+          return false;
+        }
+        const maxChannelDelta = Math.max(Math.abs(r - g), Math.abs(r - b), Math.abs(g - b));
+        return r >= 236 && g >= 236 && b >= 236 && maxChannelDelta <= 7;
+      };
+
+      const tilesPerAxis = Math.max(1, Math.floor(canvas.width / TARGET_ATLAS_TILE_SIZE));
+      for (let tileRow = 0; tileRow < tilesPerAxis; tileRow += 1) {
+        for (let tileCol = 0; tileCol < tilesPerAxis; tileCol += 1) {
+          const foreground = new Uint8Array(TARGET_ATLAS_TILE_SIZE * TARGET_ATLAS_TILE_SIZE);
+          const protectedPixels = new Uint8Array(TARGET_ATLAS_TILE_SIZE * TARGET_ATLAS_TILE_SIZE);
+          const visited = new Uint8Array(TARGET_ATLAS_TILE_SIZE * TARGET_ATLAS_TILE_SIZE);
+          const queue: Array<{ x: number; y: number }> = [];
+          const tileOriginX = tileCol * TARGET_ATLAS_TILE_SIZE;
+          const tileOriginY = tileRow * TARGET_ATLAS_TILE_SIZE;
+
+          for (let y = 0; y < TARGET_ATLAS_TILE_SIZE; y += 1) {
+            for (let x = 0; x < TARGET_ATLAS_TILE_SIZE; x += 1) {
+              const localIndex = y * TARGET_ATLAS_TILE_SIZE + x;
+              const px = tileOriginX + x;
+              const py = tileOriginY + y;
+              const pixelIndex = (py * canvas.width + px) * 4;
+              const r = data[pixelIndex] ?? 0;
+              const g = data[pixelIndex + 1] ?? 0;
+              const b = data[pixelIndex + 2] ?? 0;
+              const a = data[pixelIndex + 3] ?? 0;
+              if (!isLightCheckerPixel(r, g, b, a)) {
+                foreground[localIndex] = 1;
+              }
+            }
+          }
+
+          for (let y = 0; y < TARGET_ATLAS_TILE_SIZE; y += 1) {
+            for (let x = 0; x < TARGET_ATLAS_TILE_SIZE; x += 1) {
+              const localIndex = y * TARGET_ATLAS_TILE_SIZE + x;
+              if (!foreground[localIndex]) {
+                continue;
+              }
+              for (let dy = -2; dy <= 2; dy += 1) {
+                for (let dx = -2; dx <= 2; dx += 1) {
+                  const nx = x + dx;
+                  const ny = y + dy;
+                  if (
+                    nx < 0 ||
+                    ny < 0 ||
+                    nx >= TARGET_ATLAS_TILE_SIZE ||
+                    ny >= TARGET_ATLAS_TILE_SIZE
+                  ) {
+                    continue;
+                  }
+                  if (dx * dx + dy * dy <= 5) {
+                    protectedPixels[ny * TARGET_ATLAS_TILE_SIZE + nx] = 1;
+                  }
+                }
+              }
+            }
+          }
+
+          const enqueueIfChecker = (x: number, y: number) => {
+            if (
+              x < 0 ||
+              y < 0 ||
+              x >= TARGET_ATLAS_TILE_SIZE ||
+              y >= TARGET_ATLAS_TILE_SIZE
+            ) {
+              return;
+            }
+            const localIndex = y * TARGET_ATLAS_TILE_SIZE + x;
+            if (visited[localIndex]) {
+              return;
+            }
+            if (protectedPixels[localIndex]) {
+              return;
+            }
+            const px = tileOriginX + x;
+            const py = tileOriginY + y;
+            const pixelIndex = (py * canvas.width + px) * 4;
+            const r = data[pixelIndex] ?? 0;
+            const g = data[pixelIndex + 1] ?? 0;
+            const b = data[pixelIndex + 2] ?? 0;
+            const a = data[pixelIndex + 3] ?? 0;
+            if (!isLightCheckerPixel(r, g, b, a)) {
+              return;
+            }
+            visited[localIndex] = 1;
+            queue.push({ x, y });
+          };
+
+          for (let edge = 0; edge < TARGET_ATLAS_TILE_SIZE; edge += 1) {
+            enqueueIfChecker(edge, 0);
+            enqueueIfChecker(edge, TARGET_ATLAS_TILE_SIZE - 1);
+            enqueueIfChecker(0, edge);
+            enqueueIfChecker(TARGET_ATLAS_TILE_SIZE - 1, edge);
+          }
+
+          while (queue.length > 0) {
+            const current = queue.pop();
+            if (!current) {
+              break;
+            }
+            const px = tileOriginX + current.x;
+            const py = tileOriginY + current.y;
+            const pixelIndex = (py * canvas.width + px) * 4;
+            data[pixelIndex + 3] = 0;
+
+            enqueueIfChecker(current.x - 1, current.y);
+            enqueueIfChecker(current.x + 1, current.y);
+            enqueueIfChecker(current.x, current.y - 1);
+            enqueueIfChecker(current.x, current.y + 1);
+          }
+        }
+      }
+      atlasCtx.putImageData(imageData, 0, 0);
+      const nextBounds: Record<string, { x: number; y: number; width: number; height: number }> = {};
+      for (let row = 0; row < tilesPerAxis; row += 1) {
+        for (let col = 0; col < tilesPerAxis; col += 1) {
+          const tileKey = `${row}-${col}`;
+          let minX = TARGET_ATLAS_TILE_SIZE;
+          let minY = TARGET_ATLAS_TILE_SIZE;
+          let maxX = -1;
+          let maxY = -1;
+          for (let y = 0; y < TARGET_ATLAS_TILE_SIZE; y += 1) {
+            for (let x = 0; x < TARGET_ATLAS_TILE_SIZE; x += 1) {
+              const px = col * TARGET_ATLAS_TILE_SIZE + x;
+              const py = row * TARGET_ATLAS_TILE_SIZE + y;
+              const alphaIndex = (py * canvas.width + px) * 4 + 3;
+              if ((data[alphaIndex] ?? 0) > 0) {
+                if (x < minX) minX = x;
+                if (y < minY) minY = y;
+                if (x > maxX) maxX = x;
+                if (y > maxY) maxY = y;
+              }
+            }
+          }
+          if (maxX < minX || maxY < minY) {
+            nextBounds[tileKey] = { x: 0, y: 0, width: TARGET_ATLAS_TILE_SIZE, height: TARGET_ATLAS_TILE_SIZE };
+          } else {
+            nextBounds[tileKey] = {
+              x: Math.max(0, minX - 1),
+              y: Math.max(0, minY - 1),
+              width: Math.min(TARGET_ATLAS_TILE_SIZE, maxX - minX + 3),
+              height: Math.min(TARGET_ATLAS_TILE_SIZE, maxY - minY + 3),
+            };
+          }
+        }
+      }
+      targetAtlasCanvasRef.current = canvas;
+      targetAtlasTileBoundsRef.current = nextBounds;
+      setIsTargetAtlasReady(true);
+    };
+    image.onerror = () => {
+      targetAtlasImageRef.current = null;
+      targetAtlasCanvasRef.current = null;
+      targetAtlasTileBoundsRef.current = {};
+      setIsTargetAtlasReady(false);
+    };
+    image.src = rogueBrickTargetAtlasUrl;
+    return () => {
+      targetAtlasImageRef.current = null;
+      targetAtlasCanvasRef.current = null;
+      targetAtlasTileBoundsRef.current = {};
+    };
+  }, []);
+
+  useEffect(() => {
+    const cache = brickAssetImageCacheRef.current;
+    for (const [fileName, fileUrl] of Object.entries(BRICK_ASSET_URLS_BY_FILE)) {
+      if (cache[fileName]) {
+        continue;
+      }
+      const image = new Image();
+      image.src = fileUrl;
+      cache[fileName] = image;
+    }
+  }, []);
+
+  useEffect(() => {
+    const measureEssenceTop = () => {
+      const layoutRect = brickLayoutRef.current?.getBoundingClientRect();
+      const boardFrameRect = boardFrameRef.current?.getBoundingClientRect();
+      if (!layoutRect || !boardFrameRect) {
+        return;
+      }
+      const topPx = Math.round(boardFrameRect.top - layoutRect.top + boardFrameRect.height * 0.36);
+      const leftPx = Math.round(boardFrameRect.left - layoutRect.left + 8);
+      setNormalModeEssenceTopPx(topPx);
+      setNormalModeEssenceLeftPx(leftPx);
+    };
+
+    measureEssenceTop();
+    window.addEventListener('resize', measureEssenceTop);
+    return () => {
+      window.removeEventListener('resize', measureEssenceTop);
+    };
+  }, [isFocusMode, isPowerDrawerExpanded, profile?.run?.stage]);
+
   const storageKey = useMemo(
     () => (wpdUser ? `${LOCAL_STORAGE_PREFIX}${wpdUser.userId}` : ''),
     [wpdUser]
@@ -2357,6 +2792,21 @@ export default function RogueBrickPage() {
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     ctx.fillStyle = 'rgba(26, 20, 16, 0.68)';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    const boardChannelLeftEdge = BOARD_SIDE_CHANNEL_WIDTH;
+    const boardChannelRightEdge = CANVAS_WIDTH - BOARD_SIDE_CHANNEL_WIDTH;
+    const leftChannelGradient = ctx.createLinearGradient(0, 0, boardChannelLeftEdge, 0);
+    leftChannelGradient.addColorStop(0, 'rgba(7, 6, 12, 0.1)');
+    leftChannelGradient.addColorStop(0.62, 'rgba(7, 6, 12, 0.045)');
+    leftChannelGradient.addColorStop(1, 'rgba(7, 6, 12, 0.008)');
+    ctx.fillStyle = leftChannelGradient;
+    ctx.fillRect(0, 0, boardChannelLeftEdge, CANVAS_HEIGHT);
+
+    const rightChannelGradient = ctx.createLinearGradient(boardChannelRightEdge, 0, CANVAS_WIDTH, 0);
+    rightChannelGradient.addColorStop(0, 'rgba(7, 6, 12, 0.008)');
+    rightChannelGradient.addColorStop(0.38, 'rgba(7, 6, 12, 0.045)');
+    rightChannelGradient.addColorStop(1, 'rgba(7, 6, 12, 0.1)');
+    ctx.fillStyle = rightChannelGradient;
+    ctx.fillRect(boardChannelRightEdge, 0, BOARD_SIDE_CHANNEL_WIDTH, CANVAS_HEIGHT);
     const now = performance.now();
 
     const profileSnapshot = profileRef.current;
@@ -2387,6 +2837,181 @@ export default function RogueBrickPage() {
       }
     }
 
+    const drawNonOrbTargetStyleOverlay = (
+      style: TargetArtStyle,
+      kind: BrickKind,
+      bounds: { x: number; y: number; width: number; height: number },
+      center: { x: number; y: number },
+      pulse: number,
+      hitIntensity: number,
+      hpPct: number,
+      weakSide?: OneWaySide
+    ) => {
+      if (style === 'classic') {
+        return;
+      }
+
+      const { x: left, y: top, width, height } = bounds;
+      const { x: centerX, y: centerY } = center;
+
+      if (style === 'atlas') {
+        const visualState: BrickArtState = hitIntensity > 0.12 ? 'hit' : hpPct < 0.45 ? 'damaged' : 'idle';
+        const fileName = getBrickAssetFileName(kind, visualState, weakSide);
+        const cachedImage = brickAssetImageCacheRef.current[fileName];
+        if (cachedImage && cachedImage.complete && cachedImage.naturalWidth > 0 && cachedImage.naturalHeight > 0) {
+          const targetRatio = width / Math.max(1, height);
+          const imageRatio = cachedImage.naturalWidth / Math.max(1, cachedImage.naturalHeight);
+          let drawWidth = width;
+          let drawHeight = height;
+          if (imageRatio > targetRatio) {
+            drawWidth = height * imageRatio;
+            drawHeight = height;
+          } else {
+            drawWidth = width;
+            drawHeight = width / Math.max(0.001, imageRatio);
+          }
+          const drawX = left + (width - drawWidth) / 2;
+          const drawY = top + (height - drawHeight) / 2;
+          ctx.drawImage(cachedImage, drawX, drawY, drawWidth, drawHeight);
+          return;
+        }
+
+        const atlasImage = targetAtlasImageRef.current;
+        if (!atlasImage) {
+          return;
+        }
+        const stateColumnOffset = hitIntensity > 0.12 ? 1 : hpPct < 0.45 ? 2 : 0;
+        const atlasRowAndCol = (() => {
+          if (kind === 'unbreakable') {
+            return { row: 0, col: 3 + stateColumnOffset };
+          }
+          if (kind === 'prism') {
+            return { row: 1, col: stateColumnOffset };
+          }
+          if (kind === 'exploding') {
+            return { row: 1, col: 3 + stateColumnOffset };
+          }
+          if (kind === 'splinter') {
+            return { row: 2, col: stateColumnOffset };
+          }
+          if (kind === 'reinforced') {
+            return { row: 2, col: 3 + stateColumnOffset };
+          }
+          if (kind === 'oneway') {
+            if (weakSide === 'bottom') {
+              return { row: 3, col: 3 + stateColumnOffset };
+            }
+            if (weakSide === 'left') {
+              return { row: 4, col: stateColumnOffset };
+            }
+            if (weakSide === 'right') {
+              return { row: 4, col: 3 + stateColumnOffset };
+            }
+            return { row: 3, col: stateColumnOffset };
+          }
+          return { row: 0, col: stateColumnOffset };
+        })();
+        const sx = atlasRowAndCol.col * TARGET_ATLAS_TILE_SIZE;
+        const sy = atlasRowAndCol.row * TARGET_ATLAS_TILE_SIZE;
+        const tileBounds =
+          targetAtlasTileBoundsRef.current[`${atlasRowAndCol.row}-${atlasRowAndCol.col}`] ?? {
+            x: 0,
+            y: 0,
+            width: TARGET_ATLAS_TILE_SIZE,
+            height: TARGET_ATLAS_TILE_SIZE,
+          };
+        const padX = Math.max(0, Math.round(width * 0.005));
+        const padY = Math.max(0, Math.round(height * 0.005));
+        ctx.save();
+        ctx.globalAlpha = 1;
+        ctx.drawImage(
+          atlasImage,
+          sx + tileBounds.x,
+          sy + tileBounds.y,
+          tileBounds.width,
+          tileBounds.height,
+          left + padX,
+          top + padY,
+          width - padX * 2,
+          height - padY * 2
+        );
+        ctx.restore();
+        return;
+      }
+
+      if (style === 'sigil') {
+        const ringRadius = Math.max(5, Math.min(width, height) * (0.26 + pulse * 0.05));
+        const inset = Math.max(2, height * 0.14);
+        ctx.save();
+        ctx.strokeStyle = `rgba(254, 243, 199, ${0.42 + hitIntensity * 0.3})`;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 2]);
+        ctx.lineDashOffset = -now / 48;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, ringRadius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+        ctx.lineWidth = 0.85;
+        for (let index = 0; index < 4; index += 1) {
+          const angle = now / 1250 + index * (Math.PI / 2);
+          const runeX = centerX + Math.cos(angle) * (ringRadius + 1.3);
+          const runeY = centerY + Math.sin(angle) * (ringRadius + 1.3);
+          ctx.beginPath();
+          ctx.moveTo(runeX - 1.3, runeY - 1.3);
+          ctx.lineTo(runeX + 1.3, runeY + 1.3);
+          ctx.moveTo(runeX + 1.3, runeY - 1.3);
+          ctx.lineTo(runeX - 1.3, runeY + 1.3);
+          ctx.stroke();
+        }
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.24)';
+        ctx.beginPath();
+        ctx.roundRect(left + inset, top + inset, Math.max(2, width - inset * 2), Math.max(2, height - inset * 2), 3);
+        ctx.stroke();
+        ctx.restore();
+        return;
+      }
+
+      const frameInset = Math.max(1.4, height * 0.11);
+      ctx.save();
+      const frameGradient = ctx.createLinearGradient(left, top, left, top + height);
+      frameGradient.addColorStop(0, 'rgba(241, 245, 249, 0.42)');
+      frameGradient.addColorStop(1, 'rgba(100, 116, 139, 0.24)');
+      ctx.strokeStyle = frameGradient;
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.roundRect(
+        left + frameInset,
+        top + frameInset,
+        Math.max(2, width - frameInset * 2),
+        Math.max(2, height - frameInset * 2),
+        Math.max(2.2, height * 0.17)
+      );
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.26)';
+      ctx.beginPath();
+      ctx.moveTo(centerX, top + frameInset + 1);
+      ctx.lineTo(left + width - frameInset - 1, centerY);
+      ctx.lineTo(centerX, top + height - frameInset - 1);
+      ctx.lineTo(left + frameInset + 1, centerY);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(248, 250, 252, 0.65)';
+      const studRadius = Math.max(0.9, Math.min(1.35, width * 0.03));
+      for (const studX of [left + frameInset + 2, left + width - frameInset - 2]) {
+        for (const studY of [top + frameInset + 2, top + height - frameInset - 2]) {
+          ctx.beginPath();
+          ctx.arc(studX, studY, studRadius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+    };
+
     for (const brick of bricksToDraw) {
       const visual = brickVisualRef.current.get(brick.id);
       const hitIntensity = visual ? Math.max(0, (visual.hitUntil - now) / 120) : 0;
@@ -2394,7 +3019,7 @@ export default function RogueBrickPage() {
         brickVisualRef.current.delete(brick.id);
       }
 
-      const x = BRICK_GAP + brick.col * (brickWidth + BRICK_GAP);
+      const x = getBrickX(brick.col, brickWidth);
       const startingRow = boardAdvanceAnimation?.startingBrickRows[brick.id];
       const renderRow =
         typeof startingRow === 'number'
@@ -2633,13 +3258,6 @@ export default function RogueBrickPage() {
         ctx.fill();
         ctx.stroke();
         ctx.clip();
-        ctx.fillStyle = corePalette.accent;
-        ctx.fillRect(
-          objectiveX + 2 + pulse * 2,
-          objectiveY + 2 + pulse * 1.5,
-          Math.max(6, objectiveWidth * (0.32 + pulse * 0.1)),
-          Math.max(3, objectiveHeight * (0.26 + pulse * 0.12))
-        );
         ctx.restore();
 
         const pulseInset = 3 + pulse * 1.2;
@@ -2736,12 +3354,26 @@ export default function RogueBrickPage() {
         ctx.strokeRect(x + 0.5, y + 0.5, brickWidth - 1, BRICK_HEIGHT - 1);
       }
 
-      if (kind !== 'prism') {
+      if (kind !== 'objective') {
+        const targetPulse = 0.5 + Math.sin(now / 320 + brick.row * 0.31 + brick.col * 0.19) * 0.5;
+        drawNonOrbTargetStyleOverlay(
+          targetArtStyle,
+          kind,
+          { x, y, width: brickWidth, height: BRICK_HEIGHT },
+          { x: centerX, y: centerY },
+          targetPulse,
+          hitIntensity,
+          hpPct,
+          brick.weakSide
+        );
+      }
+
+      if (targetArtStyle !== 'atlas' && kind !== 'prism' && kind !== 'objective') {
         ctx.fillStyle = `rgba(255, 255, 255, ${0.08 + hitIntensity * 0.12})`;
         ctx.fillRect(x + 2, y + 2, brickWidth - 4, 3);
       }
 
-      if (kind === 'unbreakable') {
+      if (kind === 'unbreakable' && targetArtStyle !== 'atlas') {
         ctx.strokeStyle = 'rgba(255,255,255,0.35)';
         ctx.lineWidth = 1.4;
         ctx.beginPath();
@@ -2751,7 +3383,7 @@ export default function RogueBrickPage() {
         ctx.lineTo(x + brickWidth * 0.2, y + BRICK_HEIGHT * 0.7);
         ctx.stroke();
         ctx.lineWidth = 1;
-      } else if (kind === 'oneway' && brick.weakSide) {
+      } else if (kind === 'oneway' && brick.weakSide && targetArtStyle !== 'atlas') {
         const side = brick.weakSide;
         const arrowSize = Math.max(6, Math.min(9, Math.min(brickWidth, BRICK_HEIGHT) * 0.42));
         ctx.fillStyle = 'rgba(34, 211, 238, 0.26)';
@@ -2820,8 +3452,7 @@ export default function RogueBrickPage() {
         ctx.closePath();
       };
 
-      const label = String(Math.max(0, Math.ceil(brick.hp)));
-      if (kind === 'unbreakable') {
+      if (kind === 'unbreakable' && targetArtStyle !== 'atlas') {
         const iconBadgeSize = Math.min(15, BRICK_HEIGHT - 6);
         const iconBadgeX = centerX - iconBadgeSize * 0.5;
         const iconBadgeY = centerY - iconBadgeSize * 0.5;
@@ -2862,18 +3493,6 @@ export default function RogueBrickPage() {
         continue;
       }
 
-      ctx.font = '700 12px "Segoe UI", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#f8fafc';
-      ctx.strokeStyle = 'rgba(3, 8, 19, 0.75)';
-      ctx.lineWidth = 1.8;
-      ctx.lineJoin = 'round';
-      ctx.strokeText(label, centerX, centerY);
-      ctx.shadowColor = 'rgba(3, 8, 19, 0.45)';
-      ctx.shadowBlur = 2;
-      ctx.fillText(label, centerX, centerY);
-      ctx.shadowBlur = 0;
       ctx.restore();
     }
 
@@ -2910,12 +3529,45 @@ export default function RogueBrickPage() {
 
     if (isDragging && aimPoint && !shotInFlightRef.current) {
       const launcherX = CANVAS_WIDTH / 2;
+      const launcherY = LAUNCHER_Y;
+      const dx = aimPoint.x - launcherX;
+      const dy = aimPoint.y - launcherY;
+      let guideEndX = aimPoint.x;
+      let guideEndY = aimPoint.y;
+
+      if (dy < -0.001) {
+        const leftWallX = BOARD_SIDE_CHANNEL_WIDTH;
+        const rightWallX = CANVAS_WIDTH - BOARD_SIDE_CHANNEL_WIDTH;
+        const intersections: Array<{ t: number; x: number; y: number }> = [];
+        const tTop = (0 - launcherY) / dy;
+        if (tTop > 0) {
+          intersections.push({ t: tTop, x: launcherX + dx * tTop, y: 0 });
+        }
+        if (Math.abs(dx) > 0.001) {
+          const tLeft = (leftWallX - launcherX) / dx;
+          if (tLeft > 0) {
+            intersections.push({ t: tLeft, x: leftWallX, y: launcherY + dy * tLeft });
+          }
+          const tRight = (rightWallX - launcherX) / dx;
+          if (tRight > 0) {
+            intersections.push({ t: tRight, x: rightWallX, y: launcherY + dy * tRight });
+          }
+        }
+        const validHit = intersections
+          .filter((hit) => hit.y >= 0 && hit.y <= launcherY)
+          .sort((a, b) => a.t - b.t)[0];
+        if (validHit) {
+          guideEndX = validHit.x;
+          guideEndY = validHit.y;
+        }
+      }
+
       ctx.strokeStyle = 'rgba(120, 220, 255, 0.85)';
       ctx.lineWidth = 2;
       ctx.setLineDash([8, 8]);
       ctx.beginPath();
-      ctx.moveTo(launcherX, LAUNCHER_Y);
-      ctx.lineTo(aimPoint.x, aimPoint.y);
+      ctx.moveTo(launcherX, launcherY);
+      ctx.lineTo(guideEndX, guideEndY);
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.lineWidth = 1;
@@ -2996,11 +3648,11 @@ export default function RogueBrickPage() {
     ctx.beginPath();
     ctx.arc(CANVAS_WIDTH / 2, LAUNCHER_Y, 8 + shooterGlow * 2.8, 0, Math.PI * 2);
     ctx.fill();
-  }, [aimPoint, isDragging]);
+  }, [aimPoint, isDragging, targetArtStyle, isTargetAtlasReady]);
 
   const spawnBreakParticles = useCallback((brick: Brick, slowCinematic = false) => {
     const brickWidth = getBrickWidth();
-    const brickX = BRICK_GAP + brick.col * (brickWidth + BRICK_GAP);
+    const brickX = getBrickX(brick.col, brickWidth);
     const brickY = BRICK_TOP + brick.row * (BRICK_HEIGHT + BRICK_GAP);
     const bounds = getBrickBounds(brick, brickX, brickY, brickWidth);
     const x = bounds.x;
@@ -3034,6 +3686,114 @@ export default function RogueBrickPage() {
       });
     }
   }, []);
+
+  const spawnEssenceHitPip = useCallback((variant: CoreVariant, sourceX: number, sourceY: number) => {
+    const canvas = canvasRef.current;
+    const wrap = canvasWrapRef.current;
+    const layer = essencePipLayerRef.current;
+    const vialButton = essenceVialButtonRefs.current[variant];
+    if (!canvas || !wrap || !layer || !vialButton) {
+      return;
+    }
+
+    const canvasRect = canvas.getBoundingClientRect();
+    const wrapRect = wrap.getBoundingClientRect();
+    const vialRect = vialButton.getBoundingClientRect();
+    const startX = canvasRect.left - wrapRect.left + (sourceX / CANVAS_WIDTH) * canvasRect.width;
+    const startY = canvasRect.top - wrapRect.top + (sourceY / CANVAS_HEIGHT) * canvasRect.height;
+    const endX = vialRect.left - wrapRect.left + vialRect.width * 0.5;
+    const endY = vialRect.top - wrapRect.top + vialRect.height * 0.5;
+
+    if (layer.childElementCount > 140) {
+      layer.firstElementChild?.remove();
+    }
+
+    const pip = document.createElement('span');
+    pip.className = `rogue-essence-hit-pip is-${variant}`;
+    pip.style.left = `${startX}px`;
+    pip.style.top = `${startY}px`;
+    layer.appendChild(pip);
+
+    requestAnimationFrame(() => {
+      pip.style.left = `${endX}px`;
+      pip.style.top = `${endY}px`;
+      pip.style.opacity = '0';
+      pip.style.transform = 'translate(-50%, -50%) scale(0.28)';
+    });
+
+    const removePip = () => {
+      pip.remove();
+    };
+    pip.addEventListener('transitionend', removePip, { once: true });
+    window.setTimeout(removePip, 560);
+  }, []);
+
+  const spawnEssenceVaporParticle = useCallback((variant: CoreVariant) => {
+    const canvas = canvasRef.current;
+    const wrap = canvasWrapRef.current;
+    const layer = essencePipLayerRef.current;
+    const vialButton = essenceVialButtonRefs.current[variant];
+    if (!canvas || !wrap || !layer || !vialButton) {
+      return;
+    }
+
+    const canvasRect = canvas.getBoundingClientRect();
+    const wrapRect = wrap.getBoundingClientRect();
+    const vialRect = vialButton.getBoundingClientRect();
+    const startX = vialRect.left - wrapRect.left + vialRect.width * (0.4 + Math.random() * 0.2);
+    const startY = vialRect.top - wrapRect.top + vialRect.height * (0.28 + Math.random() * 0.14);
+    const endX = startX + (Math.random() - 0.5) * 52;
+    const endY = canvasRect.top - wrapRect.top + (12 + Math.random() * 58);
+    const durationMs = 2300 + Math.random() * 1300;
+
+    if (layer.childElementCount > 220) {
+      layer.firstElementChild?.remove();
+    }
+
+    const vapor = document.createElement('span');
+    vapor.className = `rogue-essence-vapor-particle is-${variant}`;
+    vapor.style.left = `${startX}px`;
+    vapor.style.top = `${startY}px`;
+    vapor.style.transitionDuration = `${durationMs}ms`;
+    layer.appendChild(vapor);
+
+    requestAnimationFrame(() => {
+      vapor.style.left = `${endX}px`;
+      vapor.style.top = `${endY}px`;
+      vapor.style.opacity = '0';
+      vapor.style.transform = 'translate(-50%, -50%) scale(1.45)';
+    });
+
+    const removeVapor = () => {
+      vapor.remove();
+    };
+    vapor.addEventListener('transitionend', removeVapor, { once: true });
+    window.setTimeout(removeVapor, durationMs + 100);
+  }, []);
+
+  useEffect(() => {
+    if (run?.stage !== 'board') {
+      return;
+    }
+
+    const spawnRandomVapor = () => {
+      const variant = CORE_VARIANTS[Math.floor(Math.random() * CORE_VARIANTS.length)] as CoreVariant;
+      spawnEssenceVaporParticle(variant);
+    };
+
+    const initialVariant = CORE_VARIANTS[Math.floor(Math.random() * CORE_VARIANTS.length)] as CoreVariant;
+    spawnEssenceVaporParticle(initialVariant);
+    const intervalId = window.setInterval(() => {
+      spawnRandomVapor();
+      if (Math.random() < 0.34) {
+        window.setTimeout(spawnRandomVapor, 180 + Math.random() * 220);
+      }
+    }, 760);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [run?.stage, spawnEssenceVaporParticle]);
 
   const commitProfile = useCallback(
     (mutate: (draft: RogueBrickProfile) => void, markDirty: boolean) => {
@@ -3287,6 +4047,7 @@ export default function RogueBrickPage() {
       destroyedBricks: 0,
       manaEarned: 0,
       remainingBricks: 0,
+      essenceByColor: { yellow: 0, blue: 0, green: 0 },
     });
     shotInFlightRef.current = false;
     brickVisualRef.current.clear();
@@ -3305,7 +4066,7 @@ export default function RogueBrickPage() {
     const usedHomingBarrage = homingBarrageUsedRef.current;
     const handledCoreBreachThisTurn = coreBreachHandledThisTurnRef.current;
     homingBarrageUsedRef.current = false;
-    pendingRewardsRef.current = { mana: 0 };
+    pendingRewardsRef.current = { mana: 0, essenceByColor: { yellow: 0, blue: 0, green: 0 } };
     pendingDestroyedBricksRef.current = 0;
     pendingBounceCountRef.current = 0;
 
@@ -3320,6 +4081,10 @@ export default function RogueBrickPage() {
 
         const runState = draft.run;
         runState.mana += Math.round(rewards.mana);
+        for (const variant of CORE_VARIANTS) {
+          runState.essenceByColor[variant] =
+            (runState.essenceByColor[variant] ?? 0) + (rewards.essenceByColor[variant] ?? 0);
+        }
         runState.board.bricks = brickSnapshot;
         runState.coreCharge = postTurnCoreCharge;
         if (usedHomingBarrage) {
@@ -3356,7 +4121,8 @@ export default function RogueBrickPage() {
         }
 
         if (runState.board.bricks.length === 0) {
-          const clearedPathNode = runState.pathNodesByLevel[runState.level] ?? getCurrentPathNode(runState);
+          const clearedBoardLevel = runState.level;
+          const clearedPathNode = runState.pathNodesByLevel[clearedBoardLevel] ?? getCurrentPathNode(runState);
           const boardSummary: BoardSummary = {
             shotsTaken: runState.boardShotsTaken,
             bounceCount: runState.boardBounceCount,
@@ -3370,7 +4136,24 @@ export default function RogueBrickPage() {
           const clearedChallenge = getPathChallengeDefinition(clearedPathNode.challenge);
           const clearedDomain = getDeepwoodDomainDefinition(clearedChallenge.domain);
           const forecastWarden = clearedDomain.wardens[0];
-          runState.hubMessage = `Board cleared. Press deeper to sector ${runState.level} toward ${clearedDomain.name}.${forecastWarden ? ` Forecast warden pressure: ${forecastWarden.name}.` : ''}`;
+          runState.hubMessage = `Board cleared. Press deeper to sector ${Math.min(runState.level, runState.maxLevels)} toward ${clearedDomain.name}.${forecastWarden ? ` Forecast warden pressure: ${forecastWarden.name}.` : ''}`;
+
+          const firstWarden = getFirstWardenTrigger(runState, clearedBoardLevel);
+          if (firstWarden) {
+            runState.stage = 'warden';
+            runState.activeWardenId = firstWarden.id;
+            const triggerDomain =
+              WARDEN_TRIGGERS.find((trigger) => trigger.level === clearedBoardLevel)?.domain ??
+              clearedChallenge.domain;
+            runState.activeWardenDomain = triggerDomain;
+            runState.pendingPowerOffers = [];
+            runState.pendingSpoilsOffers = [];
+            runState.hubMessage = `${firstWarden.name} blocks the trail. Prototype encounter ready.`;
+            runState.board = { turn: 1, objectiveBrickId: null, objectiveBrickIds: [], bricks: [] };
+            runState.coreCharge = 0;
+            runState.homingBarrageReady = false;
+            return;
+          }
 
           if (runState.level > runState.maxLevels) {
             runState.stage = 'hub';
@@ -3379,20 +4162,7 @@ export default function RogueBrickPage() {
             runState.homingBarrageReady = false;
             runState.boardShotsTaken = 0;
             runState.boardBounceCount = 0;
-            return;
-          }
-
-          const firstWarden = getFirstWardenTrigger(runState, clearedChallenge);
-          if (firstWarden) {
-            runState.stage = 'warden';
-            runState.activeWardenId = firstWarden.id;
-            runState.activeWardenDomain = clearedChallenge.domain;
-            runState.pendingPowerOffers = [];
-            runState.pendingSpoilsOffers = [];
-            runState.hubMessage = `${firstWarden.name} blocks the trail. Prototype encounter ready.`;
-            runState.board = { turn: 1, objectiveBrickId: null, objectiveBrickIds: [], bricks: [] };
-            runState.coreCharge = 0;
-            runState.homingBarrageReady = false;
+            runState.hubMessage = 'The final warden has fallen. Your trail is complete.';
             return;
           }
 
@@ -3458,7 +4228,11 @@ export default function RogueBrickPage() {
     if (!profile?.run) {
       return;
     }
-    if (profile.run.level > profile.run.maxLevels) {
+    if (
+      profile.run.level > profile.run.maxLevels &&
+      profile.run.stage === 'hub' &&
+      !profile.run.activeWardenId
+    ) {
       const timer = window.setTimeout(() => endRun(true), 0);
       return () => window.clearTimeout(timer);
     }
@@ -3506,6 +4280,7 @@ export default function RogueBrickPage() {
         destroyedBricks: 0,
         manaEarned: 0,
         remainingBricks: sourceBricks.length,
+        essenceByColor: { yellow: 0, blue: 0, green: 0 },
       });
       const homingBarrageActive = Boolean(currentRun.homingBarrageReady || options?.forceHoming);
       const launchBallRadius = getRunBallRadius(currentRun);
@@ -3521,7 +4296,7 @@ export default function RogueBrickPage() {
       }));
       launchDirectionRef.current = direction;
       launchElapsedRef.current = 0;
-      pendingRewardsRef.current = { mana: 0 };
+      pendingRewardsRef.current = { mana: 0, essenceByColor: { yellow: 0, blue: 0, green: 0 } };
       pendingDestroyedBricksRef.current = 0;
       pendingBounceCountRef.current = 0;
       coreChargeRef.current = currentRun.coreCharge ?? 0;
@@ -3612,11 +4387,11 @@ export default function RogueBrickPage() {
           const isObjective = (brick.kind ?? 'standard') === 'objective';
           const isUnbreakable = (brick.kind ?? 'standard') === 'unbreakable';
           const bonusManaReward = isObjective
-            ? 0.8 + Math.max(1, brick.maxHp) * 0.08
+            ? 0.2 + Math.max(1, brick.maxHp) * 0.018
             : isUnbreakable
-              ? 0.25
-            : 0.14 + Math.max(1, brick.maxHp) * 0.03;
-          rewards.mana += activeRun.manaMultiplier * bonusManaReward;
+              ? 0.06
+            : 0.06 + Math.max(1, brick.maxHp) * 0.008;
+          rewards.mana += activeRun.manaMultiplier * getManaYieldScale(activeRun.boardsCleared) * bonusManaReward;
           const bricksRemainingAfterHit = bricksRef.current.reduce(
             (count, entry) => count + (entry.hp > 0 ? 1 : 0),
             0
@@ -3649,7 +4424,7 @@ export default function RogueBrickPage() {
             if (ballsRef.current.length < MAX_ACTIVE_BALLS) {
               const baseAngle = Math.atan2(sourceBall.vy, sourceBall.vx);
               const speed = Math.hypot(sourceBall.vx, sourceBall.vy) * 0.9;
-              const brickX = BRICK_GAP + brick.col * (brickWidth + BRICK_GAP);
+              const brickX = getBrickX(brick.col, brickWidth);
               const brickY = BRICK_TOP + brick.row * (BRICK_HEIGHT + BRICK_GAP);
               const originX = brickX + brickWidth / 2;
               const originY = brickY + BRICK_HEIGHT / 2;
@@ -3685,7 +4460,13 @@ export default function RogueBrickPage() {
               if ((neighbor.kind ?? 'standard') === 'unbreakable') {
                 continue;
               }
+              const neighborHpBeforeHit = neighbor.hp;
               neighbor.hp -= splashDamage;
+              const neighborDamageApplied = Math.max(0, neighborHpBeforeHit - Math.max(0, neighbor.hp));
+              if ((neighbor.kind ?? 'standard') === 'objective' && neighborDamageApplied > 0) {
+                const neighborVariant = neighbor.coreVariant ?? 'yellow';
+                rewards.essenceByColor[neighborVariant] += neighborDamageApplied;
+              }
               brickVisualRef.current.set(neighbor.id, { hitUntil: timestamp + 120 });
               touchedBrickThisFrame = true;
               if (neighbor.hp <= 0) {
@@ -3707,7 +4488,7 @@ export default function RogueBrickPage() {
               const blueCoreWidth = getBrickWidth();
               const blueCoreBounds = getBrickBounds(
                 blueCoreBrick,
-                BRICK_GAP + blueCoreBrick.col * (blueCoreWidth + BRICK_GAP),
+                getBrickX(blueCoreBrick.col, blueCoreWidth),
                 BRICK_TOP + blueCoreBrick.row * (BRICK_HEIGHT + BRICK_GAP),
                 blueCoreWidth
               );
@@ -3725,7 +4506,7 @@ export default function RogueBrickPage() {
               const blueCoreWidth = getBrickWidth();
               const blueCoreBounds = getBrickBounds(
                 nearestBlueCore,
-                BRICK_GAP + nearestBlueCore.col * (blueCoreWidth + BRICK_GAP),
+                getBrickX(nearestBlueCore.col, blueCoreWidth),
                 BRICK_TOP + nearestBlueCore.row * (BRICK_HEIGHT + BRICK_GAP),
                 blueCoreWidth
               );
@@ -3798,7 +4579,7 @@ export default function RogueBrickPage() {
               if (brick.hp <= 0) {
                 continue;
               }
-              const targetX = BRICK_GAP + brick.col * (brickWidth + BRICK_GAP) + brickWidth * 0.5;
+              const targetX = getBrickX(brick.col, brickWidth) + brickWidth * 0.5;
               const targetY = BRICK_TOP + brick.row * (BRICK_HEIGHT + BRICK_GAP) + BRICK_HEIGHT * 0.5;
               const dx = targetX - ball.x;
               const dy = targetY - ball.y;
@@ -3809,7 +4590,7 @@ export default function RogueBrickPage() {
               }
             }
             if (nearestBrick) {
-              const targetX = BRICK_GAP + nearestBrick.col * (brickWidth + BRICK_GAP) + brickWidth * 0.5;
+              const targetX = getBrickX(nearestBrick.col, brickWidth) + brickWidth * 0.5;
               const targetY = BRICK_TOP + nearestBrick.row * (BRICK_HEIGHT + BRICK_GAP) + BRICK_HEIGHT * 0.5;
               const toTargetX = targetX - ball.x;
               const toTargetY = targetY - ball.y;
@@ -3833,13 +4614,15 @@ export default function RogueBrickPage() {
             ball.x += stepX;
             ball.y += stepY;
 
-            if (ball.x <= ball.radius) {
-              ball.x = ball.radius;
+            const leftWallX = BOARD_SIDE_CHANNEL_WIDTH;
+            const rightWallX = CANVAS_WIDTH - BOARD_SIDE_CHANNEL_WIDTH;
+            if (ball.x <= leftWallX + ball.radius) {
+              ball.x = leftWallX + ball.radius;
               ball.vx = Math.abs(ball.vx);
               ball.coreCharged = true;
               pendingBounceCountRef.current += 1;
-            } else if (ball.x >= CANVAS_WIDTH - ball.radius) {
-              ball.x = CANVAS_WIDTH - ball.radius;
+            } else if (ball.x >= rightWallX - ball.radius) {
+              ball.x = rightWallX - ball.radius;
               ball.vx = -Math.abs(ball.vx);
               ball.coreCharged = true;
               pendingBounceCountRef.current += 1;
@@ -3862,7 +4645,7 @@ export default function RogueBrickPage() {
               if (brick.hp <= 0) {
                 continue;
               }
-              const brickX = BRICK_GAP + brick.col * (brickWidth + BRICK_GAP);
+              const brickX = getBrickX(brick.col, brickWidth);
               const brickY = BRICK_TOP + brick.row * (BRICK_HEIGHT + BRICK_GAP);
               const brickBounds = getBrickBounds(brick, brickX, brickY, brickWidth);
               const collisionX = brickBounds.x;
@@ -3932,6 +4715,9 @@ export default function RogueBrickPage() {
                 homingBarrageActive ||
                 ball.coreCharged ||
                 coreVariant !== 'yellow';
+              if (variant === 'objective') {
+                spawnEssenceHitPip(coreVariant, ball.x, ball.y);
+              }
               if (variant === 'objective' && !objectiveCanTakeDamage) {
                 brickVisualRef.current.set(brick.id, { hitUntil: timestamp + 95 });
                 for (let burst = 0; burst < 10; burst += 1) {
@@ -3962,14 +4748,19 @@ export default function RogueBrickPage() {
                 (variant !== 'oneway' || !brick.weakSide || brick.weakSide === impactSide);
 
               if (canDamage) {
+                const hpBeforeHit = brick.hp;
                 if (homingBarrageActive || (variant === 'unbreakable' && objectiveCharge >= 1)) {
                   brick.hp = 0;
                 } else {
                   brick.hp -= damage;
                 }
+                const damageApplied = Math.max(0, hpBeforeHit - Math.max(0, brick.hp));
                 touchedBrickThisFrame = true;
                 brickVisualRef.current.set(brick.id, { hitUntil: timestamp + 120 });
                 const isObjective = variant === 'objective';
+                if (isObjective && damageApplied > 0) {
+                  rewards.essenceByColor[coreVariant] += damageApplied;
+                }
                 if (isObjective) {
                   ball.coreCharged = false;
                 }
@@ -3978,7 +4769,7 @@ export default function RogueBrickPage() {
                   : isCrit
                   ? BALANCE.brickManaRewardCrit
                   : BALANCE.brickManaRewardNormal;
-                rewards.mana += activeRun.manaMultiplier * baseManaReward;
+                rewards.mana += activeRun.manaMultiplier * getManaYieldScale(activeRun.boardsCleared) * baseManaReward;
                 if (brick.hp <= 0) {
                   destroyBrick(brick, ball);
                 }
@@ -4089,6 +4880,7 @@ export default function RogueBrickPage() {
             destroyedBricks: pendingDestroyedBricksRef.current,
             manaEarned: rewards.mana,
             remainingBricks: bricksRef.current.length,
+            essenceByColor: { ...rewards.essenceByColor },
           });
           // Sync HP changes back to profile state to keep UI in sync during shots
           if (profileRef.current?.run) {
@@ -4119,7 +4911,7 @@ export default function RogueBrickPage() {
 
       animationRef.current = requestAnimationFrame(frame);
     },
-    [draw, finalizeTurn, spawnBreakParticles]
+    [draw, finalizeTurn, spawnBreakParticles, spawnEssenceHitPip]
   );
 
   useEffect(
@@ -4167,7 +4959,7 @@ export default function RogueBrickPage() {
     bricksRef.current = [];
     breakParticlesRef.current = [];
     brickVisualRef.current.clear();
-    pendingRewardsRef.current = { mana: 0 };
+    pendingRewardsRef.current = { mana: 0, essenceByColor: { yellow: 0, blue: 0, green: 0 } };
     pendingDestroyedBricksRef.current = 0;
     setAutoHomingLaunchPending(false);
     setIsCoreBreachFlashing(false);
@@ -4175,6 +4967,7 @@ export default function RogueBrickPage() {
       destroyedBricks: 0,
       manaEarned: 0,
       remainingBricks: 0,
+      essenceByColor: { yellow: 0, blue: 0, green: 0 },
     });
 
     const resetProfile = defaultProfile();
@@ -4231,6 +5024,7 @@ export default function RogueBrickPage() {
         boardsCleared: 0,
         nextSpoilsBoard: 0,
         mana: startingMana,
+        essenceByColor: { yellow: 0, blue: 0, green: 0 },
         ballCount: startingBalls,
         damage: startingDamage,
         critChance: 0.04,
@@ -4272,6 +5066,7 @@ export default function RogueBrickPage() {
       destroyedBricks: 0,
       manaEarned: 0,
       remainingBricks: 0,
+      essenceByColor: { yellow: 0, blue: 0, green: 0 },
     });
     setPreviewStartingPowerId(null);
     setStartingRunPowerChoices([]);
@@ -4343,6 +5138,7 @@ export default function RogueBrickPage() {
       destroyedBricks: 0,
       manaEarned: 0,
       remainingBricks: 0,
+      essenceByColor: { yellow: 0, blue: 0, green: 0 },
     });
   }, [commitProfile]);
 
@@ -4494,7 +5290,11 @@ export default function RogueBrickPage() {
         return;
       }
       const bounds = event.currentTarget.getBoundingClientRect();
-      const x = ((event.clientX - bounds.left) / bounds.width) * CANVAS_WIDTH;
+      const x = clampCoordinate(
+        ((event.clientX - bounds.left) / bounds.width) * CANVAS_WIDTH,
+        BOARD_SIDE_CHANNEL_WIDTH,
+        CANVAS_WIDTH - BOARD_SIDE_CHANNEL_WIDTH
+      );
       const y = ((event.clientY - bounds.top) / bounds.height) * CANVAS_HEIGHT;
       event.currentTarget.setPointerCapture(event.pointerId);
       setIsDragging(true);
@@ -4509,7 +5309,11 @@ export default function RogueBrickPage() {
         return;
       }
       const bounds = event.currentTarget.getBoundingClientRect();
-      const x = ((event.clientX - bounds.left) / bounds.width) * CANVAS_WIDTH;
+      const x = clampCoordinate(
+        ((event.clientX - bounds.left) / bounds.width) * CANVAS_WIDTH,
+        BOARD_SIDE_CHANNEL_WIDTH,
+        CANVAS_WIDTH - BOARD_SIDE_CHANNEL_WIDTH
+      );
       const y = ((event.clientY - bounds.top) / bounds.height) * CANVAS_HEIGHT;
       setAimPoint({ x, y });
     },
@@ -4628,6 +5432,16 @@ export default function RogueBrickPage() {
     return 'Idle';
   }, [isOnline, pendingSync, syncStatus]);
 
+  const cycleTargetArtStyle = useCallback(() => {
+    setTargetArtStyle((current) => {
+      const currentIndex = TARGET_ART_STYLE_SEQUENCE.indexOf(current);
+      if (currentIndex < 0) {
+        return TARGET_ART_STYLE_SEQUENCE[0];
+      }
+      return TARGET_ART_STYLE_SEQUENCE[(currentIndex + 1) % TARGET_ART_STYLE_SEQUENCE.length];
+    });
+  }, []);
+
   if (isLoading || !profile) {
     return <div className="loading">Loading hidden module...</div>;
   }
@@ -4701,6 +5515,12 @@ export default function RogueBrickPage() {
     ? Math.round(run.board.bricks.reduce((sum, brick) => sum + Math.max(0, brick.hp), 0))
     : 0;
   const displayMana = hasActiveRun ? Math.floor((run?.mana ?? 0) + liveHud.manaEarned) : 0;
+  const essenceCapacityByColor = getEssenceCapacityByColorFor60BoardRun();
+  const displayEssenceByColor: Record<CoreVariant, number> = {
+    yellow: Math.max(0, (run?.essenceByColor.yellow ?? 0) + liveHud.essenceByColor.yellow),
+    blue: Math.max(0, (run?.essenceByColor.blue ?? 0) + liveHud.essenceByColor.blue),
+    green: Math.max(0, (run?.essenceByColor.green ?? 0) + liveHud.essenceByColor.green),
+  };
   const displayDestroyedBricks = (run?.levelBricksDestroyed ?? 0) + liveHud.destroyedBricks;
   const displayClimbProgressPct = run
     ? Math.min(
@@ -4821,6 +5641,17 @@ export default function RogueBrickPage() {
       pathNodePositions[node.id] = { x: xPct, y: yPct };
     }
   }
+  const upcomingWardenTrigger = run ? getUpcomingWardenTrigger(run) : null;
+  const upcomingWardenDefinition = upcomingWardenTrigger
+    ? getDeepwoodDomainDefinition(upcomingWardenTrigger.domain).wardens[upcomingWardenTrigger.wardenIndex] ?? null
+    : null;
+  const upcomingWardenNode = pathPreview
+    ? pathPreview.nodes.find((node) => node.level === upcomingWardenTrigger?.level) ?? null
+    : null;
+  const upcomingWardenNodePosition = upcomingWardenNode ? pathNodePositions[upcomingWardenNode.id] : null;
+  const upcomingWardenLabelStyle = upcomingWardenNodePosition
+    ? { left: `${upcomingWardenNodePosition.x}%`, top: `${upcomingWardenNodePosition.y}%` }
+    : { left: '50%', top: '6%' };
   const pathLevelMarkers = pathPreview
     ? Array.from({ length: pathPreview.endLevel - pathPreview.startLevel + 1 }, (_, index) => {
         const level = pathPreview.endLevel - index;
@@ -5086,13 +5917,24 @@ export default function RogueBrickPage() {
         </div>
         <div className="rogue-brick-header-actions">
           <div className="rogue-brick-sync-status">{syncLabel}</div>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={cycleTargetArtStyle}
+            title="Cycle non-orb target art style"
+          >
+            Brick Art: {targetArtStyleLabel}
+          </button>
           <button type="button" className="btn-secondary" onClick={() => setIsFocusMode(true)}>
             Lock In Full Screen
           </button>
         </div>
       </header>
 
-      <section className={`rogue-brick-layout-shell${isFocusMode ? ' is-focus-mode' : ''}`}>
+      <section
+        ref={layoutShellRef}
+        className={`rogue-brick-layout-shell${isFocusMode ? ' is-focus-mode' : ''}`}
+      >
         <div 
           className={`rogue-brick-top-hud${shouldGateBoardChoices && boardSummary ? ' is-hidden' : ''}`} 
           aria-label="Current score and progress"
@@ -5141,9 +5983,87 @@ export default function RogueBrickPage() {
           </div>
         </div>
 
-        <div className={`rogue-brick-layout${isFocusMode ? ' is-focus-mode' : ''}`}>
-          <div className={`rogue-brick-canvas-wrap${isPowerDrawerExpanded ? ' is-power-drawer-expanded' : ''}`}>
-            <div className={`rogue-brick-board-frame${isBetweenLevelHub ? ' is-between-level' : ''}`}>
+        <div
+          ref={brickLayoutRef}
+          className={`rogue-brick-layout${isFocusMode ? ' is-focus-mode' : ''}`}
+        >
+          {hasActiveRun && run?.stage === 'board' && (
+            <aside
+              className="rogue-essence-sidebar"
+              style={
+                normalModeEssenceTopPx === null || normalModeEssenceLeftPx === null
+                  ? undefined
+                  : {
+                      position: 'absolute',
+                      top: `${normalModeEssenceTopPx}px`,
+                      left: `${normalModeEssenceLeftPx}px`,
+                      transform: 'none',
+                    }
+              }
+              aria-label="Essence reserves"
+            >
+              {CORE_VARIANTS.map((variant) => {
+                const helpKey = `essence-${variant}` as ResourceHelpKey;
+                const current = displayEssenceByColor[variant];
+                const capacity = essenceCapacityByColor[variant];
+                const fillPct = Math.max(0, Math.min(100, (current / Math.max(1, capacity)) * 100));
+                const variantLabel = getCoreVariantLabel(variant).replace(' Orb', '');
+                return (
+                  <div key={`essence-${variant}`} className="rogue-essence-bottle-wrap">
+                    <button
+                      ref={(element) => {
+                        essenceVialButtonRefs.current[variant] = element;
+                      }}
+                      type="button"
+                      className={`rogue-essence-bottle-button is-${variant}`}
+                      onClick={() => setSelectedResourceHelp(selectedResourceHelp === helpKey ? null : helpKey)}
+                      title={`${variantLabel} essence`}
+                      aria-label={`${variantLabel} essence bottle. Show amount stored.`}
+                      data-popover-surface="true"
+                    >
+                      <span className="rogue-essence-bottle" aria-hidden="true">
+                        <span className="rogue-essence-bottle-fill-track">
+                          <span
+                            className="rogue-essence-bottle-fill"
+                            style={{ height: `${fillPct}%`, background: getCoreVariantColor(variant) }}
+                          />
+                        </span>
+                        <img
+                          className="rogue-essence-bottle-shell"
+                          src={ESSENCE_VIAL_SHELL_URL_BY_VARIANT[variant]}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      </span>
+                    </button>
+                    {selectedResourceHelp === helpKey && (
+                      <section
+                        className="rogue-overlay-resource-popover rogue-essence-popover"
+                        role="dialog"
+                        aria-label={`${variantLabel} essence details`}
+                        data-popover-surface="true"
+                      >
+                        <div className="rogue-overlay-resource-popover-head">
+                          <strong>{variantLabel} Essence</strong>
+                        </div>
+                        <p>{current.toLocaleString()} / {capacity.toLocaleString()} stored</p>
+                      </section>
+                    )}
+                  </div>
+                );
+              })}
+            </aside>
+          )}
+        <div
+          ref={canvasWrapRef}
+          className={`rogue-brick-canvas-wrap${isPowerDrawerExpanded ? ' is-power-drawer-expanded' : ''}`}
+        >
+            <div ref={essencePipLayerRef} className="rogue-essence-pip-layer" aria-hidden="true" />
+            <div
+              ref={boardFrameRef}
+              className={`rogue-brick-board-frame${isBetweenLevelHub ? ' is-between-level' : ''}`}
+            >
               {hasActiveRun && run?.stage === 'board' && (
                 <div className="rogue-core-progress-board" aria-label="Orb progress (Yellow left, Blue middle, Green right)">
                   {coreProgressSlots
@@ -5282,7 +6202,10 @@ export default function RogueBrickPage() {
                     {run?.stage === 'hub' && !shouldGateBoardChoices && !hasPendingWardenSpoils && pathPreview && (
                       <>
                         <div className="rogue-path-tree-panel" aria-label="Deepwood trail path selector">
-                          <div className="rogue-path-tree-graph">
+                          <div
+                            className={`rogue-path-tree-graph${isPathSliding ? ' is-sliding' : ''}`}
+                          >
+                            <div className="rogue-path-tree-stage">
                             <div className="rogue-path-tree-level-rail" aria-hidden="true">
                               {pathLevelMarkers.map((marker) => (
                                 <div
@@ -5328,6 +6251,7 @@ export default function RogueBrickPage() {
                                 'rogue-path-tree-node',
                                 `is-${node.relation}`,
                                 forecastEncounterWarden ? 'is-warden-encounter' : '',
+                                `is-core-${node.primaryCoreVariant}`,
                                 node.isSelected ? 'is-selected' : '',
                                 node.isPlayable ? 'is-playable' : '',
                               ]
@@ -5363,6 +6287,15 @@ export default function RogueBrickPage() {
                                 />
                               );
                             })}
+                            {upcomingWardenDefinition && (
+                              <span
+                                className={`rogue-path-tree-upcoming-warden${upcomingWardenNodePosition ? ' is-pinned' : ' is-top-pinned'}`}
+                                style={upcomingWardenLabelStyle}
+                              >
+                                {upcomingWardenDefinition.name}
+                              </span>
+                            )}
+                            </div>
                           </div>
                         </div>
                       </>
