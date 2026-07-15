@@ -13,9 +13,9 @@ const CANVAS_WIDTH = 420;
 const CANVAS_HEIGHT = 720;
 const BRICK_COLUMNS = 7;
 const BRICK_GAP = 1.5;
-const BRICK_HEIGHT = 44;
+const BRICK_HEIGHT = 34;
 const BRICK_SIZE_SCALE = 0.7;
-const STANDARD_BRICK_MIN_SCALE = 0.58;
+const STANDARD_BRICK_MIN_SCALE = 0.70;
 const BRICK_ROW_STEP = BRICK_HEIGHT + BRICK_GAP;
 const BRICK_TOP = 70;
 const LAUNCHER_Y = CANVAS_HEIGHT - 42;
@@ -50,14 +50,17 @@ const ESSENCE_VIAL_SHELL_URL_BY_VARIANT: Record<CoreVariant, string> = {
 const UNBREAKABLE_INTRO_BOARD = 16;
 const UNBREAKABLE_HALF_BOARD = 48;
 const UNBREAKABLE_MAX_SHARE = 0.5;
-const BOARD_SIDE_CHANNEL_WIDTH = 44;
-const STANDARD_BRICK_MAX_SCALE = 0.78;
+const BOARD_SIDE_CHANNEL_WIDTH = 30;
+const STANDARD_BRICK_MAX_SCALE = 0.90;
 const PATH_PREVIEW_VISIBLE_LEVELS = 6;
 const PATH_MAX_LANE_ABS = 1;
 const PATH_WARDEN_INTERVAL_LEVELS = 5;
 const PATH_WARDEN_TOTAL = 6;
 const MAX_ESSENCE_RUN_BOARDS_FOR_CAPACITY = 60;
 const PATH_SLIDE_ANIMATION_MS = 420;
+const CLOUD_SYNC_DEBOUNCE_IDLE_MS = 7000;
+const CLOUD_SYNC_DEBOUNCE_BOARD_MS = 18000;
+const CLOUD_SYNC_MIN_INTERVAL_MS = 25000;
 
 const BALANCE_TARGETS = {
   runDurationMinutes: 20,
@@ -165,9 +168,24 @@ interface RunSummary {
   completedAt: number;
 }
 
+interface BoardSkillBonus {
+  id: string;
+  label: string;
+  detail: string;
+  mana: number; // positive = reward, negative = penalty
+}
+
 interface BoardSummary {
   shotsTaken: number;
   bounceCount: number;
+  manualBricksDestroyed: number;
+  killShotBricksBeforeOrb: number; // non-orb bricks destroyed the turn the final orb died
+  slowAndSteadyShots: number;
+  giggidyBalls: number;
+  bestBallRebounds: number;
+  manaRaw: number;
+  skillBonuses: BoardSkillBonus[];
+  manaBonus: number; // net mana change from skill bonuses
   achievements: string[];
 }
 
@@ -225,6 +243,12 @@ interface RogueRunState {
   hubMessage: string;
   boardShotsTaken: number;
   boardBounceCount: number;
+  boardManaEarned: number;
+  boardManualBricksDestroyed: number;
+  boardKillShotBricksBeforeOrb: number;
+  boardSlowAndSteadyShots: number;
+  boardGiggidyBalls: number;
+  boardBestBallRebounds: number;
   lastBoardSummary: BoardSummary | null;
   boardSummaryAcknowledged: boolean;
   pathCurrentNodeId: string;
@@ -335,6 +359,7 @@ interface BallRuntime {
   mass: number;
   active: boolean;
   coreCharged: boolean;
+  reboundCount: number;
 }
 
 interface LaunchQueueItem {
@@ -1177,6 +1202,24 @@ function normalizeProfile(profile: RogueBrickProfile): RogueBrickProfile {
     if (typeof normalized.run.boardBounceCount !== 'number' || Number.isNaN(normalized.run.boardBounceCount)) {
       normalized.run.boardBounceCount = 0;
     }
+    if (typeof normalized.run.boardManaEarned !== 'number' || Number.isNaN(normalized.run.boardManaEarned)) {
+      normalized.run.boardManaEarned = 0;
+    }
+    if (typeof normalized.run.boardManualBricksDestroyed !== 'number' || Number.isNaN(normalized.run.boardManualBricksDestroyed)) {
+      normalized.run.boardManualBricksDestroyed = 0;
+    }
+    if (typeof normalized.run.boardKillShotBricksBeforeOrb !== 'number' || Number.isNaN(normalized.run.boardKillShotBricksBeforeOrb)) {
+      normalized.run.boardKillShotBricksBeforeOrb = 0;
+    }
+    if (typeof normalized.run.boardSlowAndSteadyShots !== 'number' || Number.isNaN(normalized.run.boardSlowAndSteadyShots)) {
+      normalized.run.boardSlowAndSteadyShots = 0;
+    }
+    if (typeof normalized.run.boardGiggidyBalls !== 'number' || Number.isNaN(normalized.run.boardGiggidyBalls)) {
+      normalized.run.boardGiggidyBalls = 0;
+    }
+    if (typeof normalized.run.boardBestBallRebounds !== 'number' || Number.isNaN(normalized.run.boardBestBallRebounds)) {
+      normalized.run.boardBestBallRebounds = 0;
+    }
     if (!normalized.run.lastBoardSummary || typeof normalized.run.lastBoardSummary !== 'object') {
       normalized.run.lastBoardSummary = null;
     } else {
@@ -1185,6 +1228,30 @@ function normalizeProfile(profile: RogueBrickProfile): RogueBrickProfile {
       }
       if (typeof normalized.run.lastBoardSummary.bounceCount !== 'number') {
         normalized.run.lastBoardSummary.bounceCount = 0;
+      }
+      if (typeof normalized.run.lastBoardSummary.manualBricksDestroyed !== 'number') {
+        normalized.run.lastBoardSummary.manualBricksDestroyed = 0;
+      }
+      if (typeof normalized.run.lastBoardSummary.killShotBricksBeforeOrb !== 'number') {
+        normalized.run.lastBoardSummary.killShotBricksBeforeOrb = 0;
+      }
+      if (typeof normalized.run.lastBoardSummary.slowAndSteadyShots !== 'number') {
+        normalized.run.lastBoardSummary.slowAndSteadyShots = 0;
+      }
+      if (typeof normalized.run.lastBoardSummary.giggidyBalls !== 'number') {
+        normalized.run.lastBoardSummary.giggidyBalls = 0;
+      }
+      if (typeof normalized.run.lastBoardSummary.bestBallRebounds !== 'number') {
+        normalized.run.lastBoardSummary.bestBallRebounds = 0;
+      }
+      if (typeof normalized.run.lastBoardSummary.manaRaw !== 'number') {
+        normalized.run.lastBoardSummary.manaRaw = 0;
+      }
+      if (!Array.isArray(normalized.run.lastBoardSummary.skillBonuses)) {
+        normalized.run.lastBoardSummary.skillBonuses = [];
+      }
+      if (typeof normalized.run.lastBoardSummary.manaBonus !== 'number') {
+        normalized.run.lastBoardSummary.manaBonus = 0;
       }
       if (!Array.isArray(normalized.run.lastBoardSummary.achievements)) {
         normalized.run.lastBoardSummary.achievements = [];
@@ -1802,26 +1869,46 @@ interface CuratedBoardDesign {
 }
 
 const CURATED_BASE_PATTERNS: string[][] = [
-  ['..s.s..', '.s...s.', '..r.r..', '...C...', '..r.r..', '.s...s.', '..s.s..'],
-  ['...s...', '..s.s..', '.r...r.', '..s.s..', '...C...', '..s.s..', '.s...s.', '..s.s..'],
-  ['.s...s.', '..r.r..', '.s...s.', '...C...', '.s...s.', '..r.r..', '.s...s.'],
-  ['..o.o..', '.s...s.', '..r.r..', '...C...', '..r.r..', '.s...s.', '..o.o..'],
-  ['...r...', '..s.s..', '.s...s.', '..s.s..', '...C...', '.s...s.', '..s.s..', '...r...'],
-  ['.r...r.', '..s.s..', '.s...s.', '..r.r..', '...C...', '..r.r..', '.s...s.', '..s.s..'],
-  ['..s.s..', '.r...r.', '..s.s..', '...C...', '..s.s..', '.r...r.', '..s.s..'],
-  ['...s...', '.s...s.', '..r.r..', '.s...s.', '...C...', '.s...s.', '..r.r..', '.s...s.'],
-  ['.s...s.', '..o.o..', '.r...r.', '..s.s..', '...C...', '..s.s..', '.r...r.', '..o.o..'],
-  ['..r.r..', '.s...s.', '...s...', '..s.s..', '...C...', '..s.s..', '...s...', '.s...s.', '..r.r..'],
-  ['..s.s..', '.s...s.', '..p.p..', '.r...r.', '...C...', '.r...r.', '..p.p..', '.s...s.'],
-  ['...s...', '..r.r..', '.s...s.', '..o.o..', '...C...', '..o.o..', '.s...s.', '..r.r..'],
-  ['.s...s.', '..s.s..', '.r...r.', '..s.s..', '...C...', '..s.s..', '.r...r.', '..s.s..', '.s...s.'],
-  ['..o.o..', '.r...r.', '..s.s..', '.s...s.', '...C...', '.s...s.', '..s.s..', '.r...r.', '..o.o..'],
-  ['...r...', '.s...s.', '..s.s..', '.r...r.', '...C...', '.r...r.', '..s.s..', '.s...s.', '...r...'],
-  ['.r...r.', '..o.o..', '.s...s.', '..r.r..', '...C...', '..r.r..', '.s...s.', '..o.o..', '.r...r.'],
-  ['..s.s..', '.r...r.', '..s.s..', '.s...s.', '...C...', '.s...s.', '..s.s..', '.r...r.', '..s.s..'],
-  ['...s...', '.r...r.', '..s.s..', '.o...o.', '...C...', '.o...o.', '..s.s..', '.r...r.', '...s...'],
-  ['.s...s.', '..r.r..', '.o...o.', '..s.s..', '...C...', '..s.s..', '.o...o.', '..r.r..', '.s...s.'],
-  ['..r.r..', '.s...s.', '..o.o..', '.s...s.', '...C...', '.s...s.', '..o.o..', '.s...s.', '..r.r..'],
+  // 1: symmetric shield
+  ['ss.s.ss', 'srsssrs', 'ss.r.ss', 's.srs.s', '...C...', 's.srs.s', 'ss.r.ss', 'srsssrs', 'ss.s.ss'],
+  // 2: dense columns
+  ['sss.sss', '.sssss.', 'ssrssrs', 'sssssss', '...C...', 'sssssss', 'ssrssrs', '.sssss.', 'sss.sss'],
+  // 3: alternating grid
+  ['s.s.s.s', 'sssrsss', 's.sss.s', 'sssssss', '...C...', 'sssssss', 's.sss.s', 'sssrsss', 's.s.s.s'],
+  // 4: fortress walls
+  ['.sssss.', 'srsssrs', 'ss.r.ss', '.sssss.', '...C...', '.sssss.', 'ss.r.ss', 'srsssrs', '.sssss.'],
+  // 5: gated approach
+  ['srs.srs', 'ss.s.ss', 'sssssss', 'sr...rs', '...C...', 'sr...rs', 'sssssss', 'ss.s.ss', 'srs.srs'],
+  // 6: chevron lattice
+  ['.srsrs.', 'sssssss', 'ss.s.ss', 'srsrsrs', '...C...', 'srsrsrs', 'ss.s.ss', 'sssssss', '.srsrs.'],
+  // 7: solid bracket
+  ['sss.sss', 'srssrss', 'sssssss', 'ss.s.ss', '...C...', 'ss.s.ss', 'sssssss', 'srssrss', 'sss.sss'],
+  // 8: flanking columns
+  ['s.sss.s', 'ssrssrs', '.sssss.', 'sssssss', '...C...', 'sssssss', '.sssss.', 'ssrssrs', 's.sss.s'],
+  // 9: reinforced shell
+  ['srssrss', 'ss.r.ss', 'srsssrs', 'ss.s.ss', '...C...', 'ss.s.ss', 'srsssrs', 'ss.r.ss', 'srssrss'],
+  // 10: solid waves
+  ['sssssss', 'ss.r.ss', 'srssrss', '.srsrs.', '...C...', '.srsrs.', 'srssrss', 'ss.r.ss', 'sssssss'],
+  // 11: prism crown
+  ['ss.p.ss', 'sssssss', 'srssrss', 'ss.s.ss', '...C...', 'ss.s.ss', 'srssrss', 'sssssss', 'ss.p.ss'],
+  // 12: chevron tower
+  ['.srsrs.', 'ssrssrs', 'sssssss', 'ss.r.ss', '...C...', 'ss.r.ss', 'sssssss', 'ssrssrs', '.srsrs.'],
+  // 13: dense wall
+  ['sss.sss', 'ss.s.ss', 'srsssrs', 'sssssss', '...C...', 'sssssss', 'srsssrs', 'ss.s.ss', 'sss.sss'],
+  // 14: flanked core
+  ['s.sss.s', 'sssrsss', 'ssrssrs', '.sssss.', '...C...', '.sssss.', 'ssrssrs', 'sssrsss', 's.sss.s'],
+  // 15: rampart
+  ['srs.srs', 'sssssss', 'ss.r.ss', 'srsssrs', '...C...', 'srsssrs', 'ss.r.ss', 'sssssss', 'srs.srs'],
+  // 16: prism fortress
+  ['.sssss.', 'srssrss', 'sssssss', 'ss.p.ss', '...C...', 'ss.p.ss', 'sssssss', 'srssrss', '.sssss.'],
+  // 17: crosshatch
+  ['ssrssrs', 'ss.s.ss', 'srsssrs', 'sssssss', '...C...', 'sssssss', 'srsssrs', 'ss.s.ss', 'ssrssrs'],
+  // 18: layered rings
+  ['sss.sss', '.srsrs.', 'ssrssrs', 'srsssrs', '...C...', 'srsssrs', 'ssrssrs', '.srsrs.', 'sss.sss'],
+  // 19: bracket grid
+  ['ss.s.ss', 'sssrsss', '.srsrs.', 'sssssss', '...C...', 'sssssss', '.srsrs.', 'sssrsss', 'ss.s.ss'],
+  // 20: reinforced column
+  ['srsssrs', '.sssss.', 'ssrssrs', 'sss.sss', '...C...', 'sss.sss', 'ssrssrs', '.sssss.', 'srsssrs'],
 ];
 
 function applyCuratedVariant(baseRows: string[], variant: number): string[] {
@@ -1896,6 +1983,115 @@ function enforceIndirectCorePath(rows: string[]): string[] {
   const nextRows = [...rows];
   nextRows[targetRowIndex] = targetRow.join('');
   return nextRows;
+}
+
+function applyEarlyBoardBreathingRows(rows: string[], run: RogueRunState): string[] {
+  const boardNumber = run.boardsCleared + 1;
+  if (boardNumber > 8) {
+    return rows;
+  }
+
+  const coreRow = rows.findIndex((row) => row.includes('C'));
+  const coreCol = coreRow >= 0 ? rows[coreRow].indexOf('C') : Math.floor(BRICK_COLUMNS / 2);
+  const laneSeed = hashStringToUint32(`${run.seed}|${run.level}|${run.boardsCleared}|breathing-lanes`);
+  const sideDirection = laneSeed % 2 === 0 ? -1 : 1;
+  const primaryLane = Math.max(0, Math.min(BRICK_COLUMNS - 1, coreCol));
+  const secondaryLane = Math.max(0, Math.min(BRICK_COLUMNS - 1, coreCol + sideDirection * 2));
+  const tertiaryLane = Math.max(0, Math.min(BRICK_COLUMNS - 1, coreCol - sideDirection));
+
+  return rows.map((row, rowIndex) => {
+    const chars = row.split('');
+    const containsCore = chars.includes('C');
+
+    if (!containsCore) {
+      chars[primaryLane] = '.';
+      if (boardNumber <= 4 || rowIndex % 2 === 0) {
+        chars[secondaryLane] = '.';
+      }
+      if (boardNumber <= 3 && rowIndex >= Math.floor(rows.length * 0.35)) {
+        chars[tertiaryLane] = '.';
+      }
+    }
+
+    const occupiedCount = chars.reduce((count, cell) => count + (cell !== '.' ? 1 : 0), 0);
+    if (occupiedCount >= 6) {
+      const carveOrder = [
+        Math.max(0, Math.min(BRICK_COLUMNS - 1, coreCol + 3)),
+        Math.max(0, Math.min(BRICK_COLUMNS - 1, coreCol - 3)),
+        Math.max(0, Math.min(BRICK_COLUMNS - 1, coreCol + 2)),
+        Math.max(0, Math.min(BRICK_COLUMNS - 1, coreCol - 2)),
+      ];
+      for (const carveCol of carveOrder) {
+        if (chars[carveCol] === '.' || chars[carveCol] === 'C') {
+          continue;
+        }
+        chars[carveCol] = '.';
+        const nextOccupied = chars.reduce((count, cell) => count + (cell !== '.' ? 1 : 0), 0);
+        if (nextOccupied <= 5) {
+          break;
+        }
+      }
+    }
+
+    return chars.join('');
+  });
+}
+
+function applyEarlyBoardPreDamage(bricks: Brick[], run: RogueRunState): void {
+  const boardNumber = run.boardsCleared + 1;
+  if (boardNumber > 10) {
+    return;
+  }
+
+  const breakableBricks = bricks.filter((brick) => {
+    const kind = brick.kind ?? 'standard';
+    return kind !== 'objective' && kind !== 'unbreakable';
+  });
+  if (breakableBricks.length === 0) {
+    return;
+  }
+
+  const maxRow = breakableBricks.reduce((highest, brick) => Math.max(highest, brick.row), 0);
+  const earlyBoardScale = clampNumber((11 - boardNumber) / 10, 0, 1);
+  if (earlyBoardScale <= 0) {
+    return;
+  }
+
+  for (const brick of breakableBricks) {
+    const normalizedDepth = maxRow <= 0 ? 0 : clampNumber(brick.row / maxRow, 0, 1);
+    const lowerBoardDepth = clampNumber((normalizedDepth - 0.28) / 0.72, 0, 1);
+    if (lowerBoardDepth <= 0) {
+      continue;
+    }
+
+    const kind = brick.kind ?? 'standard';
+    const kindScale = kind === 'reinforced' ? 0.72 : kind === 'prism' ? 0.85 : 1;
+    const damageRatio = clampNumber(
+      (0.14 + Math.pow(lowerBoardDepth, 1.25) * 0.58) * earlyBoardScale * kindScale,
+      0,
+      0.78
+    );
+    const damageAmount = Math.floor(brick.maxHp * damageRatio);
+    if (damageAmount <= 0) {
+      continue;
+    }
+
+    brick.hp = Math.max(1, brick.maxHp - damageAmount);
+  }
+}
+
+function getObjectiveSpawnRow(baseRow: number, run: RogueRunState): number {
+  const boardNumber = run.boardsCleared + 1;
+  if (boardNumber <= 4) {
+    return -0.35;
+  }
+  if (boardNumber <= 10) {
+    return Math.min(baseRow, 1);
+  }
+  if (boardNumber <= 18) {
+    return Math.min(baseRow, 2);
+  }
+  return baseRow;
 }
 
 function shiftCuratedRows(rows: string[], offset: number): string[] {
@@ -2035,7 +2231,8 @@ function generateBoard(run: RogueRunState): BoardState {
     CURATED_BOARD_CATALOG.length;
   const design = CURATED_BOARD_CATALOG[selectedIndex];
   const coreLaneOffset = pickCoreLaneOffset(design.rows, run);
-  const boardRows = enforceIndirectCorePath(shiftCuratedRows(design.rows, coreLaneOffset));
+  const baseRows = enforceIndirectCorePath(shiftCuratedRows(design.rows, coreLaneOffset));
+  const boardRows = applyEarlyBoardBreathingRows(baseRows, run);
 
   let bricks: Brick[] = [];
   const hpBase = Math.max(2, Math.round((2 + Math.floor(run.level * 0.55)) * challengeDefinition.hpMultiplier));
@@ -2143,6 +2340,8 @@ function generateBoard(run: RogueRunState): BoardState {
     }
   }
 
+  objectiveRow = getObjectiveSpawnRow(objectiveRow, run);
+
   const objectiveId = `${design.id}-objective-${run.level}-${objectiveRow}-${objectiveCol}-${Math.round(nextRandom(run) * 1_000_000)}`;
   bricks.push({
     id: objectiveId,
@@ -2159,10 +2358,22 @@ function generateBoard(run: RogueRunState): BoardState {
     const candidateIndexes = bricks
       .map((_, index) => index)
       .filter((index) => bricks[index].kind !== 'objective');
+    candidateIndexes.sort((leftIndex, rightIndex) => {
+      const left = bricks[leftIndex];
+      const right = bricks[rightIndex];
+      if (left.row !== right.row) {
+        return left.row - right.row;
+      }
+      return Math.abs(left.col - objectiveCol) - Math.abs(right.col - objectiveCol);
+    });
     const extraCount = Math.min(targetObjectiveCount - 1, candidateIndexes.length);
     const selectedIndexes: number[] = [];
+    const preferredTopBandCount = Math.max(extraCount, Math.ceil(candidateIndexes.length * 0.45));
+    const topBand = candidateIndexes.slice(0, preferredTopBandCount);
+    const fallbackBand = candidateIndexes.slice(preferredTopBandCount);
     while (selectedIndexes.length < extraCount) {
-      const nextIndex = candidateIndexes.splice(randomInt(run, 0, candidateIndexes.length - 1), 1)[0];
+      const sourceBand = topBand.length > 0 ? topBand : fallbackBand;
+      const nextIndex = sourceBand.splice(randomInt(run, 0, sourceBand.length - 1), 1)[0];
       if (typeof nextIndex !== 'number') {
         break;
       }
@@ -2214,6 +2425,8 @@ function generateBoard(run: RogueRunState): BoardState {
       return !greenObjectiveBounds.some((objectiveBounds) => doBrickBoundsOverlap(bounds, objectiveBounds));
     });
   }
+
+  applyEarlyBoardPreDamage(bricks, run);
 
   return {
     turn: 1,
@@ -2399,7 +2612,89 @@ function buildBoardAchievements(summary: BoardSummary): string[] {
   if (summary.shotsTaken <= 2 && summary.bounceCount >= 10) {
     achievements.push('Orb Killer');
   }
+  if (summary.killShotBricksBeforeOrb >= 3) {
+    achievements.push("Warden's Gate");
+  }
+  if (summary.slowAndSteadyShots > 0) {
+    achievements.push('Slow and Steady');
+  }
+  if (summary.giggidyBalls > 0) {
+    achievements.push('Giggidy');
+  }
   return achievements;
+}
+
+function getShotEfficiencyMultiplier(shots: number): number {
+  if (shots === 1) return 3.0;
+  if (shots === 2) return 2.0;
+  if (shots === 3) return 1.0;
+  if (shots <= 9) return Math.max(0.1, 1.0 - (shots - 3) * 0.15);
+  return 0.0;
+}
+
+function computeSkillBonuses(opts: {
+  shotsTaken: number;
+  manualBricksDestroyed: number;
+  killShotBricksBeforeOrb: number;
+  slowAndSteadyShots: number;
+  giggidyBalls: number;
+  bestBallRebounds: number;
+  manaRaw: number;
+}): { bonuses: BoardSkillBonus[]; manaBonus: number } {
+  const bonuses: BoardSkillBonus[] = [];
+
+  // Shot efficiency: multiplier applied to raw board mana
+  const shotMultiplier = getShotEfficiencyMultiplier(opts.shotsTaken);
+  if (shotMultiplier !== 1.0) {
+    const shotBonusMana = Math.round(opts.manaRaw * (shotMultiplier - 1.0));
+    bonuses.push({
+      id: 'efficiency',
+      label: shotMultiplier >= 1 ? `${shotMultiplier}× Efficiency` : 'Shot Debt',
+      detail: `${opts.shotsTaken} shot${opts.shotsTaken === 1 ? '' : 's'}`,
+      mana: shotBonusMana,
+    });
+  }
+
+  // Precision kill: orb destroyed with 3+ non-orb bricks in the same turn
+  if (opts.killShotBricksBeforeOrb >= 3) {
+    bonuses.push({
+      id: 'precision-kill',
+      label: 'Precision Kill',
+      detail: `${opts.killShotBricksBeforeOrb} bricks before Orb`,
+      mana: 8,
+    });
+  }
+
+  // Manual mastery: bricks broken without homing automation
+  const manual = opts.manualBricksDestroyed;
+  if (manual >= 20) {
+    bonuses.push({ id: 'manual-mastery', label: 'Root Sapper III', detail: `${manual} manual breaks`, mana: 7 });
+  } else if (manual >= 12) {
+    bonuses.push({ id: 'manual-mastery', label: 'Root Sapper II', detail: `${manual} manual breaks`, mana: 4 });
+  } else if (manual >= 6) {
+    bonuses.push({ id: 'manual-mastery', label: 'Root Sapper I', detail: `${manual} manual breaks`, mana: 2 });
+  }
+
+  if (opts.slowAndSteadyShots > 0) {
+    bonuses.push({
+      id: 'slow-and-steady',
+      label: 'Slow and Steady',
+      detail: `${opts.slowAndSteadyShots} shot${opts.slowAndSteadyShots === 1 ? '' : 's'} over 10s`,
+      mana: opts.slowAndSteadyShots * 100,
+    });
+  }
+
+  if (opts.giggidyBalls > 0) {
+    bonuses.push({
+      id: 'giggidy',
+      label: 'Giggidy',
+      detail: `${opts.giggidyBalls} ball${opts.giggidyBalls === 1 ? '' : 's'} over 50 rebounds`,
+      mana: opts.giggidyBalls * 500,
+    });
+  }
+
+  const manaBonus = bonuses.reduce((sum, b) => sum + b.mana, 0);
+  return { bonuses, manaBonus };
 }
 
 function parseProgress(json: string): RogueBrickProfile | null {
@@ -2464,9 +2759,16 @@ export default function RogueBrickPage() {
   const pendingRewardsRef = useRef<TurnRewards>({ mana: 0, essenceByColor: { yellow: 0, blue: 0, green: 0 } });
   const pendingDestroyedBricksRef = useRef(0);
   const pendingBounceCountRef = useRef(0);
+  const pendingManualBricksThisTurnRef = useRef(0);
+  const pendingPreOrbBricksThisTurnRef = useRef(0);
+  const pendingKillShotBricksBeforeOrbRef = useRef(0);
+  const pendingMaxBallReboundsThisTurnRef = useRef(0);
+  const pendingGiggidyBallsThisTurnRef = useRef(0);
   const coreChargeRef = useRef(0);
   const homingBarrageUsedRef = useRef(false);
   const homingBulletTimeHitsRef = useRef(0);
+  const shotStartedAtMsRef = useRef<number | null>(null);
+  const lastCloudSyncAtRef = useRef(0);
   const finalBrickCinematicUntilRef = useRef(0);
   const brickVisualRef = useRef<Map<string, BrickVisualState>>(new Map());
   const breakParticlesRef = useRef<BreakParticle[]>([]);
@@ -2743,8 +3045,8 @@ export default function RogueBrickPage() {
       if (!layoutRect || !boardFrameRect) {
         return;
       }
-      const topPx = Math.round(boardFrameRect.top - layoutRect.top + boardFrameRect.height * 0.36);
-      const leftPx = Math.round(boardFrameRect.left - layoutRect.left + 8);
+      const topPx = Math.round(boardFrameRect.top - layoutRect.top + boardFrameRect.height * 0.5);
+      const leftPx = Math.round(boardFrameRect.left - layoutRect.left);
       setNormalModeEssenceTopPx(topPx);
       setNormalModeEssenceLeftPx(leftPx);
     };
@@ -3776,24 +4078,90 @@ export default function RogueBrickPage() {
       return;
     }
 
-    const spawnRandomVapor = () => {
-      const variant = CORE_VARIANTS[Math.floor(Math.random() * CORE_VARIANTS.length)] as CoreVariant;
-      spawnEssenceVaporParticle(variant);
+    const getLeakChance = (fillPct: number): number => {
+      if (fillPct < 10) {
+        return 0;
+      }
+      if (fillPct <= 50) {
+        return 0.35;
+      }
+      if (fillPct <= 80) {
+        return 0.65;
+      }
+      return 0.92;
     };
 
-    const initialVariant = CORE_VARIANTS[Math.floor(Math.random() * CORE_VARIANTS.length)] as CoreVariant;
-    spawnEssenceVaporParticle(initialVariant);
-    const intervalId = window.setInterval(() => {
-      spawnRandomVapor();
-      if (Math.random() < 0.34) {
-        window.setTimeout(spawnRandomVapor, 180 + Math.random() * 220);
+    const capacityByColor = getEssenceCapacityByColorFor60BoardRun();
+    const fillPctByColor: Record<CoreVariant, number> = {
+      yellow: Math.max(
+        0,
+        Math.min(
+          100,
+          (((run.essenceByColor.yellow ?? 0) + liveHud.essenceByColor.yellow) /
+            Math.max(1, capacityByColor.yellow)) *
+            100
+        )
+      ),
+      blue: Math.max(
+        0,
+        Math.min(
+          100,
+          (((run.essenceByColor.blue ?? 0) + liveHud.essenceByColor.blue) /
+            Math.max(1, capacityByColor.blue)) *
+            100
+        )
+      ),
+      green: Math.max(
+        0,
+        Math.min(
+          100,
+          (((run.essenceByColor.green ?? 0) + liveHud.essenceByColor.green) /
+            Math.max(1, capacityByColor.green)) *
+            100
+        )
+      ),
+    };
+
+    const spawnLeakingVaporBurst = () => {
+      let spawnedAny = false;
+      for (const variant of CORE_VARIANTS) {
+        const fillPct = fillPctByColor[variant];
+        const leakChance = getLeakChance(fillPct);
+        if (leakChance <= 0) {
+          continue;
+        }
+        if (Math.random() < leakChance) {
+          spawnEssenceVaporParticle(variant);
+          spawnedAny = true;
+          if (fillPct > 50 && Math.random() < (fillPct > 80 ? 0.66 : 0.38)) {
+            window.setTimeout(
+              () => spawnEssenceVaporParticle(variant),
+              120 + Math.random() * (fillPct > 80 ? 140 : 220)
+            );
+          }
+        }
       }
-    }, 760);
+      return spawnedAny;
+    };
+
+    spawnLeakingVaporBurst();
+    const intervalId = window.setInterval(() => {
+      spawnLeakingVaporBurst();
+    }, 260);
 
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [run?.stage, spawnEssenceVaporParticle]);
+  }, [
+    run?.stage,
+    run?.essenceByColor.yellow,
+    run?.essenceByColor.blue,
+    run?.essenceByColor.green,
+    liveHud.essenceByColor.yellow,
+    liveHud.essenceByColor.blue,
+    liveHud.essenceByColor.green,
+    spawnEssenceVaporParticle,
+  ]);
 
   const commitProfile = useCallback(
     (mutate: (draft: RogueBrickProfile) => void, markDirty: boolean) => {
@@ -4002,17 +4370,25 @@ export default function RogueBrickPage() {
       return;
     }
 
+    const stage = profile.run?.stage ?? 'hub';
+    const baseDebounceMs =
+      stage === 'board' ? CLOUD_SYNC_DEBOUNCE_BOARD_MS : CLOUD_SYNC_DEBOUNCE_IDLE_MS;
+    const elapsedSinceLastSyncMs = Date.now() - lastCloudSyncAtRef.current;
+    const cooldownRemainingMs = Math.max(0, CLOUD_SYNC_MIN_INTERVAL_MS - elapsedSinceLastSyncMs);
+    const syncDelayMs = Math.max(baseDebounceMs, cooldownRemainingMs);
+
     const timeout = window.setTimeout(async () => {
       try {
         setSyncStatus('syncing');
         const response = await rogueBrickApi.saveProgress(JSON.stringify(profile));
+        lastCloudSyncAtRef.current = Date.now();
         setPendingSync(false);
         setServerUpdatedAt(response.updatedAtEpochMs);
         setSyncStatus('synced');
       } catch {
         setSyncStatus('pending');
       }
-    }, 1100);
+    }, syncDelayMs);
 
     return () => window.clearTimeout(timeout);
   }, [profile, pendingSync, isOnline]);
@@ -4062,6 +4438,12 @@ export default function RogueBrickPage() {
     const rewards = { ...pendingRewardsRef.current };
     const destroyedThisTurn = pendingDestroyedBricksRef.current;
     const bounceCountThisTurn = pendingBounceCountRef.current;
+    const manualBricksThisTurn = pendingManualBricksThisTurnRef.current;
+    const killShotBricksBeforeOrb = pendingKillShotBricksBeforeOrbRef.current;
+    const maxBallReboundsThisTurn = pendingMaxBallReboundsThisTurnRef.current;
+    const giggidyBallsThisTurn = pendingGiggidyBallsThisTurnRef.current;
+    const turnDurationMs =
+      shotStartedAtMsRef.current === null ? 0 : Math.max(0, Math.round(performance.now() - shotStartedAtMsRef.current));
     const postTurnCoreCharge = coreChargeRef.current;
     const usedHomingBarrage = homingBarrageUsedRef.current;
     const handledCoreBreachThisTurn = coreBreachHandledThisTurnRef.current;
@@ -4069,6 +4451,12 @@ export default function RogueBrickPage() {
     pendingRewardsRef.current = { mana: 0, essenceByColor: { yellow: 0, blue: 0, green: 0 } };
     pendingDestroyedBricksRef.current = 0;
     pendingBounceCountRef.current = 0;
+    pendingManualBricksThisTurnRef.current = 0;
+    pendingPreOrbBricksThisTurnRef.current = 0;
+    pendingKillShotBricksBeforeOrbRef.current = 0;
+    pendingMaxBallReboundsThisTurnRef.current = 0;
+    pendingGiggidyBallsThisTurnRef.current = 0;
+    shotStartedAtMsRef.current = null;
 
     let shouldFlashCoreBreach = false;
     let flashVariant: CoreVariant = coreBreachFlashVariant;
@@ -4093,6 +4481,16 @@ export default function RogueBrickPage() {
         runState.levelBricksDestroyed = (runState.levelBricksDestroyed ?? 0) + destroyedThisTurn;
         runState.boardShotsTaken = (runState.boardShotsTaken ?? 0) + 1;
         runState.boardBounceCount = (runState.boardBounceCount ?? 0) + bounceCountThisTurn;
+        runState.boardManaEarned = (runState.boardManaEarned ?? 0) + Math.round(rewards.mana);
+        runState.boardManualBricksDestroyed = (runState.boardManualBricksDestroyed ?? 0) + manualBricksThisTurn;
+        if (killShotBricksBeforeOrb > 0) {
+          runState.boardKillShotBricksBeforeOrb = killShotBricksBeforeOrb;
+        }
+        runState.boardBestBallRebounds = Math.max(runState.boardBestBallRebounds ?? 0, maxBallReboundsThisTurn);
+        runState.boardGiggidyBalls = (runState.boardGiggidyBalls ?? 0) + giggidyBallsThisTurn;
+        if (turnDurationMs > 10_000) {
+          runState.boardSlowAndSteadyShots = (runState.boardSlowAndSteadyShots ?? 0) + 1;
+        }
         runState.levelGoalBricks = Math.max(
           1,
           runState.levelGoalBricks ?? calculateLevelGoal(Math.max(1, runState.board.bricks.length))
@@ -4123,9 +4521,30 @@ export default function RogueBrickPage() {
         if (runState.board.bricks.length === 0) {
           const clearedBoardLevel = runState.level;
           const clearedPathNode = runState.pathNodesByLevel[clearedBoardLevel] ?? getCurrentPathNode(runState);
+          const manaRaw = runState.boardManaEarned ?? 0;
+          const { bonuses, manaBonus } = computeSkillBonuses({
+            shotsTaken: runState.boardShotsTaken,
+            manualBricksDestroyed: runState.boardManualBricksDestroyed ?? 0,
+            killShotBricksBeforeOrb: runState.boardKillShotBricksBeforeOrb ?? 0,
+            slowAndSteadyShots: runState.boardSlowAndSteadyShots ?? 0,
+            giggidyBalls: runState.boardGiggidyBalls ?? 0,
+            bestBallRebounds: runState.boardBestBallRebounds ?? 0,
+            manaRaw,
+          });
+          // Apply skill bonus mana (positive or negative), clamped so run mana doesn't go below 0
+          const clampedBonus = Math.max(-runState.mana, manaBonus);
+          runState.mana = Math.max(0, runState.mana + clampedBonus);
           const boardSummary: BoardSummary = {
             shotsTaken: runState.boardShotsTaken,
             bounceCount: runState.boardBounceCount,
+            manualBricksDestroyed: runState.boardManualBricksDestroyed ?? 0,
+            killShotBricksBeforeOrb: runState.boardKillShotBricksBeforeOrb ?? 0,
+            slowAndSteadyShots: runState.boardSlowAndSteadyShots ?? 0,
+            giggidyBalls: runState.boardGiggidyBalls ?? 0,
+            bestBallRebounds: runState.boardBestBallRebounds ?? 0,
+            manaRaw,
+            skillBonuses: bonuses,
+            manaBonus: clampedBonus,
             achievements: [],
           };
           boardSummary.achievements = buildBoardAchievements(boardSummary);
@@ -4162,6 +4581,9 @@ export default function RogueBrickPage() {
             runState.homingBarrageReady = false;
             runState.boardShotsTaken = 0;
             runState.boardBounceCount = 0;
+            runState.boardSlowAndSteadyShots = 0;
+            runState.boardGiggidyBalls = 0;
+            runState.boardBestBallRebounds = 0;
             runState.hubMessage = 'The final warden has fallen. Your trail is complete.';
             return;
           }
@@ -4299,6 +4721,9 @@ export default function RogueBrickPage() {
       pendingRewardsRef.current = { mana: 0, essenceByColor: { yellow: 0, blue: 0, green: 0 } };
       pendingDestroyedBricksRef.current = 0;
       pendingBounceCountRef.current = 0;
+      pendingMaxBallReboundsThisTurnRef.current = 0;
+      pendingGiggidyBallsThisTurnRef.current = 0;
+      shotStartedAtMsRef.current = performance.now();
       coreChargeRef.current = currentRun.coreCharge ?? 0;
       homingBulletTimeHitsRef.current = 0;
       finalBrickCinematicUntilRef.current = 0;
@@ -4345,6 +4770,7 @@ export default function RogueBrickPage() {
             mass: launchBallMass,
             active: true,
             coreCharged: false,
+            reboundCount: 0,
           });
         }
 
@@ -4392,6 +4818,13 @@ export default function RogueBrickPage() {
               ? 0.06
             : 0.06 + Math.max(1, brick.maxHp) * 0.008;
           rewards.mana += activeRun.manaMultiplier * getManaYieldScale(activeRun.boardsCleared) * bonusManaReward;
+          // Track skill bonus stats
+          if (!homingBarrageActive) {
+            pendingManualBricksThisTurnRef.current += 1;
+          }
+          if (!isObjective) {
+            pendingPreOrbBricksThisTurnRef.current += 1;
+          }
           const bricksRemainingAfterHit = bricksRef.current.reduce(
             (count, entry) => count + (entry.hp > 0 ? 1 : 0),
             0
@@ -4407,6 +4840,8 @@ export default function RogueBrickPage() {
           spawnBreakParticles(brick, isFinalBrickExplosion);
           brickVisualRef.current.delete(brick.id);
           if (isObjective && remainingObjectiveCount === 0) {
+            // Capture how many non-orb bricks were cleared this turn before the orb died
+            pendingKillShotBricksBeforeOrbRef.current = pendingPreOrbBricksThisTurnRef.current;
             coreBreachHandledThisTurnRef.current = true;
             breachCleanupQueuedRef.current = true;
             setCoreBreachFlashVariant(brick.coreVariant ?? 'yellow');
@@ -4442,6 +4877,7 @@ export default function RogueBrickPage() {
                   mass: clampNumber(sourceBall.mass * 0.92, BALL_MASS_MIN, BALL_MASS_MAX),
                   active: true,
                   coreCharged: sourceBall.coreCharged,
+                  reboundCount: sourceBall.reboundCount ?? 0,
                 });
               }
             }
@@ -4575,7 +5011,12 @@ export default function RogueBrickPage() {
           if (homingBarrageActive && bricksRef.current.length > 0) {
             let nearestBrick: Brick | null = null;
             let nearestDistanceSq = Number.POSITIVE_INFINITY;
-            for (const brick of bricksRef.current) {
+            const collisionBricks = [...bricksRef.current].sort((left, right) => {
+              const leftObjective = (left.kind ?? 'standard') === 'objective' ? 1 : 0;
+              const rightObjective = (right.kind ?? 'standard') === 'objective' ? 1 : 0;
+              return leftObjective - rightObjective;
+            });
+            for (const brick of collisionBricks) {
               if (brick.hp <= 0) {
                 continue;
               }
@@ -4681,6 +5122,9 @@ export default function RogueBrickPage() {
               const chargedDamage = Math.max(1, Math.round(baseDamage * (1 + objectiveCharge * 1.4)));
               const variant = brick.kind ?? 'standard';
               const coreVariant = brick.coreVariant ?? 'yellow';
+              if (variant !== 'objective') {
+                ball.coreCharged = true;
+              }
               const coreWeight = variant === 'objective' ? getCoreDamageWeight(activeRun, coreVariant) : 1;
               const profileCoreBonus =
                 variant === 'objective'
@@ -4807,10 +5251,14 @@ export default function RogueBrickPage() {
                 ball.vy *= -1;
               }
               pendingBounceCountRef.current += 1;
-              if (variant !== 'objective') {
-                ball.coreCharged = true;
+              ball.reboundCount = (ball.reboundCount ?? 0) + 1;
+              pendingMaxBallReboundsThisTurnRef.current = Math.max(
+                pendingMaxBallReboundsThisTurnRef.current,
+                ball.reboundCount
+              );
+              if (ball.reboundCount === 51) {
+                pendingGiggidyBallsThisTurnRef.current += 1;
               }
-
               if (cornerHit) {
                 const speed = Math.hypot(ball.vx, ball.vy);
                 const minCornerComponent = speed * 0.45;
@@ -5047,6 +5495,12 @@ export default function RogueBrickPage() {
         hubMessage: '',
         boardShotsTaken: 0,
         boardBounceCount: 0,
+        boardManaEarned: 0,
+        boardManualBricksDestroyed: 0,
+        boardKillShotBricksBeforeOrb: 0,
+        boardSlowAndSteadyShots: 0,
+        boardGiggidyBalls: 0,
+        boardBestBallRebounds: 0,
         lastBoardSummary: null,
         boardSummaryAcknowledged: true,
         pathCurrentNodeId: '',
@@ -5131,6 +5585,12 @@ export default function RogueBrickPage() {
       runState.hubMessage = `Entering sector ${runState.level} of ${runState.maxLevels} via ${challengeLabel} (${domain.name}).${forecastWarden ? ` Forecast pressure: ${forecastWarden.name}.` : ''}`;
       runState.boardShotsTaken = 0;
       runState.boardBounceCount = 0;
+      runState.boardManaEarned = 0;
+      runState.boardManualBricksDestroyed = 0;
+      runState.boardKillShotBricksBeforeOrb = 0;
+      runState.boardSlowAndSteadyShots = 0;
+      runState.boardGiggidyBalls = 0;
+      runState.boardBestBallRebounds = 0;
       runState.lastBoardSummary = null;
       runState.boardSummaryAcknowledged = true;
     }, true);
@@ -5894,6 +6354,36 @@ export default function RogueBrickPage() {
               ))}
             </div>
           )}
+          {(boardSummary.skillBonuses.length > 0 || boardSummary.manaRaw > 0) && (
+            <div className="rogue-board-summary-mana-breakdown">
+              <div className="rogue-board-summary-mana-row rogue-board-summary-mana-row-base">
+                <span className="rogue-board-summary-mana-label">Mana Earned</span>
+                <span className="rogue-board-summary-mana-value">{boardSummary.manaRaw}</span>
+              </div>
+              {boardSummary.skillBonuses.map((bonus) => (
+                <div
+                  key={bonus.id}
+                  className={`rogue-board-summary-mana-row${bonus.mana >= 0 ? ' is-positive' : ' is-negative'}`}
+                >
+                  <span className="rogue-board-summary-mana-label">
+                    {bonus.label}
+                    <span className="rogue-board-summary-mana-detail"> · {bonus.detail}</span>
+                  </span>
+                  <span className="rogue-board-summary-mana-value">
+                    {bonus.mana >= 0 ? '+' : ''}{bonus.mana}
+                  </span>
+                </div>
+              ))}
+              {boardSummary.skillBonuses.length > 0 && (
+                <div className="rogue-board-summary-mana-row rogue-board-summary-mana-row-total">
+                  <span className="rogue-board-summary-mana-label">Total Mana</span>
+                  <span className="rogue-board-summary-mana-value">
+                    {Math.max(0, boardSummary.manaRaw + boardSummary.manaBonus)}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
           <button type="button" className="btn-text rogue-board-summary-dismiss" onClick={acknowledgeBoardSummary}>
             Continue
           </button>
@@ -5997,7 +6487,7 @@ export default function RogueBrickPage() {
                       position: 'absolute',
                       top: `${normalModeEssenceTopPx}px`,
                       left: `${normalModeEssenceLeftPx}px`,
-                      transform: 'none',
+                      transform: 'translate(-100%, -50%)',
                     }
               }
               aria-label="Essence reserves"
