@@ -42,6 +42,7 @@ const BLUE_CORE_FORCE_FIELD_SIZE_MULTIPLIER = 1.5;
 const BOARD_ROW_ADVANCE_ANIMATION_MS = 360;
 const BOARD_ROW_ADVANCE_STEP_ROWS = 0.62;
 const CORE_BREACH_FLASH_MS = 1400;
+const BONUS_EVENT_TEXT_ANIMATION_MS = 1500;
 const CORE_VARIANTS = ['yellow', 'blue', 'green'] as const;
 const ESSENCE_VIAL_SHELL_URL_BY_VARIANT: Record<CoreVariant, string> = {
   yellow: yellowEssenceVialShellUrl,
@@ -241,6 +242,7 @@ interface RogueRunState {
   boardManaEarned: number;
   boardManualBricksDestroyed: number;
   boardKillShotBricksBeforeOrb: number;
+  boardCleanPlateAwarded: boolean;
   boardSlowAndSteadyShots: number;
   boardGiggidyBalls: number;
   boardBestBallRebounds: number;
@@ -398,6 +400,14 @@ interface BreakParticle {
   rotation: number;
   rotationVelocity: number;
   glow: number;
+}
+
+interface ManaBonusEventText {
+  label: string;
+  x: number;
+  y: number;
+  ageMs: number;
+  lifeMs: number;
 }
 
 interface PermanentUpgradeDefinition {
@@ -998,6 +1008,7 @@ const PATH_CHALLENGE_BY_KEY: Record<PathChallengeKey, PathChallengeDefinition> =
 };
 
 type PowerAspectBucket = 'shooting' | 'munitions' | 'powers';
+type PowerRewardSource = 'mana' | 'warden' | 'permanent';
 
 const POWER_DRAWER_BUCKET_ORDER: PowerAspectBucket[] = ['shooting', 'munitions', 'powers'];
 const POWER_DRAWER_BUCKET_LABELS: Record<PowerAspectBucket, string> = {
@@ -1005,12 +1016,19 @@ const POWER_DRAWER_BUCKET_LABELS: Record<PowerAspectBucket, string> = {
   munitions: 'Munitions',
   powers: 'Powers',
 };
+const POWER_REWARD_SOURCE_ORDER: PowerRewardSource[] = ['mana', 'warden', 'permanent'];
+const POWER_REWARD_SOURCE_LABELS: Record<PowerRewardSource, string> = {
+  mana: 'Mana rewards',
+  warden: 'Warden rewards',
+  permanent: 'Permanent upgrades',
+};
 
 interface ActivePowerIndicator {
   id: string;
   name: string;
   description: string;
   category: 'permanent' | 'run';
+  rewardSource: PowerRewardSource;
   aspect: PowerAspectBucket;
   sourceOrder: number;
   currentLevel: number;
@@ -1207,6 +1225,9 @@ function normalizeProfile(profile: RogueBrickProfile): RogueBrickProfile {
     }
     if (typeof normalized.run.boardKillShotBricksBeforeOrb !== 'number' || Number.isNaN(normalized.run.boardKillShotBricksBeforeOrb)) {
       normalized.run.boardKillShotBricksBeforeOrb = 0;
+    }
+    if (typeof normalized.run.boardCleanPlateAwarded !== 'boolean') {
+      normalized.run.boardCleanPlateAwarded = false;
     }
     if (typeof normalized.run.boardSlowAndSteadyShots !== 'number' || Number.isNaN(normalized.run.boardSlowAndSteadyShots)) {
       normalized.run.boardSlowAndSteadyShots = 0;
@@ -2686,6 +2707,7 @@ function computeSkillBonuses(opts: {
   shotsTaken: number;
   manualBricksDestroyed: number;
   killShotBricksBeforeOrb: number;
+  cleanPlateAwarded: boolean;
   slowAndSteadyShots: number;
   giggidyBalls: number;
   bestBallRebounds: number;
@@ -2712,6 +2734,15 @@ function computeSkillBonuses(opts: {
       label: 'Precision Kill',
       detail: `${opts.killShotBricksBeforeOrb} bricks before Orb`,
       mana: 8,
+    });
+  }
+
+  if (opts.cleanPlateAwarded) {
+    bonuses.push({
+      id: 'clean-plate',
+      label: 'Clean Plate',
+      detail: 'Cleared all breakable bricks before the final Orb',
+      mana: 200,
     });
   }
 
@@ -2812,6 +2843,7 @@ export default function RogueBrickPage() {
   const pendingManualBricksThisTurnRef = useRef(0);
   const pendingPreOrbBricksThisTurnRef = useRef(0);
   const pendingKillShotBricksBeforeOrbRef = useRef(0);
+  const pendingCleanPlateAwardedRef = useRef(false);
   const pendingMaxBallReboundsThisTurnRef = useRef(0);
   const pendingGiggidyBallsThisTurnRef = useRef(0);
   const lastBottomCrossingXRef = useRef<number | null>(null);
@@ -2823,6 +2855,8 @@ export default function RogueBrickPage() {
   const finalBrickCinematicUntilRef = useRef(0);
   const brickVisualRef = useRef<Map<string, BrickVisualState>>(new Map());
   const breakParticlesRef = useRef<BreakParticle[]>([]);
+  const manaBonusEventTextsRef = useRef<ManaBonusEventText[]>([]);
+  const manaBonusEventTextLastUpdateAtRef = useRef<number | null>(null);
   const boardAdvanceAnimationRef = useRef<BoardAdvanceAnimationState | null>(null);
   const coreBreachFlashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const coreBreachLaunchFrameRef = useRef<number | null>(null);
@@ -3077,6 +3111,17 @@ export default function RogueBrickPage() {
     };
   }, []);
 
+  const spawnManaBonusEventText = useCallback((label: string, x: number, y: number) => {
+    const activeTextCount = manaBonusEventTextsRef.current.length;
+    manaBonusEventTextsRef.current.push({
+      label,
+      x: clampCoordinate(x, BOARD_SIDE_CHANNEL_WIDTH + 16, CANVAS_WIDTH - BOARD_SIDE_CHANNEL_WIDTH - 16),
+      y: clampCoordinate(y - activeTextCount * 13, 34, CANVAS_HEIGHT - 50),
+      ageMs: 0,
+      lifeMs: BONUS_EVENT_TEXT_ANIMATION_MS,
+    });
+  }, []);
+
   useEffect(() => {
     const cache = brickAssetImageCacheRef.current;
     for (const [fileName, fileUrl] of Object.entries(BRICK_ASSET_URLS_BY_FILE)) {
@@ -3161,6 +3206,18 @@ export default function RogueBrickPage() {
     ctx.fillStyle = rightChannelGradient;
     ctx.fillRect(boardChannelRightEdge, 0, BOARD_SIDE_CHANNEL_WIDTH, CANVAS_HEIGHT);
     const now = performance.now();
+    const bonusTextLastUpdateAt = manaBonusEventTextLastUpdateAtRef.current;
+    const bonusTextDeltaMs =
+      bonusTextLastUpdateAt === null ? 0 : Math.max(0, Math.min(64, now - bonusTextLastUpdateAt));
+    manaBonusEventTextLastUpdateAtRef.current = now;
+    if (bonusTextDeltaMs > 0 && manaBonusEventTextsRef.current.length > 0) {
+      for (const eventText of manaBonusEventTextsRef.current) {
+        eventText.ageMs += bonusTextDeltaMs;
+      }
+      manaBonusEventTextsRef.current = manaBonusEventTextsRef.current.filter(
+        (eventText) => eventText.ageMs < eventText.lifeMs
+      );
+    }
 
     const profileSnapshot = profileRef.current;
     const runSnapshot = profileSnapshot?.run ?? null;
@@ -3873,6 +3930,24 @@ export default function RogueBrickPage() {
       ctx.restore();
     }
 
+    for (const eventText of manaBonusEventTextsRef.current) {
+      const progress = Math.max(0, Math.min(1, eventText.ageMs / Math.max(1, eventText.lifeMs)));
+      const driftY = progress * 34;
+      const alpha = Math.max(0, 1 - progress);
+      const scale = 1 + progress * 0.08;
+      ctx.save();
+      ctx.translate(eventText.x, eventText.y - driftY);
+      ctx.scale(scale, scale);
+      ctx.font = '600 15px Inter, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = `rgba(15, 23, 42, ${(alpha * 0.7).toFixed(3)})`;
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = `rgba(254, 240, 138, ${alpha.toFixed(3)})`;
+      ctx.fillText(eventText.label, 0, 0);
+      ctx.restore();
+    }
+
     ctx.strokeStyle = 'rgba(255,255,255,0.12)';
     ctx.beginPath();
     const loseY = LOSE_Y;
@@ -4271,7 +4346,7 @@ export default function RogueBrickPage() {
       frameNowRef.current = timestamp;
       draw();
       const hasObjective = runSnapshot.board.bricks.some((brick) => (brick.kind ?? 'standard') === 'objective');
-      if (hasObjective || boardAdvanceAnimationRef.current) {
+      if (hasObjective || boardAdvanceAnimationRef.current || manaBonusEventTextsRef.current.length > 0) {
         idleAnimationRef.current = requestAnimationFrame(animateIdleBoard);
       } else {
         idleAnimationRef.current = null;
@@ -4485,6 +4560,7 @@ export default function RogueBrickPage() {
     const bounceCountThisTurn = pendingBounceCountRef.current;
     const manualBricksThisTurn = pendingManualBricksThisTurnRef.current;
     const killShotBricksBeforeOrb = pendingKillShotBricksBeforeOrbRef.current;
+    const cleanPlateAwardedThisTurn = pendingCleanPlateAwardedRef.current;
     const maxBallReboundsThisTurn = pendingMaxBallReboundsThisTurnRef.current;
     const giggidyBallsThisTurn = pendingGiggidyBallsThisTurnRef.current;
     const lastBottomCrossingX = lastBottomCrossingXRef.current;
@@ -4500,6 +4576,7 @@ export default function RogueBrickPage() {
     pendingManualBricksThisTurnRef.current = 0;
     pendingPreOrbBricksThisTurnRef.current = 0;
     pendingKillShotBricksBeforeOrbRef.current = 0;
+    pendingCleanPlateAwardedRef.current = false;
     pendingMaxBallReboundsThisTurnRef.current = 0;
     pendingGiggidyBallsThisTurnRef.current = 0;
     lastBottomCrossingXRef.current = null;
@@ -4535,6 +4612,9 @@ export default function RogueBrickPage() {
         runState.boardManualBricksDestroyed = (runState.boardManualBricksDestroyed ?? 0) + manualBricksThisTurn;
         if (killShotBricksBeforeOrb > 0) {
           runState.boardKillShotBricksBeforeOrb = killShotBricksBeforeOrb;
+        }
+        if (cleanPlateAwardedThisTurn) {
+          runState.boardCleanPlateAwarded = true;
         }
         runState.boardBestBallRebounds = Math.max(runState.boardBestBallRebounds ?? 0, maxBallReboundsThisTurn);
         runState.boardGiggidyBalls = (runState.boardGiggidyBalls ?? 0) + giggidyBallsThisTurn;
@@ -4576,6 +4656,7 @@ export default function RogueBrickPage() {
             shotsTaken: runState.boardShotsTaken,
             manualBricksDestroyed: runState.boardManualBricksDestroyed ?? 0,
             killShotBricksBeforeOrb: runState.boardKillShotBricksBeforeOrb ?? 0,
+            cleanPlateAwarded: runState.boardCleanPlateAwarded ?? false,
             slowAndSteadyShots: runState.boardSlowAndSteadyShots ?? 0,
             giggidyBalls: runState.boardGiggidyBalls ?? 0,
             bestBallRebounds: runState.boardBestBallRebounds ?? 0,
@@ -4773,6 +4854,8 @@ export default function RogueBrickPage() {
       pendingRewardsRef.current = { mana: 0, essenceByColor: { yellow: 0, blue: 0, green: 0 } };
       pendingDestroyedBricksRef.current = 0;
       pendingBounceCountRef.current = 0;
+      manaBonusEventTextsRef.current = [];
+      manaBonusEventTextLastUpdateAtRef.current = null;
       pendingMaxBallReboundsThisTurnRef.current = 0;
       pendingGiggidyBallsThisTurnRef.current = 0;
       shotStartedAtMsRef.current = performance.now();
@@ -4894,6 +4977,28 @@ export default function RogueBrickPage() {
           if (isObjective && remainingObjectiveCount === 0) {
             // Capture how many non-orb bricks were cleared this turn before the orb died
             pendingKillShotBricksBeforeOrbRef.current = pendingPreOrbBricksThisTurnRef.current;
+            const brickBounds = getBrickBounds(
+              brick,
+              getBrickX(brick.col, brickWidth),
+              BRICK_TOP + brick.row * (BRICK_HEIGHT + BRICK_GAP),
+              brickWidth
+            );
+            const eventTextX = brickBounds.x + brickBounds.width * 0.5;
+            const eventTextY = brickBounds.y + brickBounds.height * 0.5;
+            if (pendingKillShotBricksBeforeOrbRef.current >= 3) {
+              spawnManaBonusEventText('precision kill', eventTextX, eventTextY);
+            }
+            const remainingBreakableNonOrbBricks = bricksRef.current.reduce((count, entry) => {
+              if (entry.id === brick.id || entry.hp <= 0) {
+                return count;
+              }
+              const kind = entry.kind ?? 'standard';
+              return kind === 'objective' || kind === 'unbreakable' ? count : count + 1;
+            }, 0);
+            if (remainingBreakableNonOrbBricks === 0) {
+              pendingCleanPlateAwardedRef.current = true;
+              spawnManaBonusEventText('clean plate', eventTextX, eventTextY - 18);
+            }
             coreBreachHandledThisTurnRef.current = true;
             breachCleanupQueuedRef.current = true;
             setCoreBreachFlashVariant(brick.coreVariant ?? 'yellow');
@@ -5317,6 +5422,7 @@ export default function RogueBrickPage() {
               );
               if (ball.reboundCount === 51) {
                 pendingGiggidyBallsThisTurnRef.current += 1;
+                spawnManaBonusEventText('giggidy', ball.x, ball.y - ball.radius - 8);
               }
               if (cornerHit) {
                 const speed = Math.hypot(ball.vx, ball.vy);
@@ -5418,7 +5524,7 @@ export default function RogueBrickPage() {
 
       animationRef.current = requestAnimationFrame(frame);
     },
-    [draw, finalizeTurn, spawnBreakParticles, spawnEssenceHitPip]
+    [draw, finalizeTurn, spawnBreakParticles, spawnEssenceHitPip, spawnManaBonusEventText]
   );
 
   useEffect(
@@ -5557,6 +5663,7 @@ export default function RogueBrickPage() {
         boardManaEarned: 0,
         boardManualBricksDestroyed: 0,
         boardKillShotBricksBeforeOrb: 0,
+        boardCleanPlateAwarded: false,
         boardSlowAndSteadyShots: 0,
         boardGiggidyBalls: 0,
         boardBestBallRebounds: 0,
@@ -5649,6 +5756,7 @@ export default function RogueBrickPage() {
       runState.boardManaEarned = 0;
       runState.boardManualBricksDestroyed = 0;
       runState.boardKillShotBricksBeforeOrb = 0;
+      runState.boardCleanPlateAwarded = false;
       runState.boardSlowAndSteadyShots = 0;
       runState.boardGiggidyBalls = 0;
       runState.boardBestBallRebounds = 0;
@@ -6069,6 +6177,7 @@ export default function RogueBrickPage() {
       name: upgrade.name,
       description: upgrade.description,
       category: 'permanent',
+      rewardSource: 'permanent',
       aspect: getPowerAspectBucket(upgrade.key),
       sourceOrder: index,
       currentLevel: state.rank,
@@ -6088,6 +6197,7 @@ export default function RogueBrickPage() {
   SPOILS_POOL.forEach((template, index) => {
     runPowerSourceOrder.set(template.id, POWER_POOL.length + index);
   });
+  const wardenRewardIds = new Set(SPOILS_POOL.map((template) => template.id));
   const runPowerIndicators: ActivePowerIndicator[] = runPowerTemplates
     .map((template) => {
       const rank = run?.powers?.[template.id] ?? 0;
@@ -6097,6 +6207,7 @@ export default function RogueBrickPage() {
         name: template.name,
         description: template.description,
         category: 'run' as const,
+        rewardSource: wardenRewardIds.has(template.id) ? 'warden' : 'mana',
         aspect: getPowerAspectBucket(template.id),
         sourceOrder: templateOrder,
         currentLevel: rank,
@@ -6110,30 +6221,35 @@ export default function RogueBrickPage() {
     });
   const activePowerIndicators = [...permanentPowerIndicators, ...runPowerIndicators];
   const orderedPowerBuckets = POWER_DRAWER_BUCKET_ORDER.map((aspect) => {
-    const powers = activePowerIndicators
-      .filter((power) => power.aspect === aspect)
-      .sort((left, right) => {
-        const ownedCompare = Number(right.currentLevel > 0) - Number(left.currentLevel > 0);
-        if (ownedCompare !== 0) {
-          return ownedCompare;
-        }
-        if (left.currentLevel !== right.currentLevel) {
-          return right.currentLevel - left.currentLevel;
-        }
-        if (left.category !== right.category) {
-          return left.category === 'run' ? -1 : 1;
-        }
-        if (left.sourceOrder !== right.sourceOrder) {
-          return left.sourceOrder - right.sourceOrder;
-        }
-        return left.name.localeCompare(right.name);
-      });
+    const powersForAspect = activePowerIndicators.filter((power) => power.aspect === aspect);
+    const sourceGroups = POWER_REWARD_SOURCE_ORDER.map((source) => {
+      const powers = powersForAspect
+        .filter((power) => power.rewardSource === source)
+        .sort((left, right) => {
+          const ownedCompare = Number(right.currentLevel > 0) - Number(left.currentLevel > 0);
+          if (ownedCompare !== 0) {
+            return ownedCompare;
+          }
+          if (left.currentLevel !== right.currentLevel) {
+            return right.currentLevel - left.currentLevel;
+          }
+          if (left.sourceOrder !== right.sourceOrder) {
+            return left.sourceOrder - right.sourceOrder;
+          }
+          return left.name.localeCompare(right.name);
+        });
+      return {
+        source,
+        label: POWER_REWARD_SOURCE_LABELS[source],
+        powers,
+      };
+    }).filter((group) => group.powers.length > 0);
     return {
       aspect,
       label: POWER_DRAWER_BUCKET_LABELS[aspect],
-      powers,
+      sourceGroups,
     };
-  }).filter((bucket) => bucket.powers.length > 0);
+  }).filter((bucket) => bucket.sourceGroups.length > 0);
   const selectedPower =
     activePowerIndicators.find((power) => power.id === selectedPowerId) ?? null;
   const powerPopoverStyle = {
@@ -6303,34 +6419,44 @@ export default function RogueBrickPage() {
             {orderedPowerBuckets.map((bucket) => (
               <section key={bucket.aspect} className="rogue-active-powers-bucket">
                 <h3 className="rogue-active-powers-bucket-title">{bucket.label}</h3>
-                <div className="rogue-active-powers-grid" role="list">
-                  {bucket.powers.map((power) => (
-                    <button
-                      type="button"
-                      key={power.id}
-                      className={`rogue-active-power-chip is-${power.category}${selectedPowerId === power.id ? ' is-selected' : ''}${highlightedPowerChipId === power.id ? ' is-linked-highlight' : ''}`}
-                      title={power.name}
-                      aria-label={`${power.name}: ${power.statusLabel}`}
-                      onClick={(event) => handlePowerChipClick(power.id, event.currentTarget)}
-                      style={{ '--power-base-color': power.baseColor } as CSSProperties}
-                      data-popover-surface="true"
+                <div className="rogue-active-powers-source-groups">
+                  {bucket.sourceGroups.map((group) => (
+                    <div
+                      key={`${bucket.aspect}-${group.source}`}
+                      className={`rogue-active-powers-source-group is-${group.source}`}
                     >
-                      <span className="rogue-active-power-backdrop" aria-hidden="true">
-                        {power.backdropIcon}
-                      </span>
-                      <span className="rogue-active-power-stack" aria-hidden="true">
-                        {Array.from({ length: power.barSlots }, (_, index) => {
-                          const activeThreshold = Math.min(power.currentLevel, power.barSlots);
-                          const isActive = index < activeThreshold;
-                          return (
-                            <span
-                              key={`${power.id}-${index}`}
-                              className={`rogue-active-power-segment${isActive ? ' is-active' : ''}`}
-                            />
-                          );
-                        })}
-                      </span>
-                    </button>
+                      <h4 className={`rogue-active-powers-source-title is-${group.source}`}>{group.label}</h4>
+                      <div className="rogue-active-powers-grid" role="list">
+                        {group.powers.map((power) => (
+                          <button
+                            type="button"
+                            key={power.id}
+                            className={`rogue-active-power-chip is-${power.category} is-${power.rewardSource}${selectedPowerId === power.id ? ' is-selected' : ''}${highlightedPowerChipId === power.id ? ' is-linked-highlight' : ''}`}
+                            title={power.name}
+                            aria-label={`${power.name}: ${power.statusLabel}`}
+                            onClick={(event) => handlePowerChipClick(power.id, event.currentTarget)}
+                            style={{ '--power-base-color': power.baseColor } as CSSProperties}
+                            data-popover-surface="true"
+                          >
+                            <span className="rogue-active-power-backdrop" aria-hidden="true">
+                              {power.backdropIcon}
+                            </span>
+                            <span className="rogue-active-power-stack" aria-hidden="true">
+                              {Array.from({ length: power.barSlots }, (_, index) => {
+                                const activeThreshold = Math.min(power.currentLevel, power.barSlots);
+                                const isActive = index < activeThreshold;
+                                return (
+                                  <span
+                                    key={`${power.id}-${index}`}
+                                    className={`rogue-active-power-segment${isActive ? ' is-active' : ''}`}
+                                  />
+                                );
+                              })}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </section>
@@ -7212,10 +7338,5 @@ export default function RogueBrickPage() {
     </div>
   );
 }
-
-
-
-
-
 
 

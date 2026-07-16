@@ -1254,6 +1254,13 @@ body.rogue-brick-focus-mode {
 }
 
 .rogue-path-tree-node.is-playable {
+  width: 2.1rem;
+  height: 2.1rem;
+  border-width: 2px;
+  z-index: 6;
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 34%),
+    0 0 18px var(--node-core-shadow);
   animation: rogue-path-node-pulse 1.45s ease-out infinite;
 }
 
@@ -1287,11 +1294,11 @@ button.rogue-path-tree-node {
 }
 
 button.rogue-path-tree-node.is-playable:hover {
-  transform: translate(-50%, -56%);
+  transform: translate(-50%, -53%);
   filter: brightness(1.14) saturate(1.16);
   box-shadow:
     0 0 0 1px rgb(255 255 255 / 54%),
-    0 0 18px var(--node-core-shadow);
+    0 0 24px var(--node-core-shadow);
 }
 
 button.rogue-path-tree-node.is-playable:focus-visible {
@@ -1302,20 +1309,23 @@ button.rogue-path-tree-node.is-playable:focus-visible {
 @keyframes rogue-path-node-pulse {
   0% {
     box-shadow:
-      0 0 0 0 rgb(125 211 252 / 42%),
-      0 0 0 1px rgb(125 211 252 / 34%);
+      0 0 0 0 rgb(125 211 252 / 58%),
+      0 0 0 1px rgb(125 211 252 / 40%),
+      0 0 16px var(--node-core-shadow);
   }
 
   70% {
     box-shadow:
-      0 0 0 12px rgb(125 211 252 / 0%),
-      0 0 0 1px rgb(125 211 252 / 46%);
+      0 0 0 22px rgb(125 211 252 / 0%),
+      0 0 0 1px rgb(125 211 252 / 54%),
+      0 0 22px var(--node-core-shadow);
   }
 
   100% {
     box-shadow:
       0 0 0 0 rgb(125 211 252 / 0%),
-      0 0 0 1px rgb(125 211 252 / 34%);
+      0 0 0 1px rgb(125 211 252 / 40%),
+      0 0 16px var(--node-core-shadow);
   }
 }
 
@@ -1693,6 +1703,38 @@ button.rogue-path-tree-node.is-playable:focus-visible {
   gap: 0.35rem;
 }
 
+.rogue-active-powers-source-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.44rem;
+}
+
+.rogue-active-powers-source-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.24rem;
+}
+
+.rogue-active-powers-source-title {
+  margin: 0;
+  font-size: 0.58rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgb(148 163 184 / 92%);
+}
+
+.rogue-active-powers-source-title.is-mana {
+  color: rgb(165 180 252 / 96%);
+}
+
+.rogue-active-powers-source-title.is-warden {
+  color: rgb(253 230 138 / 98%);
+}
+
+.rogue-active-powers-source-title.is-permanent {
+  color: rgb(253 186 116 / 94%);
+}
+
 .rogue-active-powers-bucket-title {
   margin: 0;
   font-size: 0.67rem;
@@ -1725,6 +1767,15 @@ button.rogue-path-tree-node.is-playable:focus-visible {
 
 .rogue-active-power-chip.is-run {
   border-color: rgb(96 165 250 / 35%);
+}
+
+.rogue-active-power-chip.is-mana {
+  border-color: rgb(129 140 248 / 44%);
+}
+
+.rogue-active-power-chip.is-warden {
+  border-color: rgb(251 191 36 / 56%);
+  box-shadow: inset 0 0 0 1px rgb(251 191 36 / 18%);
 }
 
 .rogue-active-power-chip.is-permanent {
@@ -2265,6 +2316,11 @@ button.rogue-path-tree-node.is-playable:focus-visible {
     height: 0.96rem;
   }
 
+  .rogue-path-tree-node.is-playable {
+    width: 1.68rem;
+    height: 1.68rem;
+  }
+
   .rogue-path-tree-warden-legend-item {
     font-size: 0.62rem;
   }
@@ -2316,4 +2372,3 @@ button.rogue-path-tree-node.is-playable:focus-visible {
     left: calc(100% + 0.35rem);
   }
 }
-
