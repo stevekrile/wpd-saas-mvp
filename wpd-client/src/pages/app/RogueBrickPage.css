@@ -866,33 +866,29 @@ body.rogue-brick-focus-mode {
 }
 
 .rogue-board-summary-modal-backdrop {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: 1301;
+  z-index: 4;
   display: flex;
-  align-items: stretch;
-  justify-content: stretch;
-  padding: 0;
-  background: transparent;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(2 6 23 / 32%);
   backdrop-filter: blur(1px);
 }
 
 .rogue-board-summary-modal {
-  width: 100%;
-  height: 100%;
-  border-radius: 0;
-  border: 0;
-  background: rgba(26, 20, 16, 0.65);
-  box-shadow: none;
-  padding: 1rem;
+  width: min(100%, 22rem);
+  max-height: 100%;
+  border-radius: 0.65rem;
+  border: 1px solid rgb(148 163 184 / 24%);
+  background: rgba(26, 20, 16, 0.88);
+  box-shadow: 0 14px 28px rgb(2 6 23 / 38%);
+  padding: 0.75rem;
   gap: 0.85rem;
   align-items: center;
   justify-content: center;
   overflow-y: auto;
-}
-
-.rogue-board-summary-modal > * {
-  width: min(100%, 22rem);
 }
 
 .rogue-board-summary-dismiss {
@@ -1975,6 +1971,8 @@ button.rogue-path-tree-node.is-playable:focus-visible {
   flex-direction: column;
   gap: 0.4rem;
   text-align: left;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .rogue-choice-card {
@@ -2025,6 +2023,9 @@ button.rogue-path-tree-node.is-playable:focus-visible {
   gap: 0.34rem;
   text-align: center;
   padding: 0.52rem 0.62rem;
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
 }
 
 .rogue-spoils-offer-segment + .rogue-spoils-offer-segment {
@@ -2062,6 +2063,9 @@ button.rogue-path-tree-node.is-playable:focus-visible {
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
+  flex-wrap: wrap;
+  width: 100%;
+  min-width: 0;
 }
 
 .rogue-spoils-power-chip {
@@ -2263,6 +2267,20 @@ button.rogue-path-tree-node.is-playable:focus-visible {
     gap: 0.34rem;
   }
 
+  .rogue-spoils-offer-card .rogue-spoils-offer-bars {
+    gap: 0.25rem;
+  }
+
+  .rogue-spoils-power-chip {
+    width: 2.55rem;
+    height: 2.55rem;
+  }
+
+  .rogue-spoils-power-chip .rogue-active-power-stack {
+    width: 1.78rem;
+    height: 1.78rem;
+  }
+
   .rogue-brick-layout-shell.is-focus-mode .rogue-board-overlay-content {
     padding-bottom: calc(14rem + env(safe-area-inset-bottom, 0px));
   }
@@ -2281,3 +2299,4 @@ button.rogue-path-tree-node.is-playable:focus-visible {
     left: calc(100% + 0.35rem);
   }
 }
+

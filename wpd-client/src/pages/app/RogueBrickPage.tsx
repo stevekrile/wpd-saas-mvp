@@ -15,6 +15,7 @@ const BRICK_COLUMNS = 7;
 const BRICK_GAP = 1.5;
 const BRICK_HEIGHT = 34;
 const BRICK_SIZE_SCALE = 0.7;
+const DEFAULT_LAUNCH_ORIGIN_X = CANVAS_WIDTH / 2;
 const STANDARD_BRICK_MIN_SCALE = 0.70;
 const BRICK_ROW_STEP = BRICK_HEIGHT + BRICK_GAP;
 const BRICK_TOP = 70;
@@ -251,6 +252,7 @@ interface RogueRunState {
   boardBestBallRebounds: number;
   lastBoardSummary: BoardSummary | null;
   boardSummaryAcknowledged: boolean;
+  launchOriginX: number;
   pathCurrentNodeId: string;
   pathNodesByLevel: Record<number, PathNodeState>;
   activeWardenId: string | null;
@@ -1199,6 +1201,7 @@ function normalizeProfile(profile: RogueBrickProfile): RogueBrickProfile {
     if (typeof normalized.run.boardShotsTaken !== 'number' || Number.isNaN(normalized.run.boardShotsTaken)) {
       normalized.run.boardShotsTaken = 0;
     }
+    normalized.run.launchOriginX = getLaunchOriginX(normalized.run);
     if (typeof normalized.run.boardBounceCount !== 'number' || Number.isNaN(normalized.run.boardBounceCount)) {
       normalized.run.boardBounceCount = 0;
     }
@@ -1683,6 +1686,17 @@ function buildPathPreview(run: RogueRunState, shouldGateBoardChoices: boolean): 
 
 function getBrickWidth(): number {
   return (CANVAS_WIDTH - BOARD_SIDE_CHANNEL_WIDTH * 2 - BRICK_GAP * (BRICK_COLUMNS + 1)) / BRICK_COLUMNS;
+}
+
+function clampLaunchOriginX(value: number): number {
+  return clampCoordinate(value, BOARD_SIDE_CHANNEL_WIDTH, CANVAS_WIDTH - BOARD_SIDE_CHANNEL_WIDTH);
+}
+
+function getLaunchOriginX(run: RogueRunState | null | undefined): number {
+  if (!run || typeof run.launchOriginX !== 'number' || Number.isNaN(run.launchOriginX)) {
+    return DEFAULT_LAUNCH_ORIGIN_X;
+  }
+  return clampLaunchOriginX(run.launchOriginX);
 }
 
 function getBrickX(col: number, brickWidth: number): number {
@@ -2340,92 +2354,152 @@ function generateBoard(run: RogueRunState): BoardState {
     }
   }
 
-  objectiveRow = getObjectiveSpawnRow(objectiveRow, run);
+  const buildObjectiveHp = (variant: CoreVariant): number => {
+    const coreHpMultiplier = variant === 'green' ? 3.5 : 1;
+    return Math.max(
+      Math.round((design.difficulty === 'easy' ? 10 : design.difficulty === 'medium' ? 14 : 20) * coreHpMultiplier),
+      Math.round(
+        (BALANCE.objectiveHpBase + run.level * BALANCE.objectiveHpPerLevel) *
+        coreHpMultiplier *
+        challengeDefinition.objectiveHpMultiplier
+      )
+    );
+  };
 
-  const objectiveId = `${design.id}-objective-${run.level}-${objectiveRow}-${objectiveCol}-${Math.round(nextRandom(run) * 1_000_000)}`;
-  bricks.push({
-    id: objectiveId,
-    row: objectiveRow,
-    col: objectiveCol,
-    hp: objectiveMaxHp,
-    maxHp: objectiveMaxHp,
-    kind: 'objective',
-    coreVariant: objectiveCoreVariant,
+  const preferredObjectiveRow = getObjectiveSpawnRow(objectiveRow, run);
+  const brickWidth = getBrickWidth();
+  const occupiedBrickBounds = bricks.map((brick) => {
+    const brickX = getBrickX(brick.col, brickWidth);
+    const brickY = BRICK_TOP + brick.row * (BRICK_HEIGHT + BRICK_GAP);
+    return getBrickBounds(brick, brickX, brickY, brickWidth);
   });
+  const objectiveSlotCandidatesByKey = new Map<string, { row: number; col: number }>();
+  const rememberObjectiveSlot = (row: number, col: number) => {
+    if (col < 0 || col >= BRICK_COLUMNS) {
+      return;
+    }
+    const key = `${row}:${col}`;
+    if (!objectiveSlotCandidatesByKey.has(key)) {
+      objectiveSlotCandidatesByKey.set(key, { row, col });
+    }
+  };
 
-  const objectiveBrickIds = [objectiveId];
-  if (targetObjectiveCount > 1 && bricks.length > 1) {
-    const candidateIndexes = bricks
-      .map((_, index) => index)
-      .filter((index) => bricks[index].kind !== 'objective');
-    candidateIndexes.sort((leftIndex, rightIndex) => {
-      const left = bricks[leftIndex];
-      const right = bricks[rightIndex];
+  rememberObjectiveSlot(preferredObjectiveRow, objectiveCol);
+  rememberObjectiveSlot(objectiveRow, objectiveCol);
+  for (let row = 0; row < boardRows.length; row += 1) {
+    const rowPattern = boardRows[row];
+    for (let col = 0; col < BRICK_COLUMNS; col += 1) {
+      if (rowPattern[col] === '.') {
+        rememberObjectiveSlot(row, col);
+      }
+    }
+  }
+
+  const objectiveBrickIds: string[] = [];
+  const placedObjectives: Array<{
+    row: number;
+    col: number;
+    bounds: { x: number; y: number; width: number; height: number };
+  }> = [];
+  const objectiveSlotCandidates = Array.from(objectiveSlotCandidatesByKey.values());
+  const isObjectiveSlotClear = (slot: { row: number; col: number }, variant: CoreVariant) => {
+    const objectiveHp = buildObjectiveHp(variant);
+    const previewBrick: Brick = {
+      id: 'preview-objective',
+      row: slot.row,
+      col: slot.col,
+      hp: objectiveHp,
+      maxHp: objectiveHp,
+      kind: 'objective',
+      coreVariant: variant,
+    };
+    const objectiveX = getBrickX(slot.col, brickWidth);
+    const objectiveY = BRICK_TOP + slot.row * (BRICK_HEIGHT + BRICK_GAP);
+    const candidateBounds = getBrickBounds(previewBrick, objectiveX, objectiveY, brickWidth);
+    if (occupiedBrickBounds.some((bounds) => doBrickBoundsOverlap(bounds, candidateBounds))) {
+      return false;
+    }
+    if (placedObjectives.some((placed) => doBrickBoundsOverlap(placed.bounds, candidateBounds))) {
+      return false;
+    }
+    return true;
+  };
+
+  const compareObjectiveSlots = (left: { row: number; col: number }, right: { row: number; col: number }) => {
+    const leftDistanceFromPreferred = Math.abs(left.row - preferredObjectiveRow) + Math.abs(left.col - objectiveCol);
+    const rightDistanceFromPreferred = Math.abs(right.row - preferredObjectiveRow) + Math.abs(right.col - objectiveCol);
+
+    if (placedObjectives.length === 0) {
+      if (leftDistanceFromPreferred !== rightDistanceFromPreferred) {
+        return leftDistanceFromPreferred - rightDistanceFromPreferred;
+      }
       if (left.row !== right.row) {
         return left.row - right.row;
       }
       return Math.abs(left.col - objectiveCol) - Math.abs(right.col - objectiveCol);
-    });
-    const extraCount = Math.min(targetObjectiveCount - 1, candidateIndexes.length);
-    const selectedIndexes: number[] = [];
-    const preferredTopBandCount = Math.max(extraCount, Math.ceil(candidateIndexes.length * 0.45));
-    const topBand = candidateIndexes.slice(0, preferredTopBandCount);
-    const fallbackBand = candidateIndexes.slice(preferredTopBandCount);
-    while (selectedIndexes.length < extraCount) {
-      const sourceBand = topBand.length > 0 ? topBand : fallbackBand;
-      const nextIndex = sourceBand.splice(randomInt(run, 0, sourceBand.length - 1), 1)[0];
-      if (typeof nextIndex !== 'number') {
-        break;
-      }
-      selectedIndexes.push(nextIndex);
     }
 
-    const buildObjectiveHp = (variant: CoreVariant): number => {
-      const coreHpMultiplier = variant === 'green' ? 3.5 : 1;
-      return Math.max(
-        Math.round((design.difficulty === 'easy' ? 10 : design.difficulty === 'medium' ? 14 : 20) * coreHpMultiplier),
-        Math.round(
-          (BALANCE.objectiveHpBase + run.level * BALANCE.objectiveHpPerLevel) *
-          coreHpMultiplier *
-          challengeDefinition.objectiveHpMultiplier
-        )
-      );
+    const getPlacementScore = (slot: { row: number; col: number }) => {
+      const rowGaps = placedObjectives.map((placed) => Math.abs(slot.row - placed.row));
+      const colGaps = placedObjectives.map((placed) => Math.abs(slot.col - placed.col));
+      return {
+        fullySeparated: placedObjectives.every((placed) => Math.abs(slot.row - placed.row) >= 3 && Math.abs(slot.col - placed.col) >= 3),
+        minRowGap: Math.min(...rowGaps),
+        minColGap: Math.min(...colGaps),
+        distanceFromPreferred: Math.abs(slot.row - preferredObjectiveRow) + Math.abs(slot.col - objectiveCol),
+      };
     };
 
-    for (let selectedIndex = 0; selectedIndex < selectedIndexes.length; selectedIndex += 1) {
-      const index = selectedIndexes[selectedIndex];
-      const objectiveBrick = bricks[index];
-      const variant = objectiveVariants[selectedIndex + 1] ?? objectiveCoreVariant;
-      const extraObjectiveHp = buildObjectiveHp(variant);
-      objectiveBrick.kind = 'objective';
-      objectiveBrick.coreVariant = variant;
-      objectiveBrick.hp = extraObjectiveHp;
-      objectiveBrick.maxHp = extraObjectiveHp;
-      objectiveBrickIds.push(objectiveBrick.id);
+    const leftScore = getPlacementScore(left);
+    const rightScore = getPlacementScore(right);
+    if (leftScore.fullySeparated !== rightScore.fullySeparated) {
+      return leftScore.fullySeparated ? -1 : 1;
     }
-  }
+    if (leftScore.minRowGap !== rightScore.minRowGap) {
+      return rightScore.minRowGap - leftScore.minRowGap;
+    }
+    if (leftScore.minColGap !== rightScore.minColGap) {
+      return rightScore.minColGap - leftScore.minColGap;
+    }
+    if (leftScore.distanceFromPreferred !== rightScore.distanceFromPreferred) {
+      return leftScore.distanceFromPreferred - rightScore.distanceFromPreferred;
+    }
+    if (left.row !== right.row) {
+      return left.row - right.row;
+    }
+    return Math.abs(left.col - objectiveCol) - Math.abs(right.col - objectiveCol);
+  };
 
-  const greenObjectives = bricks.filter(
-    (brick) => brick.kind === 'objective' && (brick.coreVariant ?? 'yellow') === 'green'
-  );
-  if (greenObjectives.length > 0) {
-    const brickWidth = getBrickWidth();
-    const greenObjectiveBounds = greenObjectives.map((objectiveBrick) => {
-      const objectiveX = getBrickX(objectiveBrick.col, brickWidth);
-      const objectiveY = BRICK_TOP + objectiveBrick.row * (BRICK_HEIGHT + BRICK_GAP);
-      return getBrickBounds(objectiveBrick, objectiveX, objectiveY, brickWidth);
-    });
-    bricks = bricks.filter((brick) => {
-      if (brick.kind === 'objective') {
-        return true;
-      }
-      const brickX = getBrickX(brick.col, brickWidth);
-      const brickY = BRICK_TOP + brick.row * (BRICK_HEIGHT + BRICK_GAP);
-      const bounds = getBrickBounds(brick, brickX, brickY, brickWidth);
-      return !greenObjectiveBounds.some((objectiveBounds) => doBrickBoundsOverlap(bounds, objectiveBounds));
-    });
-  }
+  for (let objectiveIndex = 0; objectiveIndex < targetObjectiveCount; objectiveIndex += 1) {
+    const variant = objectiveVariants[objectiveIndex] ?? objectiveCoreVariant;
+    const objectiveHp = objectiveIndex === 0 ? objectiveMaxHp : buildObjectiveHp(variant);
+    const availableSlots = objectiveSlotCandidates
+      .filter((slot) => !placedObjectives.some((placed) => placed.row === slot.row && placed.col === slot.col))
+      .filter((slot) => isObjectiveSlotClear(slot, variant))
+      .sort(compareObjectiveSlots);
+    const selectedSlot = availableSlots[0];
+    if (!selectedSlot) {
+      continue;
+    }
 
+    const objectiveId = `${design.id}-objective-${run.level}-${selectedSlot.row}-${selectedSlot.col}-${Math.round(nextRandom(run) * 1_000_000)}`;
+    const objectiveBrick: Brick = {
+      id: objectiveId,
+      row: selectedSlot.row,
+      col: selectedSlot.col,
+      hp: objectiveHp,
+      maxHp: objectiveHp,
+      kind: 'objective',
+      coreVariant: variant,
+    };
+    const objectiveX = getBrickX(selectedSlot.col, brickWidth);
+    const objectiveY = BRICK_TOP + selectedSlot.row * (BRICK_HEIGHT + BRICK_GAP);
+    const objectiveBounds = getBrickBounds(objectiveBrick, objectiveX, objectiveY, brickWidth);
+
+    bricks.push(objectiveBrick);
+    objectiveBrickIds.push(objectiveId);
+    placedObjectives.push({ row: selectedSlot.row, col: selectedSlot.col, bounds: objectiveBounds });
+  }
   applyEarlyBoardPreDamage(bricks, run);
 
   return {
@@ -2764,6 +2838,7 @@ export default function RogueBrickPage() {
   const pendingKillShotBricksBeforeOrbRef = useRef(0);
   const pendingMaxBallReboundsThisTurnRef = useRef(0);
   const pendingGiggidyBallsThisTurnRef = useRef(0);
+  const lastBottomCrossingXRef = useRef<number | null>(null);
   const coreChargeRef = useRef(0);
   const homingBarrageUsedRef = useRef(false);
   const homingBulletTimeHitsRef = useRef(0);
@@ -3830,7 +3905,7 @@ export default function RogueBrickPage() {
     ctx.stroke();
 
     if (isDragging && aimPoint && !shotInFlightRef.current) {
-      const launcherX = CANVAS_WIDTH / 2;
+      const launcherX = getLaunchOriginX(runSnapshot);
       const launcherY = LAUNCHER_Y;
       const dx = aimPoint.x - launcherX;
       const dy = aimPoint.y - launcherY;
@@ -3927,13 +4002,14 @@ export default function RogueBrickPage() {
     }
 
     const shooterGlow = Math.max(0, Math.min(1, objectiveCharge));
+    const launcherX = getLaunchOriginX(runSnapshot);
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     const shooterAura = ctx.createRadialGradient(
-      CANVAS_WIDTH / 2,
+      launcherX,
       LAUNCHER_Y,
       2,
-      CANVAS_WIDTH / 2,
+      launcherX,
       LAUNCHER_Y,
       16 + shooterGlow * 9
     );
@@ -3941,14 +4017,14 @@ export default function RogueBrickPage() {
     shooterAura.addColorStop(1, 'rgba(254, 240, 138, 0)');
     ctx.fillStyle = shooterAura;
     ctx.beginPath();
-    ctx.arc(CANVAS_WIDTH / 2, LAUNCHER_Y, 16 + shooterGlow * 9, 0, Math.PI * 2);
+    ctx.arc(launcherX, LAUNCHER_Y, 16 + shooterGlow * 9, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
     ctx.fillStyle = shooterGlow > 0.05
       ? `rgba(255, ${222 + Math.round(shooterGlow * 26)}, ${104 + Math.round(shooterGlow * 70)}, 1)`
       : '#22d3ee';
     ctx.beginPath();
-    ctx.arc(CANVAS_WIDTH / 2, LAUNCHER_Y, 8 + shooterGlow * 2.8, 0, Math.PI * 2);
+    ctx.arc(launcherX, LAUNCHER_Y, 8 + shooterGlow * 2.8, 0, Math.PI * 2);
     ctx.fill();
   }, [aimPoint, isDragging, targetArtStyle, isTargetAtlasReady]);
 
@@ -4079,16 +4155,16 @@ export default function RogueBrickPage() {
     }
 
     const getLeakChance = (fillPct: number): number => {
-      if (fillPct < 10) {
+      if (fillPct < 15) {
         return 0;
       }
       if (fillPct <= 50) {
-        return 0.35;
+        return 0.12;
       }
       if (fillPct <= 80) {
-        return 0.65;
+        return 0.18;
       }
-      return 0.92;
+      return 0.24;
     };
 
     const capacityByColor = getEssenceCapacityByColorFor60BoardRun();
@@ -4133,21 +4209,14 @@ export default function RogueBrickPage() {
         if (Math.random() < leakChance) {
           spawnEssenceVaporParticle(variant);
           spawnedAny = true;
-          if (fillPct > 50 && Math.random() < (fillPct > 80 ? 0.66 : 0.38)) {
-            window.setTimeout(
-              () => spawnEssenceVaporParticle(variant),
-              120 + Math.random() * (fillPct > 80 ? 140 : 220)
-            );
-          }
         }
       }
       return spawnedAny;
     };
 
-    spawnLeakingVaporBurst();
     const intervalId = window.setInterval(() => {
       spawnLeakingVaporBurst();
-    }, 260);
+    }, 1100);
 
     return () => {
       window.clearInterval(intervalId);
@@ -4442,6 +4511,7 @@ export default function RogueBrickPage() {
     const killShotBricksBeforeOrb = pendingKillShotBricksBeforeOrbRef.current;
     const maxBallReboundsThisTurn = pendingMaxBallReboundsThisTurnRef.current;
     const giggidyBallsThisTurn = pendingGiggidyBallsThisTurnRef.current;
+    const lastBottomCrossingX = lastBottomCrossingXRef.current;
     const turnDurationMs =
       shotStartedAtMsRef.current === null ? 0 : Math.max(0, Math.round(performance.now() - shotStartedAtMsRef.current));
     const postTurnCoreCharge = coreChargeRef.current;
@@ -4456,6 +4526,7 @@ export default function RogueBrickPage() {
     pendingKillShotBricksBeforeOrbRef.current = 0;
     pendingMaxBallReboundsThisTurnRef.current = 0;
     pendingGiggidyBallsThisTurnRef.current = 0;
+    lastBottomCrossingXRef.current = null;
     shotStartedAtMsRef.current = null;
 
     let shouldFlashCoreBreach = false;
@@ -4480,6 +4551,9 @@ export default function RogueBrickPage() {
         }
         runState.levelBricksDestroyed = (runState.levelBricksDestroyed ?? 0) + destroyedThisTurn;
         runState.boardShotsTaken = (runState.boardShotsTaken ?? 0) + 1;
+        if (typeof lastBottomCrossingX === 'number') {
+          runState.launchOriginX = clampLaunchOriginX(lastBottomCrossingX);
+        }
         runState.boardBounceCount = (runState.boardBounceCount ?? 0) + bounceCountThisTurn;
         runState.boardManaEarned = (runState.boardManaEarned ?? 0) + Math.round(rewards.mana);
         runState.boardManualBricksDestroyed = (runState.boardManualBricksDestroyed ?? 0) + manualBricksThisTurn;
@@ -4696,8 +4770,10 @@ export default function RogueBrickPage() {
       if (sourceBricks.length === 0) {
         return;
       }
+      const launchOriginX = getLaunchOriginX(currentRun);
       shotInFlightRef.current = true;
       setShotInProgress(true);
+      lastBottomCrossingXRef.current = null;
       setLiveHud({
         destroyedBricks: 0,
         manaEarned: 0,
@@ -4762,7 +4838,7 @@ export default function RogueBrickPage() {
             ? Math.sin(-Math.PI * 0.5 + (Math.random() - 0.5) * 0.8) * baseBallSpeed * 1.2
             : launchDirectionRef.current.y * baseBallSpeed;
           ballsRef.current.push({
-            x: CANVAS_WIDTH / 2,
+            x: launchOriginX,
             y: LAUNCHER_Y,
             vx,
             vy,
@@ -5052,6 +5128,8 @@ export default function RogueBrickPage() {
           const stepY = travelY / subSteps;
 
           for (let stepIndex = 0; stepIndex < subSteps; stepIndex += 1) {
+            const previousX = ball.x;
+            const previousY = ball.y;
             ball.x += stepX;
             ball.y += stepY;
 
@@ -5079,6 +5157,11 @@ export default function RogueBrickPage() {
               ball.y = CANVAS_HEIGHT - ball.radius;
               ball.vy = -Math.abs(ball.vy);
               pendingBounceCountRef.current += 1;
+            }
+            if (previousY < LOSE_Y && ball.y >= LOSE_Y) {
+              const crossingProgress =
+                ball.y === previousY ? 1 : clampNumber((LOSE_Y - previousY) / (ball.y - previousY), 0, 1);
+              lastBottomCrossingXRef.current = clampLaunchOriginX(previousX + (ball.x - previousX) * crossingProgress);
             }
 
             let hitBrick = false;
@@ -5503,6 +5586,7 @@ export default function RogueBrickPage() {
         boardBestBallRebounds: 0,
         lastBoardSummary: null,
         boardSummaryAcknowledged: true,
+        launchOriginX: DEFAULT_LAUNCH_ORIGIN_X,
         pathCurrentNodeId: '',
         pathNodesByLevel: {},
         activeWardenId: null,
@@ -5576,6 +5660,7 @@ export default function RogueBrickPage() {
       runState.levelBricksDestroyed = 0;
       runState.coreCharge = 0;
       runState.homingBarrageReady = false;
+      runState.launchOriginX = DEFAULT_LAUNCH_ORIGIN_X;
       runState.pendingPowerOffers = [];
       runState.pendingSpoilsOffers = [];
       const challenge = getPathChallengeDefinition(selectedNode.challenge);
@@ -5794,7 +5879,8 @@ export default function RogueBrickPage() {
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
 
-      const dx = aimPoint.x - CANVAS_WIDTH / 2;
+      const launchOriginX = getLaunchOriginX(run);
+      const dx = aimPoint.x - launchOriginX;
       const dy = aimPoint.y - LAUNCHER_Y;
       const length = Math.hypot(dx, dy);
       clearAim();
@@ -5811,7 +5897,7 @@ export default function RogueBrickPage() {
 
       launchShot({ x: nx, y: ny });
     },
-    [aimPoint, clearAim, isDragging, launchShot]
+    [aimPoint, clearAim, isDragging, launchShot, run]
   );
 
   const handlePointerCancel = useCallback(() => {
@@ -5957,18 +6043,18 @@ export default function RogueBrickPage() {
     : hasActiveRun
       ? `Orb drained | Power Shot +${powerShotBonusPct}%${barrageReady ? ' | Barrage ready' : ''}`
       : 'No active orb';
-  const coreProgressSlots = CORE_VARIANTS.map((variant) => {
-    const variantBricks = objectiveBricks.filter((brick) => (brick.coreVariant ?? 'yellow') === variant);
-    const brick = variantBricks.length > 0 ? variantBricks[0] : null;
-    const maxHp = brick?.maxHp ?? 1;
-    const currentHp = brick?.hp ?? 0;
+  const coreProgressSlots = objectiveBricks.map((brick, index) => {
+    const variant = brick.coreVariant ?? 'yellow';
+    const maxHp = brick.maxHp ?? 1;
+    const currentHp = brick.hp ?? 0;
     const hpPct = Math.max(0, Math.min(1, currentHp / Math.max(1, maxHp)));
     return {
+      id: brick.id,
       variant,
       currentHp: Math.max(0, Math.round(currentHp)),
       maxHp: Math.round(maxHp),
       hpPct,
-      hasCore: variantBricks.length > 0,
+      label: `${getCoreVariantLabel(variant)} ${index + 1}`,
     };
   });
   const boardHpRemaining = run
@@ -6391,11 +6477,6 @@ export default function RogueBrickPage() {
       </div>
     );
   })();
-  const boardSummaryModalLayer =
-    boardSummaryModalElement && typeof document !== 'undefined'
-      ? createPortal(boardSummaryModalElement, document.body)
-      : boardSummaryModalElement;
-
   return (
     <div className="rogue-brick-page">
       <header className="rogue-brick-header">
@@ -6555,24 +6636,22 @@ export default function RogueBrickPage() {
               className={`rogue-brick-board-frame${isBetweenLevelHub ? ' is-between-level' : ''}`}
             >
               {hasActiveRun && run?.stage === 'board' && (
-                <div className="rogue-core-progress-board" aria-label="Orb progress (Yellow left, Blue middle, Green right)">
-                  {coreProgressSlots
-                    .filter((slot) => slot.hasCore)
-                    .map((slot) => {
-                      const variantColor = getCoreVariantColor(slot.variant);
-                      return (
-                        <span
-                          key={slot.variant}
-                          className="rogue-core-progress-ring"
-                          style={{
-                            background: `conic-gradient(${variantColor} ${slot.hpPct * 360}deg, rgb(51 65 85 / 0.9) 0deg)`,
-                          }}
-                          aria-label={`${getCoreVariantLabel(slot.variant)} ${slot.currentHp}/${slot.maxHp} HP`}
-                        >
-                          <span className="rogue-core-progress-ring-value">{slot.currentHp}</span>
-                        </span>
-                      );
-                    })}
+                <div className="rogue-core-progress-board" aria-label="Orb progress">
+                  {coreProgressSlots.map((slot) => {
+                    const variantColor = getCoreVariantColor(slot.variant);
+                    return (
+                      <span
+                        key={slot.id}
+                        className="rogue-core-progress-ring"
+                        style={{
+                          background: `conic-gradient(${variantColor} ${slot.hpPct * 360}deg, rgb(51 65 85 / 0.9) 0deg)`,
+                        }}
+                        aria-label={`${slot.label} ${slot.currentHp}/${slot.maxHp} HP`}
+                      >
+                        <span className="rogue-core-progress-ring-value">{slot.currentHp}</span>
+                      </span>
+                    );
+                  })}
                 </div>
               )}
               {showBoardOverlay && (
@@ -6910,7 +6989,7 @@ export default function RogueBrickPage() {
                       </>
                     )}
 
-                    {boardSummaryModalLayer}
+                    {boardSummaryModalElement}
                   </section>
                 </div>
               )}
@@ -7161,3 +7240,6 @@ export default function RogueBrickPage() {
     </div>
   );
 }
+
+
+
