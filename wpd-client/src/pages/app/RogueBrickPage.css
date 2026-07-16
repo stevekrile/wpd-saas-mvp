@@ -775,14 +775,16 @@ body.rogue-brick-focus-mode {
 }
 
 .rogue-board-summary-stats {
+  width: 100%;
   display: grid;
-  grid-template-columns: repeat(2, minmax(9rem, 11.5rem));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   justify-content: center;
   gap: 0.45rem;
 }
 
 .rogue-board-summary-stat {
   position: relative;
+  min-width: 0;
   border: 0;
   border-radius: 0.52rem;
   background: rgba(26, 20, 16, 0.45);
@@ -888,6 +890,7 @@ body.rogue-brick-focus-mode {
   gap: 0.85rem;
   align-items: center;
   justify-content: center;
+  overflow-x: hidden;
   overflow-y: auto;
 }
 
@@ -910,6 +913,7 @@ body.rogue-brick-focus-mode {
 }
 
 .rogue-board-summary-mana-row {
+  min-width: 0;
   display: flex;
   justify-content: space-between;
   align-items: baseline;
@@ -945,6 +949,7 @@ body.rogue-brick-focus-mode {
 }
 
 .rogue-board-summary-mana-label {
+  min-width: 0;
   flex: 1;
   text-align: left;
 }
@@ -952,6 +957,7 @@ body.rogue-brick-focus-mode {
 .rogue-board-summary-mana-detail {
   font-size: 0.66rem;
   opacity: 0.72;
+  overflow-wrap: anywhere;
 }
 
 .rogue-board-summary-mana-value {
@@ -1979,6 +1985,10 @@ button.rogue-path-tree-node.is-playable:focus-visible {
   cursor: pointer;
 }
 
+.rogue-choice-card:disabled {
+  cursor: not-allowed;
+}
+
 .rogue-spoils-offer-preview {
   display: flex;
   flex-direction: column;
@@ -2009,6 +2019,13 @@ button.rogue-path-tree-node.is-playable:focus-visible {
   grid-template-rows: minmax(1.1rem, auto) 1fr minmax(1.1rem, auto);
   gap: 0;
   overflow: hidden;
+}
+
+.rogue-spoils-offer-card.is-inactive {
+  opacity: 0.52;
+  background: rgb(226 232 240 / 90%);
+  border-color: rgb(148 163 184 / 45%);
+  filter: grayscale(0.7);
 }
 
 .rogue-spoils-offer-title > strong {

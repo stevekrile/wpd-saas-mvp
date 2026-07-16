@@ -81,15 +81,9 @@ const BALANCE = {
   objectiveHpBase: 10,
   objectiveHpPerLevel: 3.8,
   objectiveHpLevelScale: 2.4,
-  powerOfferMinManaCost: 26,
-  powerOfferLevelStepBoards: 3,
-  powerOfferLevelScalePerStep: 0.38,
-  powerOfferLateScalePerStep: 0.12,
-  powerOfferOwnershipScalePerRank: 0.45,
-  powerOfferBoardScaleStartBoard: 6,
-  powerOfferBoardScalePerBoard: 0.025,
-  powerOfferGuaranteedAffordableBudgetRatio: 0.92,
-  powerOfferOutOfReachBudgetRatio: 1.12,
+  powerOfferCount: 4,
+  powerOfferBaseManaCost: 30,
+  powerOfferCostGrowthRate: 1.32,
   manaRewardDecayPerBoard: 0.013,
   manaRewardMinScale: 0.58,
   objectiveManaRewardCrit: 0.45,
@@ -2529,64 +2523,46 @@ function getManaYieldScale(boardsCleared: number): number {
   return clampNumber(1 - boardsCleared * BALANCE.manaRewardDecayPerBoard, BALANCE.manaRewardMinScale, 1);
 }
 
+function getPowerOfferManaCost(nextLevel: number): number {
+  const normalizedLevel = Math.max(1, Math.floor(nextLevel));
+  return Math.max(
+    BALANCE.powerOfferBaseManaCost,
+    Math.round(BALANCE.powerOfferBaseManaCost * Math.pow(BALANCE.powerOfferCostGrowthRate, normalizedLevel - 1))
+  );
+}
+
+function createPowerOffer(template: RuntimePowerTemplate, currentLevel: number): PowerOffer {
+  return {
+    id: template.id,
+    name: template.name,
+    description: template.description,
+    manaCost: getPowerOfferManaCost(currentLevel + 1),
+  };
+}
+
+function refreshPowerOffers(offers: PowerOffer[], run: RogueRunState): PowerOffer[] {
+  return offers.flatMap((offer) => {
+    const template = POWER_POOL.find((item) => item.id === offer.id);
+    if (!template) {
+      return [];
+    }
+
+    return [createPowerOffer(template, run.powers[template.id] ?? 0)];
+  });
+}
+
 function makePowerOffers(run: RogueRunState): PowerOffer[] {
   const offers: PowerOffer[] = [];
   const picked = new Set<string>();
+  const offerCount = Math.min(BALANCE.powerOfferCount, POWER_POOL.length);
 
-  while (offers.length < 3 && picked.size < POWER_POOL.length) {
+  while (offers.length < offerCount && picked.size < POWER_POOL.length) {
     const template = POWER_POOL[randomInt(run, 0, POWER_POOL.length - 1)];
     if (picked.has(template.id)) {
       continue;
     }
     picked.add(template.id);
-    const levelSteps = Math.floor(Math.max(0, run.level - 1) / BALANCE.powerOfferLevelStepBoards);
-    const levelScale =
-      1 +
-      levelSteps * BALANCE.powerOfferLevelScalePerStep +
-      Math.max(0, levelSteps - 4) * BALANCE.powerOfferLateScalePerStep;
-    const ownedRank = run.powers[template.id] ?? 0;
-    const ownershipScale = 1 + ownedRank * BALANCE.powerOfferOwnershipScalePerRank;
-    const boardScale =
-      1 +
-      Math.max(0, run.boardsCleared - BALANCE.powerOfferBoardScaleStartBoard) *
-        BALANCE.powerOfferBoardScalePerBoard;
-    offers.push({
-      id: template.id,
-      name: template.name,
-      description: template.description,
-      manaCost: Math.max(
-        BALANCE.powerOfferMinManaCost,
-        Math.round(template.baseManaCost * levelScale * ownershipScale * boardScale)
-      ),
-    });
-  }
-
-  if (offers.length > 0 && !offers.some((offer) => offer.manaCost <= run.mana)) {
-    const guaranteedAffordableBudget = Math.max(
-      0,
-      Math.floor(run.mana * BALANCE.powerOfferGuaranteedAffordableBudgetRatio)
-    );
-    let cheapestOffer = offers[0];
-    for (const offer of offers) {
-      if (offer.manaCost < cheapestOffer.manaCost) {
-        cheapestOffer = offer;
-      }
-    }
-    cheapestOffer.manaCost = Math.min(cheapestOffer.manaCost, guaranteedAffordableBudget);
-  }
-
-  if (run.mana > 0 && offers.length > 1 && !offers.some((offer) => offer.manaCost > run.mana)) {
-    let priciestOffer = offers[0];
-    for (const offer of offers) {
-      if (offer.manaCost > priciestOffer.manaCost) {
-        priciestOffer = offer;
-      }
-    }
-    const targetOutOfReachCost = Math.max(
-      priciestOffer.manaCost + 1,
-      Math.ceil(run.mana * BALANCE.powerOfferOutOfReachBudgetRatio)
-    );
-    priciestOffer.manaCost = targetOutOfReachCost;
+    offers.push(createPowerOffer(template, run.powers[template.id] ?? 0));
   }
 
   return offers;
@@ -5715,12 +5691,10 @@ export default function RogueBrickPage() {
         if (!template) {
           return;
         }
-
         runState.mana -= offer.manaCost;
         template.apply(runState);
-        runState.pendingPowerOffers = [];
-        runState.stage = 'hub';
-        runState.hubMessage = `${template.name} acquired.`;
+        runState.pendingPowerOffers = refreshPowerOffers(runState.pendingPowerOffers, runState);
+        runState.hubMessage = `${template.name} advanced to level ${runState.powers[template.id] ?? 0}.`;
       }, true);
     },
     [commitProfile]
@@ -6440,36 +6414,32 @@ export default function RogueBrickPage() {
               ))}
             </div>
           )}
-          {(boardSummary.skillBonuses.length > 0 || boardSummary.manaRaw > 0) && (
-            <div className="rogue-board-summary-mana-breakdown">
-              <div className="rogue-board-summary-mana-row rogue-board-summary-mana-row-base">
-                <span className="rogue-board-summary-mana-label">Mana Earned</span>
-                <span className="rogue-board-summary-mana-value">{boardSummary.manaRaw}</span>
-              </div>
-              {boardSummary.skillBonuses.map((bonus) => (
-                <div
-                  key={bonus.id}
-                  className={`rogue-board-summary-mana-row${bonus.mana >= 0 ? ' is-positive' : ' is-negative'}`}
-                >
-                  <span className="rogue-board-summary-mana-label">
-                    {bonus.label}
-                    <span className="rogue-board-summary-mana-detail"> · {bonus.detail}</span>
-                  </span>
-                  <span className="rogue-board-summary-mana-value">
-                    {bonus.mana >= 0 ? '+' : ''}{bonus.mana}
-                  </span>
-                </div>
-              ))}
-              {boardSummary.skillBonuses.length > 0 && (
-                <div className="rogue-board-summary-mana-row rogue-board-summary-mana-row-total">
-                  <span className="rogue-board-summary-mana-label">Total Mana</span>
-                  <span className="rogue-board-summary-mana-value">
-                    {Math.max(0, boardSummary.manaRaw + boardSummary.manaBonus)}
-                  </span>
-                </div>
-              )}
+          <div className="rogue-board-summary-mana-breakdown">
+            <div className="rogue-board-summary-mana-row rogue-board-summary-mana-row-base">
+              <span className="rogue-board-summary-mana-label">Mana Earned</span>
+              <span className="rogue-board-summary-mana-value">{boardSummary.manaRaw}</span>
             </div>
-          )}
+            {boardSummary.skillBonuses.map((bonus) => (
+              <div
+                key={bonus.id}
+                className={`rogue-board-summary-mana-row${bonus.mana >= 0 ? ' is-positive' : ' is-negative'}`}
+              >
+                <span className="rogue-board-summary-mana-label">
+                  {bonus.label}
+                  <span className="rogue-board-summary-mana-detail"> · {bonus.detail}</span>
+                </span>
+                <span className="rogue-board-summary-mana-value">
+                  {bonus.mana >= 0 ? '+' : ''}{bonus.mana}
+                </span>
+              </div>
+            ))}
+            <div className="rogue-board-summary-mana-row rogue-board-summary-mana-row-total">
+              <span className="rogue-board-summary-mana-label">Total Mana</span>
+              <span className="rogue-board-summary-mana-value">
+                {Math.max(0, boardSummary.manaRaw + boardSummary.manaBonus)}
+              </span>
+            </div>
+          </div>
           <button type="button" className="btn-text rogue-board-summary-dismiss" onClick={acknowledgeBoardSummary}>
             Continue
           </button>
@@ -6897,12 +6867,13 @@ export default function RogueBrickPage() {
 
                     {run?.stage === 'powerup' && !shouldGateBoardChoices && (
                       <>
-                        <h2>Choose a Technique (Mana)</h2>
+                        <h2>Mana Store</h2>
                         <div className="rogue-choice-grid rogue-choice-grid-spoils">
                           {run.pendingPowerOffers.map((offer) => (
                             (() => {
                               const currentLevel = run?.powers?.[offer.id] ?? 0;
                               const nextLevel = currentLevel + 1;
+                              const isInactive = offer.manaCost > run.mana;
                               const startsNewStack = currentLevel === 0;
                               const previewSlots = 5;
                               const currentActive = Math.min(currentLevel, previewSlots);
@@ -6914,8 +6885,9 @@ export default function RogueBrickPage() {
                                 <button
                                   type="button"
                                   key={offer.id}
-                                  className="rogue-choice-card rogue-spoils-offer-card"
+                                  className={`rogue-choice-card rogue-spoils-offer-card${isInactive ? ' is-inactive' : ''}`}
                                   onClick={() => choosePowerUp(offer.id)}
+                                  disabled={isInactive}
                                   style={{ '--power-base-color': baseColor } as CSSProperties}
                                 >
                                   <span className="rogue-spoils-offer-corner-icon" aria-hidden="true">{backdropIcon}</span>
@@ -6975,7 +6947,7 @@ export default function RogueBrickPage() {
                           ))}
                         </div>
                         <button type="button" className="btn-text" onClick={skipPowerUp}>
-                          Skip choice
+                          Leave store
                         </button>
                       </>
                     )}
@@ -7240,6 +7212,10 @@ export default function RogueBrickPage() {
     </div>
   );
 }
+
+
+
+
 
 
 
