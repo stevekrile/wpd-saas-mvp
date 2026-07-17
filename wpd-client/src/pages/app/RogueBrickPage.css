@@ -1971,52 +1971,45 @@ button.rogue-path-tree-node.is-playable:focus-visible {
   font-size: 1rem;
 }
 
-.rogue-warden-panel {
-  gap: 0.9rem;
-}
 
-.rogue-warden-panel-header {
+/* ══ Warden Canvas Overlay ══ */
+
+.rogue-warden-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
   display: flex;
   flex-direction: column;
-  gap: 0.42rem;
-}
-
-.rogue-warden-panel-header p {
-  margin: 0;
-}
-
-.rogue-warden-board {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-  gap: 0.75rem;
-}
-
-.rogue-warden-arena {
-  border: 1px solid rgb(59 130 246 / 26%);
-  border-radius: 0.62rem;
+  pointer-events: none;
   background:
-    radial-gradient(circle at 35% 20%, rgb(30 41 59 / 72%), rgb(2 6 23 / 96%)),
-    linear-gradient(180deg, rgb(15 23 42 / 66%), rgb(2 6 23 / 88%));
-  min-height: 12.75rem;
-  padding: 0.65rem;
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgb(30 10 60 / 72%) 0%, transparent 70%),
+    radial-gradient(ellipse 100% 60% at 50% 100%, rgb(2 10 30 / 80%) 0%, transparent 70%);
+}
+
+/* Boss zone — top portion */
+.rogue-warden-boss-zone {
+  flex: 0 0 56%;
   display: flex;
   flex-direction: column;
+  align-items: center;
   justify-content: space-between;
-  gap: 0.6rem;
+  padding: 0.65rem 0.5rem 0.4rem;
+  gap: 0.3rem;
 }
 
 .rogue-warden-blank-wrap {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.28rem;
+  flex: 1;
+  gap: 0.1rem;
 }
 
 .rogue-warden-blank-eye {
-  width: min(95%, 12rem);
+  width: min(44%, 7rem);
   aspect-ratio: 1;
   position: relative;
-  filter: drop-shadow(0 0 14px rgb(99 102 241 / 30%));
+  filter: drop-shadow(0 0 18px rgb(99 102 241 / 50%));
 }
 
 .rogue-warden-blank-body,
@@ -2029,63 +2022,62 @@ button.rogue-path-tree-node.is-playable:focus-visible {
 }
 
 .rogue-warden-tear-wrap {
-  width: 4.2rem;
-  height: 5.4rem;
+  width: 2.6rem;
+  height: 3.6rem;
   position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  margin-top: -0.2rem;
 }
 
 .rogue-warden-tear-sprite {
   width: 100%;
   height: auto;
-  max-height: 4.4rem;
+  max-height: 3rem;
   object-fit: contain;
   transition: transform 130ms linear, opacity 160ms ease;
-  filter: drop-shadow(0 0 8px rgb(56 189 248 / 36%));
+  filter: drop-shadow(0 0 6px rgb(56 189 248 / 50%));
 }
 
 .rogue-warden-tear-damage {
   position: absolute;
-  right: -0.45rem;
+  right: -0.25rem;
   bottom: 0;
-  width: 1.65rem;
+  width: 1.1rem;
   height: auto;
   object-fit: contain;
   opacity: 0.84;
 }
 
+.rogue-warden-boss-hud {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0 0.25rem;
+}
+
 .rogue-warden-blank-state,
 .rogue-warden-tear-timer {
-  font-size: 0.72rem;
-  color: rgb(226 232 240 / 92%);
+  font-size: 0.62rem;
+  color: rgb(226 232 240 / 94%);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.rogue-warden-shield-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+.rogue-warden-boss-hud .rogue-progress-track-compact {
+  flex: 1;
 }
 
-.rogue-warden-shield-label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: rgb(147 197 253 / 96%);
-}
-
-.rogue-warden-shield-track {
+/* Blue shield bar — full width divider */
+.rogue-warden-shield-bar {
+  flex: 0 0 12px;
   position: relative;
-  height: 0.62rem;
-  border-radius: 999px;
+  background: rgb(2 6 23 / 72%);
+  border-top: 1px solid rgb(56 189 248 / 40%);
+  border-bottom: 1px solid rgb(56 189 248 / 40%);
   overflow: hidden;
-  border: 1px solid rgb(59 130 246 / 52%);
-  background: rgb(2 6 23 / 82%);
 }
 
 .rogue-warden-shield-fill {
@@ -2095,113 +2087,53 @@ button.rogue-path-tree-node.is-playable:focus-visible {
   width: 100%;
   height: 100%;
   transform-origin: center;
-  background: linear-gradient(90deg, rgb(14 165 233 / 88%), rgb(37 99 235 / 96%));
-  box-shadow: 0 0 12px rgb(56 189 248 / 45%);
-  transition: transform 180ms ease;
+  background: linear-gradient(90deg, rgb(14 165 233 / 90%), rgb(37 99 235 / 96%));
+  box-shadow: 0 0 10px rgb(56 189 248 / 55%);
+  transition: transform 200ms ease;
 }
 
-.rogue-warden-shield-hint {
-  font-size: 0.7rem;
-  color: rgb(186 230 253 / 86%);
-}
-
-.rogue-warden-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-}
-
-.rogue-warden-control-card {
-  border-radius: 0.62rem;
-  border: 1px solid rgb(148 163 184 / 30%);
-  padding: 0.58rem 0.62rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.38rem;
-}
-
-.rogue-warden-control-card-orange {
-  border-color: rgb(251 146 60 / 44%);
-  background: rgb(124 45 18 / 20%);
-}
-
-.rogue-warden-control-card-green {
-  border-color: rgb(74 222 128 / 44%);
-  background: rgb(20 83 45 / 18%);
-}
-
-.rogue-warden-control-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 0.84rem;
-}
-
-.rogue-warden-control-meta {
-  font-size: 0.7rem;
-  color: rgb(226 232 240 / 88%);
-}
-
-.rogue-warden-control-card input[type='range'] {
-  width: 100%;
-  margin: 0;
-}
-
-.rogue-warden-power-preview {
-  height: 1.9rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.rogue-warden-power-ball {
-  border-radius: 999px;
-  background:
-    radial-gradient(circle at 30% 30%, rgb(187 247 208 / 95%), rgb(34 197 94 / 92%) 55%, rgb(21 128 61 / 94%) 100%);
-  box-shadow: 0 0 14px rgb(74 222 128 / 52%);
-  transition: width 150ms ease, height 150ms ease;
-}
-
-.rogue-warden-action-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.45rem;
-}
-
-.rogue-warden-shooting-well {
-  position: relative;
-  height: 12rem;
-  border-radius: 0.62rem;
-  border: 1px solid rgb(148 163 184 / 34%);
-  background:
-    radial-gradient(circle at 50% 82%, rgb(30 41 59 / 72%), rgb(2 6 23 / 96%)),
-    rgb(2 6 23 / 95%);
-  overflow: hidden;
-  cursor: crosshair;
-}
-
-.rogue-warden-shooting-label {
+.rogue-warden-shield-value {
   position: absolute;
-  left: 0.42rem;
-  top: 0.38rem;
-  font-size: 0.68rem;
-  color: rgb(226 232 240 / 84%);
+  right: 0.3rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.56rem;
+  font-weight: 700;
+  color: rgb(186 230 253 / 96%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Bottom shooting zone */
+.rogue-warden-bottom-zone {
+  flex: 1;
+  display: flex;
+  pointer-events: auto;
+  min-height: 0;
+}
+
+/* Shooting well: left/center drag-to-aim area */
+.rogue-warden-shoot-well {
+  flex: 1;
+  position: relative;
+  cursor: crosshair;
+  touch-action: none;
+  overflow: hidden;
 }
 
 .rogue-warden-aim-line {
   position: absolute;
   height: 2px;
-  background: linear-gradient(90deg, rgb(125 211 252 / 95%), rgb(14 116 144 / 28%));
+  background: linear-gradient(90deg, rgb(125 211 252 / 95%), rgb(14 116 144 / 20%));
   transform-origin: 0 50%;
   pointer-events: none;
 }
 
 .rogue-warden-well-ball {
   position: absolute;
-  left: 64px;
-  top: 170px;
-  transform: translate(-50%, -50%);
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
   border-radius: 999px;
   background:
     radial-gradient(circle at 30% 30%, rgb(187 247 208 / 95%), rgb(34 197 94 / 92%) 55%, rgb(21 128 61 / 94%) 100%);
@@ -2210,13 +2142,76 @@ button.rogue-path-tree-node.is-playable:focus-visible {
 }
 
 .rogue-warden-well-ball.is-aiming {
-  box-shadow: 0 0 18px rgb(34 197 94 / 82%);
+  box-shadow: 0 0 20px rgb(34 197 94 / 85%);
 }
 
-.rogue-warden-play-hint {
-  font-size: 0.74rem;
-  color: rgb(191 219 254 / 94%);
+/* Sliders column — right side */
+.rogue-warden-sliders-col {
+  flex: 0 0 3.4rem;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid rgb(148 163 184 / 22%);
+  background: rgb(2 6 23 / 65%);
 }
+
+.rogue-warden-slider-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.15rem;
+  gap: 0.18rem;
+  cursor: pointer;
+}
+
+.rogue-warden-slider-orange {
+  border-bottom: 1px solid rgb(148 163 184 / 18%);
+  background: rgb(124 45 18 / 22%);
+}
+
+.rogue-warden-slider-green {
+  background: rgb(20 83 45 / 20%);
+}
+
+.rogue-warden-slider-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.04rem;
+}
+
+.rogue-warden-slider-label strong {
+  font-size: 0.9rem;
+  line-height: 1;
+  color: #f8fafc;
+}
+
+.rogue-warden-slider-label span {
+  font-size: 0.55rem;
+  color: rgb(226 232 240 / 80%);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.rogue-warden-slider-input {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 2rem;
+  flex: 1;
+  cursor: pointer;
+  min-height: 0;
+}
+
+.rogue-warden-power-ball {
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 30% 30%, rgb(187 247 208 / 95%), rgb(34 197 94 / 92%) 55%, rgb(21 128 61 / 94%) 100%);
+  box-shadow: 0 0 10px rgb(74 222 128 / 42%);
+  transition: width 150ms ease, height 150ms ease;
+  flex-shrink: 0;
+}
+
 
 .rogue-stat-list {
   list-style: none;
@@ -2579,22 +2574,6 @@ button.rogue-path-tree-node.is-playable:focus-visible {
   .rogue-choice-grid.rogue-choice-grid-spoils {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-rows: repeat(2, minmax(0, 1fr));
-  }
-
-  .rogue-warden-board {
-    grid-template-columns: 1fr;
-  }
-
-  .rogue-warden-arena {
-    min-height: 10.5rem;
-  }
-
-  .rogue-warden-action-row {
-    justify-content: stretch;
-  }
-
-  .rogue-warden-action-row .btn-secondary {
-    flex: 1 1 0;
   }
 
   .rogue-choice-card,
