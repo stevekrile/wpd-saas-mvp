@@ -1,0 +1,385 @@
+{
+  "asset": "Blank boss production sprites",
+  "format": "PNG-32 RGBA",
+  "background": "fully transparent",
+  "groups": {
+    "body": {
+      "folder": "/blank/body/",
+      "canvas": {
+        "width": 724,
+        "height": 724
+      },
+      "pivot": {
+        "x": 362,
+        "y": 324,
+        "type": "eyeball_center",
+        "normalized": [
+          0.5,
+          0.447514
+        ]
+      },
+      "frames": [
+        {
+          "file": "/blank/body/blank_body_idle_01.png",
+          "width": 724,
+          "height": 724,
+          "alpha_min": 0,
+          "alpha_max": 255,
+          "content_bbox": [
+            65,
+            36,
+            684,
+            659
+          ],
+          "sha256": "e9c2e4b1661f9b25cee49e7292ff7f7e85b9b4ab1cb398a06a92b4d3960d5f48"
+        },
+        {
+          "file": "/blank/body/blank_body_idle_02.png",
+          "width": 724,
+          "height": 724,
+          "alpha_min": 0,
+          "alpha_max": 255,
+          "content_bbox": [
+            50,
+            38,
+            699,
+            663
+          ],
+          "sha256": "a5c972a15c0a03cc0f6ea8c339ff711842300e6dd4e03113eb24ced71a2ffeac"
+        },
+        {
+          "file": "/blank/body/blank_body_idle_03.png",
+          "width": 724,
+          "height": 724,
+          "alpha_min": 0,
+          "alpha_max": 255,
+          "content_bbox": [
+            28,
+            36,
+            665,
+            657
+          ],
+          "sha256": "a5ac18f02050e7c6deec2fab76cc601ec1eabacf063c129749f7164ec68f9393"
+        }
+      ]
+    },
+    "eyelid": {
+      "folder": "/blank/eyelid/",
+      "canvas": {
+        "width": 724,
+        "height": 724
+      },
+      "pivot": {
+        "x": 362,
+        "y": 324,
+        "type": "eyeball_center",
+        "normalized": [
+          0.5,
+          0.447514
+        ]
+      },
+      "overlay_target": "body",
+      "frames": [
+        {
+          "file": "/blank/eyelid/blank_lid_open.png",
+          "width": 724,
+          "height": 724,
+          "alpha_min": 0,
+          "alpha_max": 255,
+          "content_bbox": [
+            49,
+            20,
+            675,
+            626
+          ],
+          "sha256": "0b69cef20e593053c18c9ea35c41fa72efe9f91ec86b80898dd2559fda9e018a"
+        },
+        {
+          "file": "/blank/eyelid/blank_lid_25.png",
+          "width": 724,
+          "height": 724,
+          "alpha_min": 0,
+          "alpha_max": 255,
+          "content_bbox": [
+            54,
+            22,
+            670,
+            626
+          ],
+          "sha256": "c40bc40acf5bda132225207c3fec3fd56bb7da5019ae51174456c58afc8dd60d"
+        },
+        {
+          "file": "/blank/eyelid/blank_lid_50.png",
+          "width": 724,
+          "height": 724,
+          "alpha_min": 0,
+          "alpha_max": 255,
+          "content_bbox": [
+            50,
+            24,
+            674,
+            625
+          ],
+          "sha256": "fdf7bdbca626a30fe894f1921773cab99f01022b16a9810daa5737069955efed"
+        },
+        {
+          "file": "/blank/eyelid/blank_lid_75.png",
+          "width": 724,
+          "height": 724,
+          "alpha_min": 0,
+          "alpha_max": 255,
+          "content_bbox": [
+            51,
+            24,
+            673,
+            623
+          ],
+          "sha256": "7358607f9165a131e52f6c9508add35739c173d8e5100d39a2dad89f7b235cd3"
+        },
+        {
+          "file": "/blank/eyelid/blank_lid_closed.png",
+          "width": 724,
+          "height": 724,
+          "alpha_min": 0,
+          "alpha_max": 255,
+          "content_bbox": [
+            59,
+            26,
+            665,
+            622
+          ],
+          "sha256": "58b2501235d6db4d4828a0f39922c9be9063c00caff47c8e262f54c83d01f626"
+        },
+        {
+          "file": "/blank/eyelid/blank_lid_blink_close.png",
+          "width": 724,
+          "height": 724,
+          "alpha_min": 0,
+          "alpha_max": 255,
+          "content_bbox": [
+            58,
+            28,
+            665,
+            621
+          ],
+          "sha256": "19906784a1090bd6050c9356657c9ab6021964381f42f10a1230e456105ba16a"
+        },
+        {
+          "file": "/blank/eyelid/blank_lid_blink_open.png",
+          "width": 724,
+          "height": 724,
+          "alpha_min": 0,
+          "alpha_max": 255,
+          "content_bbox": [
+            52,
+            24,
+            671,
+            623
+          ],
+          "sha256": "65cc43029677b6faed1254d4759847c30fa6ad58eea728b32356fbf4f1758789"
+        }
+      ]
+    },
+    "tear": {
+      "folder": "/blank/tear/",
+      "canvas": {
+        "width": 320,
+        "height": 384
+      },
+      "pivot": {
+        "x": 160,
+        "y": 352,
+        "type": "bottom_center",
+        "normalized": [
+          0.5,
+          0.916667
+        ]
+      },
+      "frames": [
+        {
+          "file": "/blank/tear/tear_fall_01.png",
+          "width": 320,
+          "height": 384,
+          "alpha_min": 0,
+          "alpha_max": 255,
+          "content_bbox": [
+            87,
+            71,
+            236,
+            355
+          ],
+          "sha256": "ab8a6293fbaa764ca53d1bd5e51f65b2df677818030f25936c558a749698e73c"
+        },
+        {
+          "file": "/blank/tear/tear_fall_02.png",
+          "width": 320,
+          "height": 384,
+          "alpha_min": 0,
+          "alpha_max": 255,
+          "content_bbox": [
+            86,
+            71,
+            234,
+            354
+          ],
+          "sha256": "52f18c184deb776def663e2916001e769b3311ef1fe90aae2a73182f20a24b35"
+        },
+        {
+          "file": "/blank/tear/tear_fall_03.png",
+          "width": 320,
+          "height": 384,
+          "alpha_min": 0,
+          "alpha_max": 255,
+          "content_bbox": [
+            87,
+            71,
+            234,
+            355
+          ],
+          "sha256": "d923b819ec75e7293e5ad666bdb237c6a028a3cd9fcab43654d8b722ee31f5a3"
+        },
+        {
+          "file": "/blank/tear/tear_fall_04.png",
+          "width": 320,
+          "height": 384,
+          "alpha_min": 0,
+          "alpha_max": 255,
+          "content_bbox": [
+            87,
+            69,
+            233,
+            355
+          ],
+          "sha256": "293d1086792c5a33b72ee8758791573e387e276731f6121adb4012f424594750"
+        },
+        {
+          "file": "/blank/tear/tear_hit_01.png",
+          "width": 320,
+          "height": 384,
+          "alpha_min": 0,
+          "alpha_max": 255,
+          "content_bbox": [
+            67,
+            66,
+            254,
+            355
+          ],
+          "sha256": "e91206eb2af8ca7dce99259ba274c55b13652cb67f394a6d3bf178caee0d5db7"
+        },
+        {
+          "file": "/blank/tear/tear_hit_02.png",
+          "width": 320,
+          "height": 384,
+          "alpha_min": 0,
+          "alpha_max": 255,
+          "content_bbox": [
+            54,
+            65,
+            278,
+            355
+          ],
+          "sha256": "c8456c81c1ca801180105e0eaa4da4c77253171381e6b10d0bc4cb438650aa30"
+        },
+        {
+          "file": "/blank/tear/tear_break_01.png",
+          "width": 320,
+          "height": 384,
+          "alpha_min": 0,
+          "alpha_max": 255,
+          "content_bbox": [
+            78,
+            77,
+            241,
+            356
+          ],
+          "sha256": "7449898413ab45f204d92903e30d7a8b2cb3bdd9e2b8de6f4aa0bd12fcd8a2cb"
+        },
+        {
+          "file": "/blank/tear/tear_break_02.png",
+          "width": 320,
+          "height": 384,
+          "alpha_min": 0,
+          "alpha_max": 255,
+          "content_bbox": [
+            76,
+            77,
+            250,
+            354
+          ],
+          "sha256": "077e6cb1d10adc8c754b6e3686a2d27034904506d091443369c36e4977eb552f"
+        },
+        {
+          "file": "/blank/tear/tear_break_03.png",
+          "width": 320,
+          "height": 384,
+          "alpha_min": 0,
+          "alpha_max": 255,
+          "content_bbox": [
+            72,
+            84,
+            252,
+            355
+          ],
+          "sha256": "8239463d67f0eb8640faece64abdaf816f602f3cb6d298e22ec97afbab21d5db"
+        },
+        {
+          "file": "/blank/tear/tear_break_04.png",
+          "width": 320,
+          "height": 384,
+          "alpha_min": 0,
+          "alpha_max": 255,
+          "content_bbox": [
+            60,
+            83,
+            264,
+            356
+          ],
+          "sha256": "e349a93f2e0e2f2a928a9ca07f045651ad8ea11bac38e7e063dc8841a8b1d0ea"
+        },
+        {
+          "file": "/blank/tear/tear_break_05.png",
+          "width": 320,
+          "height": 384,
+          "alpha_min": 0,
+          "alpha_max": 255,
+          "content_bbox": [
+            95,
+            113,
+            275,
+            350
+          ],
+          "sha256": "5653d4293a6a728fc8bf73a0e25be6095e03b23529809f2309ac9288f8e8d64a"
+        },
+        {
+          "file": "/blank/tear/tear_damage_a.png",
+          "width": 320,
+          "height": 384,
+          "alpha_min": 0,
+          "alpha_max": 255,
+          "content_bbox": [
+            88,
+            79,
+            233,
+            355
+          ],
+          "sha256": "3b6229e58b65b8d12fb253feb585ab8e6d0c570d2dde3dc5cad91bdd11e22ee3"
+        },
+        {
+          "file": "/blank/tear/tear_damage_b.png",
+          "width": 320,
+          "height": 384,
+          "alpha_min": 0,
+          "alpha_max": 255,
+          "content_bbox": [
+            87,
+            79,
+            234,
+            355
+          ],
+          "sha256": "93c5142e1f65e8bf6d8d608df71fd931c1d63dd03413444805fe18e8c20e09fa"
+        }
+      ],
+      "source_selection_note": "The concept sheet contained six burst-stage visuals. break_01 through break_04 use the first four stages; break_05 uses the final residue/fade stage to provide a complete five-frame destruction arc."
+    }
+  }
+}

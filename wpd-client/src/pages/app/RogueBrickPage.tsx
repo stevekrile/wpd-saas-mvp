@@ -7,6 +7,27 @@ import rogueBrickTargetAtlasUrl from '../../assets/rogue-brick-target-atlas.png'
 import yellowEssenceVialShellUrl from '../../assets/essence-vials/vial-yellow-shell.png';
 import blueEssenceVialShellUrl from '../../assets/essence-vials/vial-blue-shell.png';
 import greenEssenceVialShellUrl from '../../assets/essence-vials/vial-green-shell.png';
+import blankBodyIdle01Url from '../../assets/blank/body/blank_body_idle_01.png';
+import blankBodyIdle02Url from '../../assets/blank/body/blank_body_idle_02.png';
+import blankBodyIdle03Url from '../../assets/blank/body/blank_body_idle_03.png';
+import blankLidOpenUrl from '../../assets/blank/eyelid/blank_lid_open.png';
+import blankLid25Url from '../../assets/blank/eyelid/blank_lid_25.png';
+import blankLid50Url from '../../assets/blank/eyelid/blank_lid_50.png';
+import blankLid75Url from '../../assets/blank/eyelid/blank_lid_75.png';
+import blankLidClosedUrl from '../../assets/blank/eyelid/blank_lid_closed.png';
+import tearFall01Url from '../../assets/blank/tear/tear_fall_01.png';
+import tearFall02Url from '../../assets/blank/tear/tear_fall_02.png';
+import tearFall03Url from '../../assets/blank/tear/tear_fall_03.png';
+import tearFall04Url from '../../assets/blank/tear/tear_fall_04.png';
+import tearHit01Url from '../../assets/blank/tear/tear_hit_01.png';
+import tearHit02Url from '../../assets/blank/tear/tear_hit_02.png';
+import tearBreak01Url from '../../assets/blank/tear/tear_break_01.png';
+import tearBreak02Url from '../../assets/blank/tear/tear_break_02.png';
+import tearBreak03Url from '../../assets/blank/tear/tear_break_03.png';
+import tearBreak04Url from '../../assets/blank/tear/tear_break_04.png';
+import tearBreak05Url from '../../assets/blank/tear/tear_break_05.png';
+import tearDamageAUrl from '../../assets/blank/tear/tear_damage_a.png';
+import tearDamageBUrl from '../../assets/blank/tear/tear_damage_b.png';
 import './RogueBrickPage.css';
 
 const CANVAS_WIDTH = 420;
@@ -44,6 +65,12 @@ const BOARD_ROW_ADVANCE_STEP_ROWS = 0.62;
 const CORE_BREACH_FLASH_MS = 1400;
 const BONUS_EVENT_TEXT_ANIMATION_MS = 1500;
 const CORE_VARIANTS = ['yellow', 'blue', 'green'] as const;
+const BLANK_BODY_IDLE_FRAMES = [blankBodyIdle01Url, blankBodyIdle02Url, blankBodyIdle03Url] as const;
+const BLANK_LID_FRAMES = [blankLidOpenUrl, blankLid25Url, blankLid50Url, blankLid75Url, blankLidClosedUrl] as const;
+const BLANK_TEAR_FALL_FRAMES = [tearFall01Url, tearFall02Url, tearFall03Url, tearFall04Url] as const;
+const BLANK_TEAR_HIT_FRAMES = [tearHit01Url, tearHit02Url] as const;
+const BLANK_TEAR_BREAK_FRAMES = [tearBreak01Url, tearBreak02Url, tearBreak03Url, tearBreak04Url, tearBreak05Url] as const;
+const BLANK_TEAR_DAMAGE_FRAMES = [tearDamageAUrl, tearDamageBUrl] as const;
 const ESSENCE_VIAL_SHELL_URL_BY_VARIANT: Record<CoreVariant, string> = {
   yellow: yellowEssenceVialShellUrl,
   blue: blueEssenceVialShellUrl,
@@ -63,6 +90,8 @@ const PATH_SLIDE_ANIMATION_MS = 420;
 const CLOUD_SYNC_DEBOUNCE_IDLE_MS = 7000;
 const CLOUD_SYNC_DEBOUNCE_BOARD_MS = 18000;
 const CLOUD_SYNC_MIN_INTERVAL_MS = 25000;
+const WARDEN_TEAR_BLUE_DAMAGE = 12;
+const WARDEN_BLANK_HP_MAX = 220;
 
 const BALANCE_TARGETS = {
   runDurationMinutes: 20,
@@ -162,6 +191,9 @@ interface RunSummary {
   levelReached: number;
   metaEarned: number;
   completedAt: number;
+  defeatReason?: string;
+  wardensDefeated?: number;
+  manaBanked?: number;
 }
 
 interface BoardSkillBonus {
@@ -524,10 +556,10 @@ const DEEPWOOD_DOMAINS: Record<DeepwoodDomainKey, DeepwoodDomainDefinition> = {
     pressureTags: ['Armor', 'Retaliation', 'Position Lock'],
     wardens: [
       {
-        id: 'bramble-warden',
-        name: 'Bramble Warden',
-        pressure: 'Reflective thorn bursts punish uncontrolled spam.',
-        counterHint: 'Favor timing and piercing over volume dumping.',
+        id: 'blank',
+        name: 'Blank',
+        pressure: 'Alternates open-fire windows with full lid immunity while tear drops threaten your shield line.',
+        counterHint: 'Burst while the eye is open, clear tears early, and keep blue reserve buffered.',
       },
       {
         id: 'siege-idol',
@@ -2859,6 +2891,7 @@ export default function RogueBrickPage() {
   const manaBonusEventTextLastUpdateAtRef = useRef<number | null>(null);
   const boardAdvanceAnimationRef = useRef<BoardAdvanceAnimationState | null>(null);
   const coreBreachFlashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wardenTearImpactTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const coreBreachLaunchFrameRef = useRef<number | null>(null);
   const breachCleanupQueuedRef = useRef(false);
   const coreBreachHandledThisTurnRef = useRef(false);
@@ -2897,6 +2930,18 @@ export default function RogueBrickPage() {
   const [startingRunPowerChoices, setStartingRunPowerChoices] = useState<string[]>([]);
   const [powerPopoverLayout, setPowerPopoverLayout] = useState({ left: 8, top: 0, arrow: 136 });
   const [isPathSliding, setIsPathSliding] = useState(false);
+  const [wardenSelectedShotCount, setWardenSelectedShotCount] = useState(1);
+  const [wardenSelectedPower, setWardenSelectedPower] = useState(1);
+  const [isWardenLidClosed, setIsWardenLidClosed] = useState(false);
+  const [wardenBodyFrameIndex, setWardenBodyFrameIndex] = useState(0);
+  const [wardenLidFrameIndex, setWardenLidFrameIndex] = useState(0);
+  const [wardenTearFrameIndex, setWardenTearFrameIndex] = useState(0);
+  const [isWardenTearImpactFlashing, setIsWardenTearImpactFlashing] = useState(false);
+  const [wardenBossHp, setWardenBossHp] = useState(WARDEN_BLANK_HP_MAX);
+  const [wardenPendingTearHits, setWardenPendingTearHits] = useState(0);
+  const [isWardenAiming, setIsWardenAiming] = useState(false);
+  const [wardenAimPoint, setWardenAimPoint] = useState<{ x: number; y: number } | null>(null);
+  const [wardenNextTearSec, setWardenNextTearSec] = useState(9);
   const lastHubLevelRef = useRef<number | null>(null);
   const [liveHud, setLiveHud] = useState<LiveHudState>({
     destroyedBricks: 0,
@@ -2924,6 +2969,93 @@ export default function RogueBrickPage() {
     }, PATH_SLIDE_ANIMATION_MS);
     return () => window.clearTimeout(timer);
   }, [run?.level, run?.stage]);
+
+  useEffect(() => {
+    if (run?.stage !== 'warden') {
+      setIsWardenLidClosed(false);
+      setWardenBodyFrameIndex(0);
+      setWardenLidFrameIndex(0);
+      setWardenTearFrameIndex(0);
+      setIsWardenTearImpactFlashing(false);
+      setIsWardenAiming(false);
+      setWardenAimPoint(null);
+      setWardenNextTearSec(9);
+      return;
+    }
+
+    setWardenSelectedShotCount(1);
+    setWardenSelectedPower(1);
+    setIsWardenLidClosed(false);
+    setWardenBodyFrameIndex(0);
+    setWardenLidFrameIndex(0);
+    setWardenTearFrameIndex(0);
+    setIsWardenTearImpactFlashing(false);
+    setWardenBossHp(WARDEN_BLANK_HP_MAX);
+    setWardenPendingTearHits(0);
+    setIsWardenAiming(false);
+    setWardenAimPoint(null);
+    setWardenNextTearSec(9);
+
+    const lidInterval = window.setInterval(() => {
+      setIsWardenLidClosed((previous) => !previous);
+    }, 4200);
+
+    const tearInterval = window.setInterval(() => {
+      setWardenNextTearSec((previous) => {
+        if (previous <= 1) {
+          setWardenPendingTearHits((count) => count + 1);
+          return 8 + Math.floor(Math.random() * 3);
+        }
+        return previous - 1;
+      });
+    }, 1000);
+
+    return () => {
+      window.clearInterval(lidInterval);
+      window.clearInterval(tearInterval);
+    };
+  }, [run?.activeWardenId, run?.stage]);
+
+  useEffect(() => {
+    if (run?.stage !== 'warden') {
+      return;
+    }
+    const bodyInterval = window.setInterval(() => {
+      setWardenBodyFrameIndex((previous) => (previous + 1) % BLANK_BODY_IDLE_FRAMES.length);
+    }, 320);
+    const tearInterval = window.setInterval(() => {
+      setWardenTearFrameIndex((previous) => previous + 1);
+    }, 140);
+    return () => {
+      window.clearInterval(bodyInterval);
+      window.clearInterval(tearInterval);
+    };
+  }, [run?.stage]);
+
+  useEffect(() => {
+    if (run?.stage !== 'warden') {
+      return;
+    }
+    const lidAnimationInterval = window.setInterval(() => {
+      setWardenLidFrameIndex((previous) => {
+        if (isWardenLidClosed) {
+          return Math.min(BLANK_LID_FRAMES.length - 1, previous + 1);
+        }
+        return Math.max(0, previous - 1);
+      });
+    }, 110);
+    return () => {
+      window.clearInterval(lidAnimationInterval);
+    };
+  }, [isWardenLidClosed, run?.stage]);
+
+  useEffect(() => {
+    return () => {
+      if (wardenTearImpactTimeoutRef.current) {
+        window.clearTimeout(wardenTearImpactTimeoutRef.current);
+      }
+    };
+  }, []);
   
   // Ensure component re-renders when HP updates during shots
   useEffect(() => {
@@ -4514,7 +4646,7 @@ export default function RogueBrickPage() {
   }, [profile, pendingSync, isOnline]);
 
   const endRun = useCallback(
-    (victory: boolean) => {
+    (victory: boolean, defeatReason?: string) => {
       commitProfile((draft) => {
         if (!draft.run) {
           return;
@@ -4530,6 +4662,9 @@ export default function RogueBrickPage() {
           levelReached: runState.level,
           metaEarned,
           completedAt: Date.now(),
+          defeatReason: victory ? undefined : defeatReason,
+          wardensDefeated: runState.wardensDefeated.length,
+          manaBanked: Math.max(0, Math.floor(runState.mana)),
         };
         draft.run = null;
       }, true);
@@ -5848,6 +5983,86 @@ export default function RogueBrickPage() {
     [commitProfile]
   );
 
+  const firePrototypeWardenVolley = useCallback((direction?: { x: number; y: number }) => {
+    let damageDealt = 0;
+    let blockedByLid = false;
+    let didFire = false;
+
+    commitProfile((draft) => {
+      if (!draft.run || draft.run.stage !== 'warden') {
+        return;
+      }
+      const runState = draft.run;
+      const availableOrange = Math.max(0, Math.floor(runState.essenceByColor.yellow));
+      const availableGreen = Math.max(0, Math.floor(runState.essenceByColor.green));
+      const maxShotCapacity = Math.max(1, Math.min(10, Math.floor(runState.ballCount)));
+      const maxPowerCapacity = Math.max(1, Math.min(10, Math.floor(runState.damage * 2) + 4));
+      const shotCap = Math.min(maxShotCapacity, Math.max(1, availableOrange));
+      const powerCap = Math.min(maxPowerCapacity, Math.max(1, availableGreen));
+      const nextShotCount = Math.floor(clampNumber(wardenSelectedShotCount, 1, shotCap));
+      const nextPower = Math.floor(clampNumber(wardenSelectedPower, 1, powerCap));
+      const upwardAimScalar = direction
+        ? clampNumber((-direction.y - 0.08) / 0.92, 0.2, 1)
+        : 0.72;
+      const lateralAimPenalty = direction
+        ? clampNumber(1 - Math.abs(direction.x) * 0.55, 0.42, 1)
+        : 0.86;
+
+      runState.essenceByColor.yellow = Math.max(0, availableOrange - nextShotCount);
+      runState.essenceByColor.green = Math.max(0, availableGreen - nextPower);
+
+      if (isWardenLidClosed) {
+        blockedByLid = true;
+        runState.hubMessage = `Blank's lid blocked the volley. ${nextShotCount} ball${nextShotCount === 1 ? '' : 's'} still consumed energy.`;
+      } else {
+        damageDealt = Math.max(1, Math.round(nextShotCount * nextPower * upwardAimScalar * lateralAimPenalty));
+        runState.hubMessage = `Volley landed for ${damageDealt} damage (${nextShotCount} x power ${nextPower}).`;
+      }
+      didFire = true;
+    }, true);
+    if (didFire && !blockedByLid) {
+      setWardenBossHp((previous) => Math.max(0, previous - damageDealt));
+    }
+  }, [commitProfile, isWardenLidClosed, wardenSelectedPower, wardenSelectedShotCount]);
+
+  const applyPrototypeWardenTearHit = useCallback(() => {
+    setIsWardenTearImpactFlashing(true);
+    if (wardenTearImpactTimeoutRef.current) {
+      window.clearTimeout(wardenTearImpactTimeoutRef.current);
+    }
+    wardenTearImpactTimeoutRef.current = window.setTimeout(() => {
+      setIsWardenTearImpactFlashing(false);
+    }, 620);
+
+    const currentRun = profileRef.current?.run;
+    if (!currentRun || currentRun.stage !== 'warden') {
+      return;
+    }
+    const projectedBlue = Math.max(0, Math.floor(currentRun.essenceByColor.blue) - WARDEN_TEAR_BLUE_DAMAGE);
+    if (projectedBlue <= 0) {
+      endRun(false, 'Blue shield collapsed');
+      return;
+    }
+
+    commitProfile((draft) => {
+      if (!draft.run || draft.run.stage !== 'warden') {
+        return;
+      }
+
+      const runState = draft.run;
+      runState.essenceByColor.blue = projectedBlue;
+      runState.hubMessage = `Shield line breached for ${WARDEN_TEAR_BLUE_DAMAGE} blue energy.`;
+    }, true);
+  }, [commitProfile, endRun]);
+
+  useEffect(() => {
+    if (run?.stage !== 'warden' || wardenPendingTearHits <= 0) {
+      return;
+    }
+    applyPrototypeWardenTearHit();
+    setWardenPendingTearHits((count) => Math.max(0, count - 1));
+  }, [applyPrototypeWardenTearHit, run?.stage, wardenPendingTearHits]);
+
   const resolvePrototypeWardenEncounter = useCallback(() => {
       commitProfile((draft) => {
         if (!draft.run || draft.run.stage !== 'warden' || !draft.run.activeWardenId || !draft.run.activeWardenDomain) {
@@ -5869,6 +6084,13 @@ export default function RogueBrickPage() {
         runState.activeWardenDomain = null;
       }, true);
     }, [commitProfile]);
+
+  useEffect(() => {
+    if (run?.stage !== 'warden' || wardenBossHp > 0) {
+      return;
+    }
+    resolvePrototypeWardenEncounter();
+  }, [resolvePrototypeWardenEncounter, run?.stage, wardenBossHp]);
 
   const buyPermanentUpgrade = useCallback(
     (key: PermanentUpgradeKey) => {
@@ -5910,6 +6132,75 @@ export default function RogueBrickPage() {
     },
     [commitProfile]
   );
+
+  const clearWardenAim = useCallback(() => {
+    setIsWardenAiming(false);
+    setWardenAimPoint(null);
+  }, []);
+
+  const handleWardenAimPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!run || run.stage !== 'warden' || shotInProgress) {
+        return;
+      }
+      const bounds = event.currentTarget.getBoundingClientRect();
+      const x = clampCoordinate(event.clientX - bounds.left, 0, bounds.width);
+      const y = clampCoordinate(event.clientY - bounds.top, 0, bounds.height);
+      event.currentTarget.setPointerCapture(event.pointerId);
+      setIsWardenAiming(true);
+      setWardenAimPoint({ x, y });
+    },
+    [run, shotInProgress]
+  );
+
+  const handleWardenAimPointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!isWardenAiming) {
+        return;
+      }
+      const bounds = event.currentTarget.getBoundingClientRect();
+      const x = clampCoordinate(event.clientX - bounds.left, 0, bounds.width);
+      const y = clampCoordinate(event.clientY - bounds.top, 0, bounds.height);
+      setWardenAimPoint({ x, y });
+    },
+    [isWardenAiming]
+  );
+
+  const handleWardenAimPointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!isWardenAiming || !wardenAimPoint) {
+        return;
+      }
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+
+      const bounds = event.currentTarget.getBoundingClientRect();
+      const originX = bounds.width / 2;
+      const originY = bounds.height - 16;
+      const dx = wardenAimPoint.x - originX;
+      const dy = wardenAimPoint.y - originY;
+      const length = Math.hypot(dx, dy);
+      clearWardenAim();
+
+      if (length < 10) {
+        return;
+      }
+
+      const nx = dx / length;
+      const ny = dy / length;
+      if (ny >= MIN_LAUNCH_UPWARD_COMPONENT) {
+        return;
+      }
+
+      firePrototypeWardenVolley({ x: nx, y: ny });
+    },
+    [clearWardenAim, firePrototypeWardenVolley, isWardenAiming, wardenAimPoint]
+  );
+
+  const handleWardenAimPointerCancel = useCallback(() => {
+    clearWardenAim();
+  }, [clearWardenAim]);
 
   const handlePointerDown = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -6166,6 +6457,33 @@ export default function RogueBrickPage() {
     activeEncounterDomain && run?.activeWardenId
       ? activeEncounterDomain.wardens.find((warden) => warden.id === run.activeWardenId) ?? null
       : null;
+  const wardenOrangeEnergy = Math.max(0, Math.floor(run?.essenceByColor.yellow ?? 0));
+  const wardenGreenEnergy = Math.max(0, Math.floor(run?.essenceByColor.green ?? 0));
+  const wardenBlueEnergy = Math.max(0, Math.floor(run?.essenceByColor.blue ?? 0));
+  const wardenShotCapacity = run ? Math.max(1, Math.min(10, Math.floor(run.ballCount))) : 1;
+  const wardenPowerCapacity = run ? Math.max(1, Math.min(10, Math.floor(run.damage * 2) + 4)) : 1;
+  const wardenShotCountCap = Math.min(wardenShotCapacity, Math.max(1, wardenOrangeEnergy));
+  const wardenPowerCap = Math.min(wardenPowerCapacity, Math.max(1, wardenGreenEnergy));
+  const clampedWardenShotCount = Math.floor(clampNumber(wardenSelectedShotCount, 1, wardenShotCountCap));
+  const clampedWardenPower = Math.floor(clampNumber(wardenSelectedPower, 1, wardenPowerCap));
+  const wardenPowerScale = wardenPowerCap > 1 ? (clampedWardenPower - 1) / (wardenPowerCap - 1) : 0;
+  const wardenRestingBallSizePx = 12 + wardenPowerScale * 24;
+  const wardenBlueCapacity = Math.max(1, essenceCapacityByColor.blue);
+  const wardenShieldRatio = clampNumber(wardenBlueEnergy / wardenBlueCapacity, 0, 1);
+  const projectedOrangeAfterVolley = Math.max(0, wardenOrangeEnergy - clampedWardenShotCount);
+  const projectedGreenAfterVolley = Math.max(0, wardenGreenEnergy - clampedWardenPower);
+  const projectedBlueAfterTear = Math.max(0, wardenBlueEnergy - WARDEN_TEAR_BLUE_DAMAGE);
+  const wardenBossHpPct = Math.round(clampNumber((wardenBossHp / WARDEN_BLANK_HP_MAX) * 100, 0, 100));
+  const wardenBodyFrameUrl = BLANK_BODY_IDLE_FRAMES[wardenBodyFrameIndex % BLANK_BODY_IDLE_FRAMES.length];
+  const wardenLidFrameUrl = BLANK_LID_FRAMES[wardenLidFrameIndex];
+  const wardenTearTravelProgress = wardenNextTearSec <= 3 ? clampNumber((3 - wardenNextTearSec) / 3, 0, 1) : 0;
+  const wardenTearSpriteUrl = isWardenTearImpactFlashing
+    ? BLANK_TEAR_HIT_FRAMES[wardenTearFrameIndex % BLANK_TEAR_HIT_FRAMES.length]
+    : wardenNextTearSec <= 1
+      ? BLANK_TEAR_BREAK_FRAMES[wardenTearFrameIndex % BLANK_TEAR_BREAK_FRAMES.length]
+      : BLANK_TEAR_FALL_FRAMES[wardenTearFrameIndex % BLANK_TEAR_FALL_FRAMES.length];
+  const wardenTearDamageFrameUrl = BLANK_TEAR_DAMAGE_FRAMES[wardenShieldRatio < 0.35 ? 1 : 0];
+
   const overallScore = calculateOverallScore(run, liveHud);
   const overallProgressPct = calculateOverallProgress(run, liveHud);
   const showBoardOverlay = !hasActiveRun || run?.stage !== 'board';
@@ -6967,26 +7285,160 @@ export default function RogueBrickPage() {
                     )}
 
                     {run?.stage === 'warden' && !shouldGateBoardChoices && (
-                      <section className="rogue-brick-panel">
-                        <h2>{activeEncounterWarden ? `Warden Encounter: ${activeEncounterWarden.name}` : 'Warden Encounter'}</h2>
-                        <p>
-                          Prototype encounter scaffold is live. This checkpoint confirms warden trigger, stage routing,
-                          and resolution flow before real-time mechanics land.
-                        </p>
+                      <section className="rogue-brick-panel rogue-warden-panel">
+                        <div className="rogue-warden-panel-header">
+                          <h2>{activeEncounterWarden ? `Warden Encounter: ${activeEncounterWarden.name}` : 'Warden Encounter'}</h2>
+                          <p>
+                            First-pass Warden board is active: orange controls volley count, green controls power, and blue
+                            is your loss-condition shield line.
+                          </p>
+                        </div>
+
+                        <div className="rogue-warden-board">
+                          <div className="rogue-warden-arena">
+                            <div className="rogue-warden-blank-wrap" aria-label="Blank boss prototype">
+                              <div className="rogue-warden-blank-eye">
+                                <img className="rogue-warden-blank-body" src={wardenBodyFrameUrl} alt="" />
+                                <img className="rogue-warden-blank-lid" src={wardenLidFrameUrl} alt="" />
+                              </div>
+                              <div className="rogue-warden-tear-wrap">
+                                <img
+                                  className="rogue-warden-tear-sprite"
+                                  src={wardenTearSpriteUrl}
+                                  alt=""
+                                  style={{
+                                    transform: `translateY(${Math.round(wardenTearTravelProgress * 74)}px)`,
+                                    opacity: wardenNextTearSec <= 3 || isWardenTearImpactFlashing ? 1 : 0.28,
+                                  }}
+                                />
+                                <img
+                                  className="rogue-warden-tear-damage"
+                                  src={wardenTearDamageFrameUrl}
+                                  alt=""
+                                />
+                              </div>
+                              <span className="rogue-warden-blank-state">
+                                {isWardenLidClosed ? 'Lid closed: Invulnerable' : 'Lid open: Damage window'}
+                              </span>
+                              <span className="rogue-warden-tear-timer">Next tear in ~{wardenNextTearSec}s</span>
+                            </div>
+
+                            <div className="rogue-warden-shield-wrap">
+                              <div className="rogue-warden-shield-label">
+                                <span>Blank Vital</span>
+                                <strong>{wardenBossHp}/{WARDEN_BLANK_HP_MAX}</strong>
+                              </div>
+                              <div
+                                className="rogue-progress-track rogue-progress-track-compact"
+                                role="progressbar"
+                                aria-valuemin={0}
+                                aria-valuemax={100}
+                                aria-valuenow={wardenBossHpPct}
+                              >
+                                <div className="rogue-progress-fill" style={{ width: `${wardenBossHpPct}%` }} />
+                              </div>
+                              <div className="rogue-warden-shield-label">
+                                <span>Blue Shield</span>
+                                <strong>{wardenBlueEnergy}</strong>
+                              </div>
+                              <div className="rogue-warden-shield-track" role="img" aria-label="Blue shield line">
+                                <span
+                                  className="rogue-warden-shield-fill"
+                                  style={{ transform: `translateX(-50%) scaleX(${wardenShieldRatio})` }}
+                                />
+                              </div>
+                              <span className="rogue-warden-shield-hint">
+                                Tear crossing projects blue to {projectedBlueAfterTear}.
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="rogue-warden-controls">
+                            <label className="rogue-warden-control-card rogue-warden-control-card-orange">
+                              <span className="rogue-warden-control-top">
+                                <strong>Orange Volley</strong>
+                                <span>{clampedWardenShotCount}</span>
+                              </span>
+                              <input
+                                type="range"
+                                min={1}
+                                max={wardenShotCountCap}
+                                value={clampedWardenShotCount}
+                                onChange={(event) => {
+                                  setWardenSelectedShotCount(Math.floor(Number(event.currentTarget.value)));
+                                }}
+                              />
+                              <span className="rogue-warden-control-meta">
+                                Energy {wardenOrangeEnergy} | cap {wardenShotCountCap} | post-fire {projectedOrangeAfterVolley}
+                              </span>
+                            </label>
+
+                            <label className="rogue-warden-control-card rogue-warden-control-card-green">
+                              <span className="rogue-warden-control-top">
+                                <strong>Green Power</strong>
+                                <span>{clampedWardenPower}</span>
+                              </span>
+                              <input
+                                type="range"
+                                min={1}
+                                max={wardenPowerCap}
+                                value={clampedWardenPower}
+                                onChange={(event) => {
+                                  setWardenSelectedPower(Math.floor(Number(event.currentTarget.value)));
+                                }}
+                              />
+                              <span className="rogue-warden-control-meta">
+                                Energy {wardenGreenEnergy} | cap {wardenPowerCap} | post-fire {projectedGreenAfterVolley}
+                              </span>
+                              <span className="rogue-warden-power-preview">
+                                <span
+                                  className="rogue-warden-power-ball"
+                                  style={{ width: `${wardenRestingBallSizePx}px`, height: `${wardenRestingBallSizePx}px` }}
+                                />
+                              </span>
+                            </label>
+
+                            <div
+                              className="rogue-warden-shooting-well"
+                              role="button"
+                              tabIndex={0}
+                              aria-label="Drag to aim and release to fire"
+                              onPointerDown={handleWardenAimPointerDown}
+                              onPointerMove={handleWardenAimPointerMove}
+                              onPointerUp={handleWardenAimPointerUp}
+                              onPointerCancel={handleWardenAimPointerCancel}
+                            >
+                              <span className="rogue-warden-shooting-label">Shoot Well (drag then release)</span>
+                              {wardenAimPoint && (
+                                <span
+                                  className="rogue-warden-aim-line"
+                                  style={{
+                                    width: `${Math.hypot(wardenAimPoint.x - 64, wardenAimPoint.y - 170)}px`,
+                                    left: '64px',
+                                    top: '170px',
+                                    transform: `rotate(${Math.atan2(wardenAimPoint.y - 170, wardenAimPoint.x - 64)}rad)`,
+                                  }}
+                                />
+                              )}
+                              <span
+                                className={`rogue-warden-well-ball${isWardenAiming ? ' is-aiming' : ''}`}
+                                style={{ width: `${wardenRestingBallSizePx}px`, height: `${wardenRestingBallSizePx}px` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
                         {activeEncounterWarden && (
-                          <>
-                            <p><strong>Pressure:</strong> {activeEncounterWarden.pressure}</p>
-                            <p><strong>Counter Hint:</strong> {activeEncounterWarden.counterHint}</p>
-                          </>
+                          <ul className="rogue-stat-list">
+                            <li><strong>Pressure:</strong> {activeEncounterWarden.pressure}</li>
+                            <li><strong>Counter Hint:</strong> {activeEncounterWarden.counterHint}</li>
+                          </ul>
                         )}
-                        <div className="rogue-spoils-actions">
-                          <button
-                            type="button"
-                            className="btn-primary"
-                            onClick={resolvePrototypeWardenEncounter}
-                          >
-                            Prototype Victory
-                          </button>
+
+                        <div className="rogue-warden-action-row">
+                          <span className="rogue-warden-play-hint">
+                            Set shots + power, then drag in the shoot well and release to fire.
+                          </span>
                         </div>
                       </section>
                     )}
@@ -7219,6 +7671,8 @@ export default function RogueBrickPage() {
               <p>{lastRunSummary.victory ? 'Victory' : 'Defeat'}</p>
               <p>Level Reached: {lastRunSummary.levelReached}</p>
               <p>Boards Cleared: {lastRunSummary.boardsCleared}</p>
+              <p>Wardens Defeated: {lastRunSummary.wardensDefeated ?? 0}</p>
+              <p>Mana Banked: {lastRunSummary.manaBanked ?? 0}</p>
               <p>Meta Earned: +{lastRunSummary.metaEarned}</p>
             </section>
           )}
@@ -7322,6 +7776,11 @@ export default function RogueBrickPage() {
               You were crushed at level {lastRunSummary.levelReached} after {lastRunSummary.boardsCleared}{' '}
               board{lastRunSummary.boardsCleared === 1 ? '' : 's'}.
             </p>
+            {lastRunSummary.defeatReason && (
+              <p className="rogue-gamble-modal-copy">{lastRunSummary.defeatReason}.</p>
+            )}
+            <p className="rogue-gamble-modal-copy">Wardens defeated: {lastRunSummary.wardensDefeated ?? 0}</p>
+            <p className="rogue-gamble-modal-copy">Mana banked: {lastRunSummary.manaBanked ?? 0}</p>
             <p className="rogue-gamble-modal-copy">Your run is gone. You salvaged +{lastRunSummary.metaEarned} meta.</p>
             <div className="rogue-gamble-modal-actions">
               <button
@@ -7329,7 +7788,7 @@ export default function RogueBrickPage() {
                 className="rogue-defeat-dismiss"
                 onClick={() => setDismissedDefeatSummaryCompletedAt(lastRunSummary.completedAt)}
               >
-                Accept Defeat
+                OK
               </button>
             </div>
           </section>
@@ -7338,5 +7797,3 @@ export default function RogueBrickPage() {
     </div>
   );
 }
-
-
