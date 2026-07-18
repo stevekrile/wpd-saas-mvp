@@ -40,6 +40,8 @@ const CORE_DAMAGE_WEIGHT_MAX = 1.55;
 const MAX_ACTIVE_BALLS = 280;
 const MIN_LAUNCH_UPWARD_COMPONENT = -0.08;
 const LOSE_Y = LAUNCHER_Y - 20;
+const WARDEN_LAUNCHER_Y = LAUNCHER_Y - 12;
+const WARDEN_TURRET_SLIDE_MS = 200;
 const LOCAL_STORAGE_PREFIX = 'wpd:rogue-brick:';
 const HOMING_BULLET_TIME_SCALE = 0.34;
 const POWER_POPOVER_WIDTH_PX = 272;
@@ -63,7 +65,7 @@ const BOARD_SIDE_CHANNEL_WIDTH = 30;
 const STANDARD_BRICK_MAX_SCALE = 0.90;
 const PATH_MAX_LANE_ABS = 1;
 const PATH_WARDEN_INTERVAL_LEVELS = 7;
-const PATH_WARDEN_TOTAL = 5;
+const PATH_WARDEN_TOTAL = 4;
 const PATH_TREE_MIN_HEIGHT_REM = 37.8;
 const PATH_TREE_LEVEL_HEIGHT_REM = 2.8;
 const MAX_ESSENCE_RUN_BOARDS_FOR_CAPACITY = 60;
@@ -71,10 +73,9 @@ const PATH_SLIDE_ANIMATION_MS = 420;
 const CLOUD_SYNC_DEBOUNCE_IDLE_MS = 7000;
 const CLOUD_SYNC_DEBOUNCE_BOARD_MS = 18000;
 const CLOUD_SYNC_MIN_INTERVAL_MS = 25000;
-const WARDEN_ORB_EFFECT_PER_ENERGY = 7;
+const WARDEN_ORB_EFFECT_PER_ENERGY = 3;
 const WARDEN_TEAR_BLUE_DAMAGE = 6;
-const WARDEN_BLANK_HP_MAX = 2200;
-const WARDEN_TEAR_SPAWN_AT_SEC = 4;  // tear detaches from eye and falls when countdown reaches this value
+const WARDEN_BLANK_HP_MAX = 1800;
 const WARDEN_TEAR_HP_MAX = 1;        // HP of a falling tear; temporary tuning for rapid iteration
 
 const BALANCE_TARGETS = {
@@ -1502,6 +1503,144 @@ function hasDefeatedWardenEncounter(run: RogueRunState, level: number, wardenId:
   return run.wardensDefeated.includes(wardenId) && level < run.level;
 }
 
+interface BlankEncounterProfile {
+  encounterNumber: 1 | 2 | 3 | 4;
+  pathSpeedAtFullHp: number;
+  pathSpeedAtLowHp: number;
+  tearRespawnMinAtFullHp: number;
+  tearRespawnMaxAtFullHp: number;
+  tearRespawnMinAtLowHp: number;
+  tearRespawnMaxAtLowHp: number;
+  tearDetachAtSec: number;
+  tearFallDurationAtFullHp: number;
+  tearFallDurationAtLowHp: number;
+  dualEyes: boolean;
+  eyeSpacingPx: number;
+}
+
+function getBlankEncounterNumber(run: RogueRunState | null | undefined): 1 | 2 | 3 | 4 {
+  if (!run) {
+    return 1;
+  }
+  if (run.stage === 'warden' && run.activeWardenId === 'blank') {
+    const encounterLevel = getCurrentPathNode(run).level;
+    const blankTriggerLevels = WARDEN_TRIGGERS
+      .filter((trigger) => {
+        const domain = getDeepwoodDomainDefinition(trigger.domain);
+        const warden = domain.wardens[trigger.wardenIndex];
+        return warden?.id === 'blank';
+      })
+      .map((trigger) => trigger.level)
+      .sort((left, right) => left - right);
+    const encounterIndex = blankTriggerLevels.findIndex((level) => level === encounterLevel);
+    if (encounterIndex >= 0) {
+      return Math.min(4, encounterIndex + 1) as 1 | 2 | 3 | 4;
+    }
+  }
+  const defeatedBlankCount = run.wardensDefeated.reduce((count, key) => {
+    if (key === 'blank' || key.endsWith(':blank')) {
+      return count + 1;
+    }
+    return count;
+  }, 0);
+  if (defeatedBlankCount >= 3) {
+    return 4;
+  }
+  if (defeatedBlankCount === 2) {
+    return 3;
+  }
+  if (defeatedBlankCount === 1) {
+    return 2;
+  }
+  return 1;
+}
+
+function getBlankEncounterProfile(run: RogueRunState | null | undefined): BlankEncounterProfile {
+  const encounterNumber = getBlankEncounterNumber(run);
+  if (encounterNumber === 1) {
+    return {
+      encounterNumber,
+      pathSpeedAtFullHp: 1,
+      pathSpeedAtLowHp: 1.35,
+      tearRespawnMinAtFullHp: 5,
+      tearRespawnMaxAtFullHp: 8,
+      tearRespawnMinAtLowHp: 4,
+      tearRespawnMaxAtLowHp: 5,
+      tearDetachAtSec: 4,
+      tearFallDurationAtFullHp: 4,
+      tearFallDurationAtLowHp: 1.9,
+      dualEyes: false,
+      eyeSpacingPx: 0,
+    };
+  }
+  if (encounterNumber === 2) {
+    return {
+      encounterNumber,
+      pathSpeedAtFullHp: 1.35,
+      pathSpeedAtLowHp: 3,
+      tearRespawnMinAtFullHp: 4,
+      tearRespawnMaxAtFullHp: 5,
+      tearRespawnMinAtLowHp: 2,
+      tearRespawnMaxAtLowHp: 3,
+      tearDetachAtSec: 2,
+      tearFallDurationAtFullHp: 2.6,
+      tearFallDurationAtLowHp: 1.1,
+      dualEyes: false,
+      eyeSpacingPx: 0,
+    };
+  }
+  if (encounterNumber === 3) {
+    return {
+      encounterNumber,
+      pathSpeedAtFullHp: 1.05,
+      pathSpeedAtLowHp: 2.1,
+      tearRespawnMinAtFullHp: 4,
+      tearRespawnMaxAtFullHp: 6,
+      tearRespawnMinAtLowHp: 3,
+      tearRespawnMaxAtLowHp: 4,
+      tearDetachAtSec: 3,
+      tearFallDurationAtFullHp: 3.4,
+      tearFallDurationAtLowHp: 1.5,
+      dualEyes: true,
+      eyeSpacingPx: 72,
+    };
+  }
+  return {
+    encounterNumber,
+    pathSpeedAtFullHp: 1.35,
+    pathSpeedAtLowHp: 3,
+    tearRespawnMinAtFullHp: 4,
+    tearRespawnMaxAtFullHp: 5,
+    tearRespawnMinAtLowHp: 2,
+    tearRespawnMaxAtLowHp: 3,
+    tearDetachAtSec: 2,
+    tearFallDurationAtFullHp: 2.6,
+    tearFallDurationAtLowHp: 1.1,
+    dualEyes: true,
+    eyeSpacingPx: 72,
+  };
+}
+
+function getBlankEyeRenderMetrics(dualEyes: boolean): { width: number; height: number; spacingPx: number } {
+  const baseWidth = Math.min(CANVAS_WIDTH * 0.38, 140);
+  const width = dualEyes ? baseWidth * 0.78 : baseWidth;
+  return {
+    width,
+    height: width * 0.65,
+    spacingPx: dualEyes ? Math.max(56, width * 0.78) : 0,
+  };
+}
+
+function getWardenShotColor(shotCount: number, shotCap: number): string {
+  const ratio = clampNumber(shotCount / Math.max(1, shotCap), 0, 1);
+  const start = { r: 249, g: 196, b: 209 }; // soft pink
+  const end = { r: 239, g: 68, b: 68 }; // red
+  const r = Math.round(start.r + (end.r - start.r) * ratio);
+  const g = Math.round(start.g + (end.g - start.g) * ratio);
+  const b = Math.round(start.b + (end.b - start.b) * ratio);
+  return `rgb(${r} ${g} ${b})`;
+}
+
 
 function makePathNodeId(
   seed: number,
@@ -2520,8 +2659,14 @@ function generateBoard(run: RogueRunState): BoardState {
     return Math.abs(left.col - objectiveCol) - Math.abs(right.col - objectiveCol);
   };
 
+  const requiredPrimaryObjectivesForMajority = Math.floor(targetObjectiveCount / 2) + 1;
+  let primaryObjectivesPlaced = 0;
   for (let objectiveIndex = 0; objectiveIndex < targetObjectiveCount; objectiveIndex += 1) {
-    const variant = objectiveVariants[objectiveIndex] ?? objectiveCoreVariant;
+    const plannedVariant = objectiveVariants[objectiveIndex] ?? objectiveCoreVariant;
+    const variant =
+      plannedVariant !== objectiveCoreVariant && primaryObjectivesPlaced < requiredPrimaryObjectivesForMajority
+        ? objectiveCoreVariant
+        : plannedVariant;
     const objectiveHp = objectiveIndex === 0 ? objectiveMaxHp : buildObjectiveHp(variant);
     const availableSlots = objectiveSlotCandidates
       .filter((slot) => !placedObjectives.some((placed) => placed.row === slot.row && placed.col === slot.col))
@@ -2549,6 +2694,9 @@ function generateBoard(run: RogueRunState): BoardState {
     bricks.push(objectiveBrick);
     objectiveBrickIds.push(objectiveId);
     placedObjectives.push({ row: selectedSlot.row, col: selectedSlot.col, bounds: objectiveBounds });
+    if (variant === objectiveCoreVariant) {
+      primaryObjectivesPlaced += 1;
+    }
   }
   applyEarlyBoardPreDamage(bricks, run);
 
@@ -2942,13 +3090,22 @@ export default function RogueBrickPage() {
   const [wardenBossHitFlashUntilMs, setWardenBossHitFlashUntilMs] = useState(0);
   const [wardenPendingTearHits, setWardenPendingTearHits] = useState(0);
   const wardenNextTearSecRef = useRef(9); // countdown to next tear reach; drives tear falling progress
+  const wardenNextTearEyeIndexRef = useRef(0);
   const wardenTearFallProgressRef = useRef(0);
   // Active independent tear drop (detached from Blank's position once released)
   const [wardenActiveTear, setWardenActiveTear] = useState<{
     xCanvas: number;      // canvas pixel X at spawn
     yStartCanvas: number; // canvas pixel Y at spawn
+    sourceEyeIndex: number;
     hp: number;
     phase: 'falling' | 'hit' | 'gone';
+  } | null>(null);
+  const wardenDisplayedLaunchOriginXRef = useRef(DEFAULT_LAUNCH_ORIGIN_X);
+  const wardenLaunchOriginTweenRef = useRef<{
+    startX: number;
+    endX: number;
+    startedAtMs: number;
+    durationMs: number;
   } | null>(null);
   const wardenActiveTearRef = useRef<typeof wardenActiveTear>(null);
   const wardenBodySpriteRef = useRef<HTMLImageElement | null>(null);
@@ -2971,6 +3128,8 @@ export default function RogueBrickPage() {
     radius: number;
     mass: number;
     spreadScale: number;
+    shotCount: number;
+    shotCap: number;
   } | null>(null);
   const wardenShieldStartBlueRef = useRef(1);
   const wardenStartOrangeRef = useRef(1);
@@ -3013,8 +3172,11 @@ export default function RogueBrickPage() {
   }, []);
   // Canvas-space refs for warden drawing (readable from draw() without stale closures)
   const blankCanvasPosRef = useRef({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT * 0.18 });
+  const blankEyeCanvasPositionsRef = useRef<Array<{ x: number; y: number }>>([{ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT * 0.18 }]);
   const isWardenLidClosedRef = useRef(false);
   const wardenLidProgressRef = useRef(0); // 0=open, 1=closed
+  const isWardenSecondLidClosedRef = useRef(false);
+  const wardenSecondLidProgressRef = useRef(0);
   const wardenAnimationRef = useRef<number | null>(null);
   const lastHubLevelRef = useRef<number | null>(null);
   const pathTreeScrollRef = useRef<HTMLDivElement | null>(null);
@@ -3056,14 +3218,21 @@ export default function RogueBrickPage() {
         window.clearTimeout(wardenDefeatResolveTimeoutRef.current);
         wardenDefeatResolveTimeoutRef.current = null;
       }
+      setWardenBossHp(WARDEN_BLANK_HP_MAX);
+      wardenBossHpRef.current = WARDEN_BLANK_HP_MAX;
       setWardenDefeatCinematicUntilMs(null);
       isWardenLidClosedRef.current = false;
       wardenLidProgressRef.current = 0;
+      isWardenSecondLidClosedRef.current = false;
+      wardenSecondLidProgressRef.current = 0;
       wardenNextTearSecRef.current = 9;
+      wardenNextTearEyeIndexRef.current = 0;
       wardenTearFallProgressRef.current = 0;
       wardenBallLastFrameMsRef.current = null;
       wardenImpactParticlesRef.current = [];
       wardenLaunchConfigRef.current = null;
+      wardenDisplayedLaunchOriginXRef.current = DEFAULT_LAUNCH_ORIGIN_X;
+      wardenLaunchOriginTweenRef.current = null;
       ballsRef.current = [];
       launchQueueRef.current = [];
       launchElapsedRef.current = 0;
@@ -3076,13 +3245,23 @@ export default function RogueBrickPage() {
       wardenStartGreenRef.current = 1;
       wardenPathTimeRef.current = 0;
       wardenPathLastFrameMsRef.current = null;
+      blankEyeCanvasPositionsRef.current = [{ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT * 0.18 }];
       return;
     }
 
-    setWardenSelectedShotCount(1);
-    setWardenSelectedPower(1);
+    const encounterProfile = getBlankEncounterProfile(run);
+    const availableOrange = Math.max(0, Math.floor(run.essenceByColor.yellow));
+    const availableGreen = Math.max(0, Math.floor(run.essenceByColor.green));
+    const maxShotCapacity = Math.max(1, Math.min(10, Math.floor(run.ballCount)));
+    const maxPowerCapacity = Math.max(1, Math.min(10, Math.floor(run.damage * 2) + 4));
+    const shotCap = Math.min(maxShotCapacity, Math.max(1, availableOrange * WARDEN_ORB_EFFECT_PER_ENERGY));
+    const powerCap = Math.min(maxPowerCapacity, Math.max(1, availableGreen * WARDEN_ORB_EFFECT_PER_ENERGY));
+    setWardenSelectedShotCount(shotCap);
+    setWardenSelectedPower(powerCap);
     isWardenLidClosedRef.current = false;
     wardenLidProgressRef.current = 0;
+    isWardenSecondLidClosedRef.current = false;
+    wardenSecondLidProgressRef.current = 0;
     setWardenBossHp(WARDEN_BLANK_HP_MAX);
     wardenBossHpRef.current = WARDEN_BLANK_HP_MAX;
     if (wardenDefeatResolveTimeoutRef.current !== null) {
@@ -3093,11 +3272,15 @@ export default function RogueBrickPage() {
     setWardenBossHitFlashUntilMs(0);
     setWardenPendingTearHits(0);
     blankCanvasPosRef.current = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT * 0.18 };
+    blankEyeCanvasPositionsRef.current = [{ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT * 0.18 }];
     wardenNextTearSecRef.current = 9;
+    wardenNextTearEyeIndexRef.current = 0;
     wardenTearFallProgressRef.current = 0;
     wardenBallLastFrameMsRef.current = null;
     wardenImpactParticlesRef.current = [];
     wardenLaunchConfigRef.current = null;
+    wardenDisplayedLaunchOriginXRef.current = getLaunchOriginX(run);
+    wardenLaunchOriginTweenRef.current = null;
     ballsRef.current = [];
     launchQueueRef.current = [];
     launchElapsedRef.current = 0;
@@ -3112,8 +3295,22 @@ export default function RogueBrickPage() {
     wardenPathLastFrameMsRef.current = null;
 
     let blinkTimeout: ReturnType<typeof setTimeout> | null = null;
+    let secondBlinkOffsetTimeout: ReturnType<typeof setTimeout> | null = null;
     const scheduleNextBlink = () => {
       isWardenLidClosedRef.current = !isWardenLidClosedRef.current;
+      if (encounterProfile.dualEyes) {
+        const offsetMs = 45 + Math.floor(Math.random() * 140);
+        if (secondBlinkOffsetTimeout !== null) {
+          window.clearTimeout(secondBlinkOffsetTimeout);
+          secondBlinkOffsetTimeout = null;
+        }
+        secondBlinkOffsetTimeout = window.setTimeout(() => {
+          isWardenSecondLidClosedRef.current = isWardenLidClosedRef.current;
+          secondBlinkOffsetTimeout = null;
+        }, offsetMs);
+      } else {
+        isWardenSecondLidClosedRef.current = isWardenLidClosedRef.current;
+      }
       const hpPct = clampNumber(wardenBossHpRef.current / Math.max(1, WARDEN_BLANK_HP_MAX), 0, 1);
       const aggression = 1 - hpPct;
       const minMs = Math.max(420, Math.round(1500 - aggression * 900));
@@ -3124,6 +3321,7 @@ export default function RogueBrickPage() {
     };
     blinkTimeout = window.setTimeout(scheduleNextBlink, 1100);
 
+    const tearCadenceTickMs = encounterProfile.encounterNumber === 4 ? 333 : 1000;
     const tearInterval = window.setInterval(() => {
       wardenNextTearSecRef.current = wardenNextTearSecRef.current - 1;
       const sec = wardenNextTearSecRef.current;
@@ -3141,15 +3339,36 @@ export default function RogueBrickPage() {
         }
         const hpPct = clampNumber(wardenBossHpRef.current / Math.max(1, WARDEN_BLANK_HP_MAX), 0, 1);
         const aggression = 1 - hpPct;
-        const nextMin = Math.max(WARDEN_TEAR_SPAWN_AT_SEC + 1, Math.round(5 - aggression * 1));
-        const nextMax = Math.max(nextMin + 1, Math.round(8 - aggression * 3));
+        const nextMin = Math.max(
+          encounterProfile.tearDetachAtSec + 1,
+          Math.round(
+            encounterProfile.tearRespawnMinAtFullHp +
+            (encounterProfile.tearRespawnMinAtLowHp - encounterProfile.tearRespawnMinAtFullHp) * aggression
+          )
+        );
+        const nextMax = Math.max(
+          nextMin + 1,
+          Math.round(
+            encounterProfile.tearRespawnMaxAtFullHp +
+            (encounterProfile.tearRespawnMaxAtLowHp - encounterProfile.tearRespawnMaxAtFullHp) * aggression
+          )
+        );
         const next = nextMin + Math.floor(Math.random() * (nextMax - nextMin + 1));
         wardenNextTearSecRef.current = next;
-      } else if (sec === WARDEN_TEAR_SPAWN_AT_SEC && !wardenActiveTearRef.current) {
-        const blankPos = blankCanvasPosRef.current;
+      } else if (sec === encounterProfile.tearDetachAtSec && !wardenActiveTearRef.current) {
+        const blankEyePositions = blankEyeCanvasPositionsRef.current;
+        const hasTwoEyes = encounterProfile.dualEyes && blankEyePositions.length > 1;
+        const nextEyeIndex = hasTwoEyes ? wardenNextTearEyeIndexRef.current % blankEyePositions.length : 0;
+        const blankPos = blankEyePositions[nextEyeIndex] ?? blankEyePositions[0] ?? blankCanvasPosRef.current;
+        if (hasTwoEyes) {
+          wardenNextTearEyeIndexRef.current = (nextEyeIndex + 1) % blankEyePositions.length;
+        } else {
+          wardenNextTearEyeIndexRef.current = 0;
+        }
         const newTear = {
           xCanvas: blankPos.x + (Math.random() - 0.5) * 20,
           yStartCanvas: blankPos.y + CANVAS_HEIGHT * 0.07,
+          sourceEyeIndex: nextEyeIndex,
           hp: WARDEN_TEAR_HP_MAX,
           phase: 'falling' as const,
         };
@@ -3157,11 +3376,14 @@ export default function RogueBrickPage() {
         wardenActiveTearRef.current = newTear;
         wardenTearFallProgressRef.current = 0;
       }
-    }, 1000);
+    }, tearCadenceTickMs);
 
     return () => {
       if (blinkTimeout !== null) {
         window.clearTimeout(blinkTimeout);
+      }
+      if (secondBlinkOffsetTimeout !== null) {
+        window.clearTimeout(secondBlinkOffsetTimeout);
       }
       window.clearInterval(tearInterval);
     };
@@ -3499,6 +3721,7 @@ export default function RogueBrickPage() {
 
     // In warden mode draw Blank + tear instead of bricks
     if (runSnapshot.stage === 'warden') {
+      const blankEncounterProfile = getBlankEncounterProfile(runSnapshot);
       const hpPct = clampNumber(wardenBossHp / Math.max(1, WARDEN_BLANK_HP_MAX), 0, 1);
       const defeatRemainingMs =
         wardenDefeatCinematicUntilMs === null ? 0 : Math.max(0, wardenDefeatCinematicUntilMs - now);
@@ -3509,7 +3732,9 @@ export default function RogueBrickPage() {
       const shakeY = (Math.random() - 0.5) * 12 * shakeStrength;
       const blankFadeAlpha = defeatCinematicActive ? clampNumber(1 - defeatElapsedMs / 180, 0, 1) : 1;
       const cinematicTimeScale = defeatCinematicActive ? 0.18 : 1;
-      const pathSpeedScale = 1 + (1 - hpPct) * 0.35;
+      const pathSpeedScale =
+        blankEncounterProfile.pathSpeedAtFullHp +
+        (blankEncounterProfile.pathSpeedAtLowHp - blankEncounterProfile.pathSpeedAtFullHp) * (1 - hpPct);
       const previousPathFrameMs = wardenPathLastFrameMsRef.current ?? now;
       const pathDtSeconds = Math.max(0, Math.min((now - previousPathFrameMs) / 1000, 0.05)) * cinematicTimeScale;
       wardenPathLastFrameMsRef.current = now;
@@ -3519,69 +3744,94 @@ export default function RogueBrickPage() {
       if (defeatCinematicActive) {
         ctx.translate(shakeX, shakeY);
       }
-      const blankW = Math.min(CANVAS_WIDTH * 0.38, 140);
-      const blankH = blankW * 0.65;
+      const metrics = getBlankEyeRenderMetrics(blankEncounterProfile.dualEyes);
+      const blankW = metrics.width;
+      const blankH = metrics.height;
+      const eyeSpacing = blankEncounterProfile.dualEyes ? Math.max(metrics.spacingPx, blankEncounterProfile.eyeSpacingPx) : 0;
       const blankBaseX = clampNumber(
         CANVAS_WIDTH / 2 + Math.sin(pathTime * 0.38) * (CANVAS_WIDTH * 0.22),
-        blankW / 2 + BOARD_SIDE_CHANNEL_WIDTH + 8,
-        CANVAS_WIDTH - blankW / 2 - BOARD_SIDE_CHANNEL_WIDTH - 8
+        blankW / 2 + BOARD_SIDE_CHANNEL_WIDTH + 8 + eyeSpacing / 2,
+        CANVAS_WIDTH - blankW / 2 - BOARD_SIDE_CHANNEL_WIDTH - 8 - eyeSpacing / 2
       );
       const blankBaseY = CANVAS_HEIGHT * 0.18 + Math.sin(pathTime * 0.24 + 1.1) * (CANVAS_HEIGHT * 0.045);
       const hitJiggle = clampNumber((wardenBossHitFlashUntilMs - now) / 320, 0, 1);
-      const blankX = blankBaseX + Math.sin(now * 0.11) * 2.1 * hitJiggle;
-      const blankY = blankBaseY + Math.cos(now * 0.15) * 1.4 * hitJiggle;
-      blankCanvasPosRef.current = { x: blankX, y: blankY };
+      const blankCenterX = blankBaseX + Math.sin(now * 0.11) * 2.1 * hitJiggle;
+      const blankCenterY = blankBaseY + Math.cos(now * 0.15) * 1.4 * hitJiggle;
+      const eyeOffsets = blankEncounterProfile.dualEyes ? [-eyeSpacing / 2, eyeSpacing / 2] : [0];
+      const blankEyePositions = eyeOffsets.map((offsetX) => ({ x: blankCenterX + offsetX, y: blankCenterY }));
+      blankCanvasPosRef.current = blankEyePositions[0] ?? { x: blankCenterX, y: blankCenterY };
+      blankEyeCanvasPositionsRef.current = blankEyePositions;
 
       if (blankFadeAlpha > 0) {
         ctx.save();
         ctx.globalAlpha = blankFadeAlpha;
-        // Blank body sprite (fallback to vector if image is not ready yet)
-        const blankBodySprite = wardenBodySpriteRef.current;
-        if (blankBodySprite && blankBodySprite.complete && blankBodySprite.naturalWidth > 0) {
-          ctx.save();
-          ctx.shadowColor = 'rgba(100, 160, 255, 0.45)';
-          ctx.shadowBlur = 14;
-          ctx.drawImage(blankBodySprite, blankX - blankW / 2, blankY - blankH / 2, blankW, blankH);
-          ctx.restore();
-        } else {
-          ctx.save();
-          const bodyGrad = ctx.createRadialGradient(blankX - blankW * 0.08, blankY - blankH * 0.1, blankW * 0.04, blankX, blankY, blankW * 0.56);
-          bodyGrad.addColorStop(0, 'rgba(240, 248, 255, 1)');
-          bodyGrad.addColorStop(0.55, 'rgba(200, 225, 248, 0.96)');
-          bodyGrad.addColorStop(1, 'rgba(140, 180, 220, 0.88)');
-          ctx.fillStyle = bodyGrad;
-          ctx.shadowColor = 'rgba(100, 160, 255, 0.45)';
-          ctx.shadowBlur = 18;
-          ctx.beginPath();
-          ctx.ellipse(blankX, blankY, blankW / 2, blankH / 2, 0, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-        }
-        // Lid (PNG frame based on lid progress) — freeze during defeat fade so no extra blink reads through.
         if (!defeatCinematicActive) {
-          const lidTarget = isWardenLidClosedRef.current ? 1 : 0;
-          wardenLidProgressRef.current = wardenLidProgressRef.current + (lidTarget - wardenLidProgressRef.current) * 0.1;
+          const primaryLidTarget = isWardenLidClosedRef.current ? 1 : 0;
+          wardenLidProgressRef.current =
+            wardenLidProgressRef.current + (primaryLidTarget - wardenLidProgressRef.current) * 0.1;
+          const secondaryLidTarget = isWardenSecondLidClosedRef.current ? 1 : 0;
+          wardenSecondLidProgressRef.current =
+            wardenSecondLidProgressRef.current + (secondaryLidTarget - wardenSecondLidProgressRef.current) * 0.1;
         }
-        const lidPct = wardenLidProgressRef.current;
         const lidSprites = wardenLidSpritesRef.current;
-        const lidSprite = lidPct >= 0.88
-          ? lidSprites.closed
-          : lidPct >= 0.62
-            ? lidSprites.lid75
-            : lidPct >= 0.38
-              ? lidSprites.lid50
-              : lidPct >= 0.14
-                ? lidSprites.lid25
-                : lidSprites.open;
-        if (lidSprite && lidSprite.complete && lidSprite.naturalWidth > 0) {
-          ctx.drawImage(lidSprite, blankX - blankW / 2, blankY - blankH / 2, blankW, blankH);
+        const pickLidSprite = (lidPct: number) =>
+          lidPct >= 0.88
+            ? lidSprites.closed
+            : lidPct >= 0.62
+              ? lidSprites.lid75
+              : lidPct >= 0.38
+                ? lidSprites.lid50
+                : lidPct >= 0.14
+                  ? lidSprites.lid25
+                  : lidSprites.open;
+
+        for (let eyeIndex = 0; eyeIndex < blankEyePositions.length; eyeIndex += 1) {
+          const eyePosition = blankEyePositions[eyeIndex];
+          if (!eyePosition) {
+            continue;
+          }
+          const eyeX = eyePosition.x;
+          const eyeY = eyePosition.y;
+          const blankBodySprite = wardenBodySpriteRef.current;
+          if (blankBodySprite && blankBodySprite.complete && blankBodySprite.naturalWidth > 0) {
+            ctx.save();
+            ctx.shadowColor = 'rgba(100, 160, 255, 0.45)';
+            ctx.shadowBlur = 14;
+            ctx.drawImage(blankBodySprite, eyeX - blankW / 2, eyeY - blankH / 2, blankW, blankH);
+            ctx.restore();
+          } else {
+            ctx.save();
+            const bodyGrad = ctx.createRadialGradient(
+              eyeX - blankW * 0.08,
+              eyeY - blankH * 0.1,
+              blankW * 0.04,
+              eyeX,
+              eyeY,
+              blankW * 0.56
+            );
+            bodyGrad.addColorStop(0, 'rgba(240, 248, 255, 1)');
+            bodyGrad.addColorStop(0.55, 'rgba(200, 225, 248, 0.96)');
+            bodyGrad.addColorStop(1, 'rgba(140, 180, 220, 0.88)');
+            ctx.fillStyle = bodyGrad;
+            ctx.shadowColor = 'rgba(100, 160, 255, 0.45)';
+            ctx.shadowBlur = 18;
+            ctx.beginPath();
+            ctx.ellipse(eyeX, eyeY, blankW / 2, blankH / 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+          const lidPct = eyeIndex === 0 ? wardenLidProgressRef.current : wardenSecondLidProgressRef.current;
+          const lidSprite = pickLidSprite(lidPct);
+          if (lidSprite && lidSprite.complete && lidSprite.naturalWidth > 0) {
+            ctx.drawImage(lidSprite, eyeX - blankW / 2, eyeY - blankH / 2, blankW, blankH);
+          }
         }
 
         // HP bar above Blank
         const barW = blankW * 0.9;
         const barH = 7;
-        const barX = blankX - barW / 2;
-        const barY = blankY - blankH / 2 - 18;
+        const barX = blankCenterX - barW / 2;
+        const barY = blankCenterY - blankH / 2 - 18;
         ctx.fillStyle = 'rgba(30, 30, 50, 0.7)';
         ctx.roundRect(barX - 1, barY - 1, barW + 2, barH + 2, 3);
         ctx.fill();
@@ -3605,6 +3855,15 @@ export default function RogueBrickPage() {
           ctx.fillStyle = `rgba(255, 88, 88, ${(flashAlpha * 0.42).toFixed(3)})`;
           ctx.roundRect(barX, barY, barW, barH, 2);
           ctx.fill();
+        }
+        if (import.meta.env.DEV) {
+          ctx.save();
+          ctx.font = '600 11px Inter, system-ui, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.fillStyle = 'rgba(255, 209, 102, 0.95)';
+          ctx.fillText(`DEV Blank #${blankEncounterProfile.encounterNumber}`, blankCenterX, barY - 6);
+          ctx.restore();
         }
         ctx.restore();
       }
@@ -3657,7 +3916,18 @@ export default function RogueBrickPage() {
         if (!ball.active) {
           continue;
         }
-        ctx.fillStyle = '#f8fafc';
+        const launchConfig = wardenLaunchConfigRef.current;
+        const liveShotCap = Math.max(
+          1,
+          Math.min(
+            Math.max(1, Math.min(10, Math.floor(runSnapshot.ballCount))),
+            Math.max(1, Math.floor(runSnapshot.essenceByColor.yellow) * WARDEN_ORB_EFFECT_PER_ENERGY)
+          )
+        );
+        const activeShotCount =
+          launchConfig?.shotCount ?? Math.floor(clampNumber(wardenSelectedShotCount, 1, liveShotCap));
+        const activeShotCap = launchConfig?.shotCap ?? liveShotCap;
+        ctx.fillStyle = getWardenShotColor(activeShotCount, activeShotCap);
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
         ctx.fill();
@@ -3666,6 +3936,15 @@ export default function RogueBrickPage() {
       // Skip brick drawing — fall through to ball + launcher rendering
       const objectiveCharge = runSnapshot.coreCharge ?? 1;
       const shooterGlow = Math.max(0, Math.min(1, objectiveCharge));
+      const launcherShotCap = Math.max(
+        1,
+        Math.min(
+          Math.max(1, Math.min(10, Math.floor(runSnapshot.ballCount))),
+          Math.max(1, Math.floor(runSnapshot.essenceByColor.yellow) * WARDEN_ORB_EFFECT_PER_ENERGY)
+        )
+      );
+      const launcherShotCount = Math.floor(clampNumber(wardenSelectedShotCount, 1, launcherShotCap));
+      const launcherShotColor = getWardenShotColor(launcherShotCount, launcherShotCap);
       const wardenPowerVisual = Math.floor(clampNumber(wardenSelectedPower, 1, 10));
       const wardenLoadedBallRadius = clampNumber(6 + (wardenPowerVisual - 1) * 0.52, 6, 10.7);
       ctx.strokeStyle = 'rgba(255,255,255,0.12)';
@@ -3674,37 +3953,37 @@ export default function RogueBrickPage() {
       ctx.lineTo(CANVAS_WIDTH, LOSE_Y);
       ctx.stroke();
       if (isDragging && aimPoint && !shotInFlightRef.current) {
-        const launcherX = getLaunchOriginX(runSnapshot);
+        const launcherX = clampLaunchOriginX(wardenDisplayedLaunchOriginXRef.current);
         const dx = aimPoint.x - launcherX;
-        const dy = aimPoint.y - LAUNCHER_Y;
+        const dy = aimPoint.y - WARDEN_LAUNCHER_Y;
         let guideEndX = aimPoint.x;
         let guideEndY = aimPoint.y;
         if (dy < -0.001) {
           const leftWallX = BOARD_SIDE_CHANNEL_WIDTH;
           const rightWallX = CANVAS_WIDTH - BOARD_SIDE_CHANNEL_WIDTH;
           const intersections: Array<{ t: number; x: number; y: number }> = [];
-          const tTop = (0 - LAUNCHER_Y) / dy;
+          const tTop = (0 - WARDEN_LAUNCHER_Y) / dy;
           if (tTop > 0) intersections.push({ t: tTop, x: launcherX + dx * tTop, y: 0 });
           if (Math.abs(dx) > 0.001) {
             const tLeft = (leftWallX - launcherX) / dx;
-            if (tLeft > 0) intersections.push({ t: tLeft, x: leftWallX, y: LAUNCHER_Y + dy * tLeft });
+            if (tLeft > 0) intersections.push({ t: tLeft, x: leftWallX, y: WARDEN_LAUNCHER_Y + dy * tLeft });
             const tRight = (rightWallX - launcherX) / dx;
-            if (tRight > 0) intersections.push({ t: tRight, x: rightWallX, y: LAUNCHER_Y + dy * tRight });
+            if (tRight > 0) intersections.push({ t: tRight, x: rightWallX, y: WARDEN_LAUNCHER_Y + dy * tRight });
           }
-          const validHit = intersections.filter((h) => h.y >= 0 && h.y <= LAUNCHER_Y).sort((a, b) => a.t - b.t)[0];
+          const validHit = intersections.filter((h) => h.y >= 0 && h.y <= WARDEN_LAUNCHER_Y).sort((a, b) => a.t - b.t)[0];
           if (validHit) { guideEndX = validHit.x; guideEndY = validHit.y; }
         }
         ctx.strokeStyle = 'rgba(120, 220, 255, 0.85)';
         ctx.lineWidth = 2;
         ctx.setLineDash([8, 8]);
         ctx.beginPath();
-        ctx.moveTo(launcherX, LAUNCHER_Y);
+        ctx.moveTo(launcherX, WARDEN_LAUNCHER_Y);
         ctx.lineTo(guideEndX, guideEndY);
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.lineWidth = 1;
       }
-      const launcherX2 = getLaunchOriginX(runSnapshot);
+      const launcherX2 = clampLaunchOriginX(wardenDisplayedLaunchOriginXRef.current);
       const shieldStartBlue = Math.max(1, wardenShieldStartBlueRef.current);
       const shieldCurrentBlue = Math.max(0, Math.floor(runSnapshot.essenceByColor.blue));
       const shieldPct = clampNumber(shieldCurrentBlue / shieldStartBlue, 0, 1);
@@ -3732,22 +4011,22 @@ export default function RogueBrickPage() {
       ctx.globalCompositeOperation = 'lighter';
       const shooterAura2 = ctx.createRadialGradient(
         launcherX2,
-        LAUNCHER_Y,
+        WARDEN_LAUNCHER_Y,
         2,
         launcherX2,
-        LAUNCHER_Y,
+        WARDEN_LAUNCHER_Y,
         16 + shooterGlow * 9 + (wardenLoadedBallRadius - 8) * 0.8
       );
       shooterAura2.addColorStop(0, `rgba(254, 240, 138, ${0.1 + shooterGlow * 0.5})`);
       shooterAura2.addColorStop(1, 'rgba(254, 240, 138, 0)');
       ctx.fillStyle = shooterAura2;
       ctx.beginPath();
-      ctx.arc(launcherX2, LAUNCHER_Y, 16 + shooterGlow * 9 + (wardenLoadedBallRadius - 8) * 0.8, 0, Math.PI * 2);
+      ctx.arc(launcherX2, WARDEN_LAUNCHER_Y, 16 + shooterGlow * 9 + (wardenLoadedBallRadius - 8) * 0.8, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
-      ctx.fillStyle = '#22d3ee';
+      ctx.fillStyle = launcherShotColor;
       ctx.beginPath();
-      ctx.arc(launcherX2, LAUNCHER_Y, wardenLoadedBallRadius, 0, Math.PI * 2);
+      ctx.arc(launcherX2, WARDEN_LAUNCHER_Y, wardenLoadedBallRadius, 0, Math.PI * 2);
       ctx.fill();
       return;
     }
@@ -4611,6 +4890,7 @@ export default function RogueBrickPage() {
     wardenBossHp,
     wardenBossHitFlashUntilMs,
     wardenDefeatCinematicUntilMs,
+    wardenSelectedShotCount,
     wardenSelectedPower,
   ]);
 
@@ -4919,6 +5199,22 @@ export default function RogueBrickPage() {
       const defeatTimeScale = defeatCinematicActive ? 0.2 : 1;
       wardenBallLastFrameMsRef.current = timestamp;
       frameNowRef.current = timestamp;
+      const launchOriginTween = wardenLaunchOriginTweenRef.current;
+      if (launchOriginTween) {
+        const tweenProgress = clampNumber(
+          (timestamp - launchOriginTween.startedAtMs) / Math.max(1, launchOriginTween.durationMs),
+          0,
+          1
+        );
+        const easedProgress = 1 - (1 - tweenProgress) * (1 - tweenProgress) * (1 - tweenProgress);
+        wardenDisplayedLaunchOriginXRef.current = clampLaunchOriginX(
+          launchOriginTween.startX + (launchOriginTween.endX - launchOriginTween.startX) * easedProgress
+        );
+        if (tweenProgress >= 1) {
+          wardenDisplayedLaunchOriginXRef.current = clampLaunchOriginX(launchOriginTween.endX);
+          wardenLaunchOriginTweenRef.current = null;
+        }
+      }
       for (const particle of wardenImpactParticlesRef.current) {
         particle.ageMs += dtSeconds * 1000 * defeatTimeScale;
         particle.x += particle.vx * dtSeconds * defeatTimeScale;
@@ -4966,9 +5262,13 @@ export default function RogueBrickPage() {
       if (!defeatCinematicActive && shotInFlightRef.current && (ballsRef.current.length > 0 || launchQueueRef.current.length > 0)) {
         const leftWallX = BOARD_SIDE_CHANNEL_WIDTH;
         const rightWallX = CANVAS_WIDTH - BOARD_SIDE_CHANNEL_WIDTH;
-        const blankPosition = blankCanvasPosRef.current;
-        const blankW = Math.min(CANVAS_WIDTH * 0.38, 140);
-        const blankH = blankW * 0.65;
+        const blankEncounterProfile = getBlankEncounterProfile(profileRef.current?.run);
+        const blankPositions = blankEyeCanvasPositionsRef.current.length > 0
+          ? blankEyeCanvasPositionsRef.current
+          : [blankCanvasPosRef.current];
+        const metrics = getBlankEyeRenderMetrics(blankEncounterProfile.dualEyes);
+        const blankW = metrics.width;
+        const blankH = metrics.height;
         const ellipseRadiusX = blankW * 0.5;
         const ellipseRadiusY = blankH * 0.5;
         const tearSnapshot = wardenActiveTearRef.current;
@@ -4979,7 +5279,10 @@ export default function RogueBrickPage() {
           : 0;
         const tearRadius = 24;
         const now = timestamp;
-        const lidClosed = wardenLidProgressRef.current > 0.94;
+        const lidClosedByEye = [
+          wardenLidProgressRef.current > 0.94,
+          wardenSecondLidProgressRef.current > 0.94,
+        ];
 
         launchElapsedRef.current += dtSeconds * 1000;
         const launchConfig = wardenLaunchConfigRef.current;
@@ -4992,7 +5295,7 @@ export default function RogueBrickPage() {
           const scatter = (Math.random() - 0.5) * 0.05 * launchConfig.spreadScale;
           ballsRef.current.push({
             x: launchConfig.originX,
-            y: LAUNCHER_Y,
+            y: WARDEN_LAUNCHER_Y,
             vx: (launchConfig.direction.x + scatter) * launchConfig.baseSpeed,
             vy: launchConfig.direction.y * launchConfig.baseSpeed,
             radius: launchConfig.radius,
@@ -5008,6 +5311,7 @@ export default function RogueBrickPage() {
             continue;
           }
 
+          const previousX = ball.x;
           const previousY = ball.y;
           ball.x += ball.vx * dtSeconds;
           ball.y += ball.vy * dtSeconds;
@@ -5026,6 +5330,10 @@ export default function RogueBrickPage() {
           }
 
           if (previousY < LOSE_Y && ball.y >= LOSE_Y) {
+            const crossingProgress =
+              ball.y === previousY ? 1 : clampNumber((LOSE_Y - previousY) / (ball.y - previousY), 0, 1);
+            const crossingX = previousX + (ball.x - previousX) * crossingProgress;
+            lastBottomCrossingXRef.current = clampLaunchOriginX(crossingX);
             ball.active = false;
             continue;
           }
@@ -5087,14 +5395,31 @@ export default function RogueBrickPage() {
 
           const blankHitRadiusX = ellipseRadiusX + ball.radius;
           const blankHitRadiusY = ellipseRadiusY + ball.radius;
-          const normalizedX = (ball.x - blankPosition.x) / blankHitRadiusX;
-          const normalizedY = (ball.y - blankPosition.y) / blankHitRadiusY;
-          const blankColliding = normalizedX * normalizedX + normalizedY * normalizedY <= 1;
+          let blankCollision:
+            | { eyeIndex: number; eyePosition: { x: number; y: number }; normalizedX: number; normalizedY: number }
+            | null = null;
+          for (let eyeIndex = 0; eyeIndex < blankPositions.length; eyeIndex += 1) {
+            const eyePosition = blankPositions[eyeIndex];
+            if (!eyePosition) {
+              continue;
+            }
+            const normalizedX = (ball.x - eyePosition.x) / blankHitRadiusX;
+            const normalizedY = (ball.y - eyePosition.y) / blankHitRadiusY;
+            if (normalizedX * normalizedX + normalizedY * normalizedY <= 1) {
+              blankCollision = { eyeIndex, eyePosition, normalizedX, normalizedY };
+              break;
+            }
+          }
+          const blankColliding = blankCollision !== null;
           if (blankColliding) {
+            const collision = blankCollision;
+            if (!collision) {
+              continue;
+            }
             if (!ball.wardenTouchingBlank) {
               ball.wardenTouchingBlank = true;
-              const gradientX = (ball.x - blankPosition.x) / (blankHitRadiusX * blankHitRadiusX);
-              const gradientY = (ball.y - blankPosition.y) / (blankHitRadiusY * blankHitRadiusY);
+              const gradientX = (ball.x - collision.eyePosition.x) / (blankHitRadiusX * blankHitRadiusX);
+              const gradientY = (ball.y - collision.eyePosition.y) / (blankHitRadiusY * blankHitRadiusY);
               const normalLength = Math.hypot(gradientX, gradientY) || 1;
               const normalX = gradientX / normalLength;
               const normalY = gradientY / normalLength;
@@ -5109,7 +5434,8 @@ export default function RogueBrickPage() {
               ball.x += normalX * 2.2;
               ball.y += normalY * 2.2;
 
-              if (!lidClosed) {
+              const currentEyeLidClosed = lidClosedByEye[collision.eyeIndex] ?? lidClosedByEye[0] ?? false;
+              if (!currentEyeLidClosed) {
                 spawnWardenImpactBurst(ball.x, ball.y, 'rgba(255, 184, 184, ALPHA)');
                 const damagePerHit = Math.max(1, wardenVolleyDamagePerHitRef.current);
                 setWardenBossHp((previousHp) => Math.max(0, previousHp - damagePerHit));
@@ -5123,6 +5449,25 @@ export default function RogueBrickPage() {
 
         ballsRef.current = ballsRef.current.filter((ball) => ball.active);
         if (ballsRef.current.length === 0 && launchQueueRef.current.length === 0) {
+          const runState = profileRef.current?.run;
+          if (runState && typeof lastBottomCrossingXRef.current === 'number') {
+            const nextLaunchOriginX = clampLaunchOriginX(lastBottomCrossingXRef.current);
+            runState.launchOriginX = nextLaunchOriginX;
+            const currentTurretX = clampLaunchOriginX(wardenDisplayedLaunchOriginXRef.current);
+            const slideDistance = Math.abs(nextLaunchOriginX - currentTurretX);
+            if (slideDistance > 0.35) {
+              wardenLaunchOriginTweenRef.current = {
+                startX: currentTurretX,
+                endX: nextLaunchOriginX,
+                startedAtMs: timestamp,
+                durationMs: Math.max(120, Math.min(320, WARDEN_TURRET_SLIDE_MS + slideDistance * 1.2)),
+              };
+            } else {
+              wardenDisplayedLaunchOriginXRef.current = nextLaunchOriginX;
+              wardenLaunchOriginTweenRef.current = null;
+            }
+          }
+          lastBottomCrossingXRef.current = null;
           shotInFlightRef.current = false;
           wardenLaunchConfigRef.current = null;
           setShotInProgress(false);
@@ -5132,9 +5477,15 @@ export default function RogueBrickPage() {
       if (!defeatCinematicActive && wardenActiveTearRef.current?.phase === 'falling') {
         const activeTear = wardenActiveTearRef.current;
         const previousProgress = wardenTearFallProgressRef.current;
+        const blankEncounterProfile = getBlankEncounterProfile(profileRef.current?.run);
         const hpPct = clampNumber(wardenBossHpRef.current / Math.max(1, WARDEN_BLANK_HP_MAX), 0, 1);
         const aggression = 1 - hpPct;
-        const tearFallDurationSec = clampNumber(WARDEN_TEAR_SPAWN_AT_SEC - aggression * 2.1, 1.5, WARDEN_TEAR_SPAWN_AT_SEC);
+        const tearFallDurationSec = clampNumber(
+          blankEncounterProfile.tearFallDurationAtFullHp +
+            (blankEncounterProfile.tearFallDurationAtLowHp - blankEncounterProfile.tearFallDurationAtFullHp) * aggression,
+          0.8,
+          blankEncounterProfile.tearFallDurationAtFullHp
+        );
         wardenTearFallProgressRef.current = Math.min(
           1,
           wardenTearFallProgressRef.current + dtSeconds / tearFallDurationSec
@@ -5779,30 +6130,35 @@ export default function RogueBrickPage() {
           }
           spawnBreakParticles(brick, isFinalBrickExplosion);
           brickVisualRef.current.delete(brick.id);
+          const brickBounds = getBrickBounds(
+            brick,
+            getBrickX(brick.col, brickWidth),
+            BRICK_TOP + brick.row * (BRICK_HEIGHT + BRICK_GAP),
+            brickWidth
+          );
+          const eventTextX = brickBounds.x + brickBounds.width * 0.5;
+          const eventTextY = brickBounds.y + brickBounds.height * 0.5;
+          const remainingBreakableNonOrbBricks = bricksRef.current.reduce((count, entry) => {
+            if (entry.id === brick.id || entry.hp <= 0) {
+              return count;
+            }
+            const kind = entry.kind ?? 'standard';
+            return kind === 'objective' || kind === 'unbreakable' ? count : count + 1;
+          }, 0);
+          if (
+            !pendingCleanPlateAwardedRef.current &&
+            !isObjective &&
+            !isUnbreakable &&
+            remainingBreakableNonOrbBricks === 0
+          ) {
+            pendingCleanPlateAwardedRef.current = true;
+            spawnManaBonusEventText('clean plate', eventTextX, eventTextY - 18);
+          }
           if (isObjective && remainingObjectiveCount === 0) {
             // Capture how many non-orb bricks were cleared this turn before the orb died
             pendingKillShotBricksBeforeOrbRef.current = pendingPreOrbBricksThisTurnRef.current;
-            const brickBounds = getBrickBounds(
-              brick,
-              getBrickX(brick.col, brickWidth),
-              BRICK_TOP + brick.row * (BRICK_HEIGHT + BRICK_GAP),
-              brickWidth
-            );
-            const eventTextX = brickBounds.x + brickBounds.width * 0.5;
-            const eventTextY = brickBounds.y + brickBounds.height * 0.5;
             if (pendingKillShotBricksBeforeOrbRef.current >= 3) {
               spawnManaBonusEventText('precision kill', eventTextX, eventTextY);
-            }
-            const remainingBreakableNonOrbBricks = bricksRef.current.reduce((count, entry) => {
-              if (entry.id === brick.id || entry.hp <= 0) {
-                return count;
-              }
-              const kind = entry.kind ?? 'standard';
-              return kind === 'objective' || kind === 'unbreakable' ? count : count + 1;
-            }, 0);
-            if (remainingBreakableNonOrbBricks === 0) {
-              pendingCleanPlateAwardedRef.current = true;
-              spawnManaBonusEventText('clean plate', eventTextX, eventTextY - 18);
             }
             coreBreachHandledThisTurnRef.current = true;
             breachCleanupQueuedRef.current = true;
@@ -6427,8 +6783,12 @@ export default function RogueBrickPage() {
     wardenStartOrangeRef.current = 1;
     wardenStartGreenRef.current = 1;
     blankCanvasPosRef.current = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT * 0.18 };
+    blankEyeCanvasPositionsRef.current = [{ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT * 0.18 }];
     isWardenLidClosedRef.current = false;
     wardenLidProgressRef.current = 0;
+    isWardenSecondLidClosedRef.current = false;
+    wardenSecondLidProgressRef.current = 0;
+    wardenNextTearEyeIndexRef.current = 0;
     setSelectedPowerId(null);
     setSelectedResourceHelp(null);
     setPreviewStartingPowerId(null);
@@ -6574,16 +6934,41 @@ export default function RogueBrickPage() {
   }, [pendingStartingRunPowerId, startRun]);
 
   // ⚠️ DEV ONLY — remove before shipping
-  const DEV_launchBlankBattle = useCallback(() => {
+  const DEV_launchBlankBattle = useCallback((targetEncounterLevel?: number) => {
     commitProfile((draft) => {
       if (!draft.run) return;
       const runState = draft.run;
+      if (typeof targetEncounterLevel === 'number' && Number.isFinite(targetEncounterLevel) && targetEncounterLevel > 0) {
+        ensureRunPathState(runState);
+        const normalizedLevel = Math.max(1, Math.floor(targetEncounterLevel));
+        if (!runState.pathNodesByLevel[normalizedLevel]) {
+          const fallbackParentNode =
+            runState.pathNodesByLevel[normalizedLevel - 1] ??
+            runState.pathNodesByLevel[Math.max(0, normalizedLevel - 2)] ??
+            runState.pathNodesByLevel[0] ??
+            createRootPathNode(runState.seed);
+          const lane = normalizePathLaneForLevel(0, normalizedLevel, runState.seed, fallbackParentNode.id);
+          const challenge: PathChallengeKey = 'balanced';
+          runState.pathNodesByLevel[normalizedLevel] = {
+            id: makePathNodeId(runState.seed, normalizedLevel, lane, fallbackParentNode.id, challenge),
+            parentId: fallbackParentNode.id,
+            level: normalizedLevel,
+            lane,
+            challenge,
+            primaryCoreVariant: getPathNodePrimaryCoreVariant(runState.seed, normalizedLevel, lane, fallbackParentNode.id),
+          };
+        }
+        runState.pathCurrentNodeId = runState.pathNodesByLevel[normalizedLevel].id;
+      }
       runState.stage = 'warden';
       runState.activeWardenId = 'blank';
       runState.activeWardenDomain = 'thorn-keep';
       runState.pendingPowerOffers = [];
       runState.pendingSpoilsOffers = [];
-      runState.hubMessage = '[DEV] Blank battle forced.';
+      runState.hubMessage =
+        typeof targetEncounterLevel === 'number' && Number.isFinite(targetEncounterLevel)
+          ? `[DEV] Blank battle forced (encounter level ${Math.max(1, Math.floor(targetEncounterLevel))}).`
+          : '[DEV] Blank battle forced.';
       runState.board = { turn: 1, objectiveBrickId: null, objectiveBrickIds: [], bricks: [] };
       runState.coreCharge = 0;
       runState.homingBarrageReady = false;
@@ -7029,9 +7414,9 @@ export default function RogueBrickPage() {
       const targetPoint = aimPoint ?? releasePoint;
 
       if (run?.stage === 'warden') {
-        const launchOriginX = getLaunchOriginX(run);
+        const launchOriginX = clampLaunchOriginX(wardenDisplayedLaunchOriginXRef.current);
         const dx = targetPoint.x - launchOriginX;
-        const dy = targetPoint.y - LAUNCHER_Y;
+        const dy = targetPoint.y - WARDEN_LAUNCHER_Y;
         const length = Math.hypot(dx, dy);
         clearAim();
         if (length >= 10) {
@@ -7066,9 +7451,18 @@ export default function RogueBrickPage() {
               radius: launchBallRadius,
               mass: launchBallMass,
               spreadScale,
+              shotCount: volley.shotCount,
+              shotCap: Math.max(
+                1,
+                Math.min(
+                  Math.max(1, Math.min(10, Math.floor(run.ballCount))),
+                  Math.max(1, Math.floor(run.essenceByColor.yellow) * WARDEN_ORB_EFFECT_PER_ENERGY)
+                )
+              ),
             };
             shotInFlightRef.current = true;
             setShotInProgress(true);
+            lastBottomCrossingXRef.current = null;
             wardenBallLastFrameMsRef.current = null;
           }
         }
@@ -7339,6 +7733,10 @@ export default function RogueBrickPage() {
   const wardenPowerCap = run?.stage === 'warden'
     ? Math.min(wardenPowerCapacity, Math.max(1, wardenAvailableGreen * WARDEN_ORB_EFFECT_PER_ENERGY))
     : 1;
+  const wardenSelectedShotValue = Math.floor(clampNumber(wardenSelectedShotCount, 1, wardenShotCountCap));
+  const wardenSelectedPowerValue = Math.floor(clampNumber(wardenSelectedPower, 1, wardenPowerCap));
+  const wardenPowerSliderUiValue = wardenPowerCap - wardenSelectedPowerValue + 1;
+  const wardenSelectedShotColor = getWardenShotColor(wardenSelectedShotValue, wardenShotCountCap);
   const wardenOrangeStart = run?.stage === 'warden'
     ? Math.max(1, wardenStartOrangeRef.current)
     : 1;
@@ -7350,6 +7748,13 @@ export default function RogueBrickPage() {
     : 0;
   const wardenGreenRemainingPct = run?.stage === 'warden'
     ? Math.round((Math.min(wardenGreenStart, wardenAvailableGreen) / Math.max(1, wardenGreenStart)) * 100)
+    : 0;
+  const wardenOrbIndicatorMinPct = 10;
+  const wardenOrangeIndicatorPct = wardenOrangeRemainingPct > 0
+    ? Math.max(wardenOrbIndicatorMinPct, wardenOrangeRemainingPct)
+    : 0;
+  const wardenGreenIndicatorPct = wardenGreenRemainingPct > 0
+    ? Math.max(wardenOrbIndicatorMinPct, wardenGreenRemainingPct)
     : 0;
 
   const overallScore = calculateOverallScore(run, liveHud);
@@ -8130,7 +8535,7 @@ export default function RogueBrickPage() {
                                     style={style}
                                     title={challengeTitle}
                                     // ⚠️ DEV ONLY — click any warden eye to force the battle
-                                    onClick={forecastEncounterWarden ? DEV_launchBlankBattle : undefined}
+                                    onClick={forecastEncounterWarden ? () => DEV_launchBlankBattle(node.level) : undefined}
                                     role={forecastEncounterWarden ? 'button' : undefined}
                                     tabIndex={forecastEncounterWarden ? 0 : undefined}
                                   >
@@ -8292,9 +8697,7 @@ export default function RogueBrickPage() {
                 </div>
               )}
               {run?.stage === 'warden' && wardenDefeatCinematicUntilMs !== null && (
-                <div className="rogue-warden-defeat-flash" aria-hidden="true">
-                  <span>Blank is Blanked</span>
-                </div>
+                <div className="rogue-warden-defeat-flash" aria-hidden="true" />
               )}
               <canvas
                 ref={canvasRef}
@@ -8310,41 +8713,44 @@ export default function RogueBrickPage() {
                 <div className="rogue-warden-well" aria-label="Warden shot controls">
                   <label className="rogue-warden-shot-slider">
                     <span className="rogue-warden-energy-strip is-orange" aria-hidden="true">
-                      <span className="rogue-warden-energy-strip-fill" style={{ width: `${wardenOrangeRemainingPct}%` }} />
+                      <span className="rogue-warden-energy-strip-fill" style={{ width: `${wardenOrangeIndicatorPct}%` }} />
                     </span>
-                    <span>Shots</span>
                     <input
                       className="rogue-warden-slider-input"
                       type="range"
                       min={1}
                       max={wardenShotCountCap}
                       step={1}
-                      value={Math.floor(clampNumber(wardenSelectedShotCount, 1, wardenShotCountCap))}
+                      value={wardenSelectedShotValue}
                       onPointerDown={(event) => event.stopPropagation()}
                       onPointerMove={(event) => event.stopPropagation()}
                       onChange={(event) => setWardenSelectedShotCount(Math.floor(Number(event.currentTarget.value)))}
-                      aria-label="Warden shot count"
+                      aria-label="Orange orb energy allocation"
                     />
-                    <strong>{Math.floor(clampNumber(wardenSelectedShotCount, 1, wardenShotCountCap))}/{wardenShotCountCap}</strong>
                   </label>
+                  <div className="rogue-warden-center-values" aria-hidden="true">
+                    <strong style={{ color: wardenSelectedShotColor }}>{wardenSelectedShotValue}</strong>
+                    <strong>{wardenSelectedPowerValue}</strong>
+                  </div>
                   <label className="rogue-warden-power-slider">
                     <span className="rogue-warden-energy-strip is-green" aria-hidden="true">
-                      <span className="rogue-warden-energy-strip-fill" style={{ width: `${wardenGreenRemainingPct}%` }} />
+                      <span className="rogue-warden-energy-strip-fill" style={{ width: `${wardenGreenIndicatorPct}%` }} />
                     </span>
-                    <span>Power</span>
                     <input
                       className="rogue-warden-slider-input"
                       type="range"
                       min={1}
                       max={wardenPowerCap}
                       step={1}
-                      value={Math.floor(clampNumber(wardenSelectedPower, 1, wardenPowerCap))}
+                      value={wardenPowerSliderUiValue}
                       onPointerDown={(event) => event.stopPropagation()}
                       onPointerMove={(event) => event.stopPropagation()}
-                      onChange={(event) => setWardenSelectedPower(Math.floor(Number(event.currentTarget.value)))}
-                      aria-label="Warden power"
+                      onChange={(event) => {
+                        const sliderValue = Math.floor(Number(event.currentTarget.value));
+                        setWardenSelectedPower(wardenPowerCap - sliderValue + 1);
+                      }}
+                      aria-label="Green orb energy allocation"
                     />
-                    <strong>{Math.floor(clampNumber(wardenSelectedPower, 1, wardenPowerCap))}/{wardenPowerCap}</strong>
                   </label>
                 </div>
               )}
