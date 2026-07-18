@@ -527,9 +527,13 @@ body.rogue-brick-focus-mode {
   background: transparent;
   z-index: 2;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   padding: 1rem;
+}
+
+.rogue-board-overlay.has-scrollable-path-map {
+  overflow: hidden;
 }
 
 .rogue-board-overlay-content {
@@ -541,6 +545,12 @@ body.rogue-brick-focus-mode {
   max-height: 100%;
   overflow-y: auto;
   padding-right: 0.2rem;
+}
+
+.rogue-board-overlay-content.has-scrollable-path-map {
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
 }
 
 .rogue-board-overlay-content.is-between-level {
@@ -576,6 +586,28 @@ body.rogue-brick-focus-mode {
   letter-spacing: 0.14em;
   color: var(--core-breach-text, rgb(254 240 138 / 0.96));
   text-shadow: 0 0 12px var(--core-breach-shadow, rgb(245 158 11 / 0.65));
+}
+
+.rogue-warden-defeat-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: radial-gradient(circle, rgb(168 85 247 / 0.35), rgb(7 12 24 / 0) 64%);
+}
+
+.rogue-warden-defeat-flash span {
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgb(233 213 255 / 0.98);
+  text-shadow:
+    0 0 14px rgb(167 139 250 / 0.75),
+    0 0 30px rgb(109 40 217 / 0.68);
 }
 
 @keyframes rogue-core-breach-flash {
@@ -870,7 +902,7 @@ body.rogue-brick-focus-mode {
 .rogue-board-summary-modal-backdrop {
   position: absolute;
   inset: 0;
-  z-index: 4;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1041,10 +1073,55 @@ body.rogue-brick-focus-mode {
 .rogue-path-tree-graph {
   position: relative;
   height: 37.8rem;
-  border-radius: 0.85rem;
-  border: 1px solid rgb(148 163 184 / 30%);
   background: transparent !important;
-  overflow: hidden;
+  overflow: visible;
+}
+
+.rogue-path-tree-graph-scroll {
+  max-height: 37.8rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(125 211 252 / 62%) rgb(15 23 42 / 52%);
+}
+
+.rogue-path-tree-graph-scroll::-webkit-scrollbar {
+  width: 0.48rem;
+}
+
+.rogue-path-tree-graph-scroll::-webkit-scrollbar-track {
+  background: linear-gradient(
+    180deg,
+    rgb(15 23 42 / 28%) 0%,
+    rgb(15 23 42 / 62%) 50%,
+    rgb(15 23 42 / 28%) 100%
+  );
+  border-radius: 999px;
+}
+
+.rogue-path-tree-graph-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgb(186 230 253 / 78%) 0%,
+    rgb(56 189 248 / 72%) 55%,
+    rgb(14 116 144 / 84%) 100%
+  );
+  border-radius: 999px;
+  border: 1px solid rgb(7 18 40 / 72%);
+  box-shadow:
+    0 0 6px rgb(56 189 248 / 30%),
+    inset 0 0 0 1px rgb(224 242 254 / 42%);
+}
+
+.rogue-path-tree-graph-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    rgb(224 242 254 / 88%) 0%,
+    rgb(125 211 252 / 84%) 55%,
+    rgb(6 182 212 / 88%) 100%
+  );
 }
 
 .rogue-path-tree-stage {
@@ -1109,8 +1186,8 @@ body.rogue-brick-focus-mode {
 }
 
 .rogue-path-tree-line {
-  stroke: rgb(125 211 252 / 34%);
-  stroke-width: 0.45;
+  stroke: rgb(125 211 252 / 16%);
+  stroke-width: 0.12;
 }
 
 .rogue-path-tree-node {
@@ -1121,8 +1198,10 @@ body.rogue-brick-focus-mode {
   border-radius: 999px;
   --node-core-color: rgb(148 163 184 / 0.9);
   --node-core-shadow: rgb(148 163 184 / 0.42);
+  --node-pattern-overlay: none;
   border: 1px solid rgb(148 163 184 / 76%);
   background:
+    var(--node-pattern-overlay),
     radial-gradient(circle at 34% 30%, rgb(255 255 255 / 0.5) 0%, rgb(255 255 255 / 0) 38%),
     radial-gradient(circle at 50% 56%, var(--node-core-color) 0%, rgb(15 23 42 / 0.9) 80%);
   box-shadow:
@@ -1140,21 +1219,89 @@ body.rogue-brick-focus-mode {
 .rogue-path-tree-node.is-core-blue {
   --node-core-color: rgb(56 189 248 / 0.98);
   --node-core-shadow: rgb(14 165 233 / 0.58);
+  --node-pattern-overlay:
+    repeating-linear-gradient(
+      135deg,
+      rgb(2 132 199 / 34%) 0 1.4px,
+      rgb(255 255 255 / 0%) 1.4px 4.2px
+    );
   border-color: rgb(56 189 248 / 98%);
 }
 
 .rogue-path-tree-node.is-core-green {
   --node-core-color: rgb(74 222 128 / 0.98);
   --node-core-shadow: rgb(34 197 94 / 0.62);
+  --node-pattern-overlay:
+    repeating-radial-gradient(
+      circle at 50% 50%,
+      rgb(21 128 61 / 36%) 0 1.25px,
+      rgb(255 255 255 / 0%) 1.25px 3.9px
+    );
   border-color: rgb(74 222 128 / 98%);
 }
 
-.rogue-path-tree-node.is-warden-encounter {
-  border-color: rgb(251 191 36 / 95%);
-  background: rgb(202 138 4 / 98%);
+.rogue-path-tree-node-shape {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.rogue-path-tree-node-shape.is-blue {
+  width: 0.42rem;
+  height: 0.42rem;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  border: 1px solid rgb(224 242 254 / 92%);
   box-shadow:
-    0 0 0 1px rgb(120 53 15 / 60%),
-    0 0 13px rgb(251 191 36 / 50%);
+    0 0 0 1px rgb(12 74 110 / 54%),
+    0 0 4px rgb(125 211 252 / 55%);
+}
+
+.rogue-path-tree-node-shape.is-green {
+  width: 0.38rem;
+  height: 0.38rem;
+  transform: translate(-50%, -50%) rotate(45deg);
+  border-radius: 0.06rem;
+  border: 1px solid rgb(220 252 231 / 92%);
+  box-shadow:
+    0 0 0 1px rgb(20 83 45 / 56%),
+    0 0 4px rgb(74 222 128 / 54%);
+}
+
+.rogue-path-tree-node.is-playable .rogue-path-tree-node-shape.is-blue {
+  width: 0.56rem;
+  height: 0.56rem;
+}
+
+.rogue-path-tree-node.is-playable .rogue-path-tree-node-shape.is-green {
+  width: 0.52rem;
+  height: 0.52rem;
+}
+
+.rogue-path-tree-node.is-warden-encounter {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-color: rgb(251 191 36 / 80%);
+  background: transparent;
+  box-shadow:
+    0 0 0 1px rgb(251 191 36 / 40%),
+    0 0 16px rgb(251 191 36 / 45%);
+  overflow: visible;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rogue-path-tree-node-warden-eye {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 999px;
+  filter: drop-shadow(0 0 6px rgb(251 191 36 / 60%));
+  pointer-events: none;
+  display: block;
 }
 
 .rogue-path-tree-node.is-warden-encounter::before {
@@ -1164,33 +1311,6 @@ body.rogue-brick-focus-mode {
   border-radius: 999px;
   border: 1px solid rgb(251 191 36 / 60%);
   box-shadow: 0 0 10px rgb(251 191 36 / 24%);
-}
-
-.rogue-path-tree-node.is-warden-encounter::after {
-  content: attr(data-warden-name);
-  position: absolute;
-  left: 50%;
-  top: calc(100% + 0.42rem);
-  transform: translate(-50%, -0.18rem);
-  padding: 0.18rem 0.38rem;
-  border-radius: 0.38rem;
-  border: 1px solid rgb(251 191 36 / 52%);
-  background: rgb(2 6 23 / 95%);
-  color: rgb(254 240 138 / 98%);
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 120ms ease, transform 120ms ease;
-  z-index: 5;
-}
-
-.rogue-path-tree-node.is-warden-encounter:hover::after,
-.rogue-path-tree-node.is-warden-encounter:focus-visible::after {
-  opacity: 1;
-  transform: translate(-50%, 0);
 }
 
 .rogue-path-tree-node.is-spoils-mana {
@@ -1981,35 +2101,81 @@ button.rogue-path-tree-node.is-playable:focus-visible {
   display: flex;
   flex-direction: column;
   pointer-events: none;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
   background:
     radial-gradient(ellipse 80% 50% at 50% 0%, rgb(30 10 60 / 72%) 0%, transparent 70%),
     radial-gradient(ellipse 100% 60% at 50% 100%, rgb(2 10 30 / 80%) 0%, transparent 70%);
 }
 
-/* Boss zone — top portion */
-.rogue-warden-boss-zone {
-  flex: 0 0 56%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.65rem 0.5rem 0.4rem;
-  gap: 0.3rem;
+/* All overlay children are transparent to pointer events */
+.rogue-warden-overlay * {
+  pointer-events: none;
 }
 
-.rogue-warden-blank-wrap {
+/* HUD — thin strip pinned to the very top, non-interactive */
+.rogue-warden-top-hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 0.5rem;
+  background: rgb(2 6 23 / 70%);
+  pointer-events: none;
+}
+
+.rogue-warden-blank-state,
+.rogue-warden-tear-timer {
+  font-size: 0.58rem;
+  color: rgb(226 232 240 / 90%);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.rogue-warden-top-hud .rogue-progress-track-compact {
+  flex: 1;
+}
+
+/* Blank — floats below the HUD strip, centered, non-interactive */
+.rogue-warden-blank-zone {
+  position: absolute;
+  top: 1.6rem;
+  left: 0;
+  right: 0;
+  height: 40%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  flex: 1;
-  gap: 0.1rem;
+  justify-content: flex-start;
+  gap: 0.25rem;
+  padding-top: 0.5rem;
+  pointer-events: none;
+}
+
+@keyframes rogue-warden-blank-drift {
+  0%   { transform: translate(0%,   0%); }
+  15%  { transform: translate(9%,   6%); }
+  30%  { transform: translate(14%,  18%); }
+  45%  { transform: translate(4%,   25%); }
+  60%  { transform: translate(-10%, 15%); }
+  75%  { transform: translate(-14%, 5%); }
+  88%  { transform: translate(-6%,  -2%); }
+  100% { transform: translate(0%,   0%); }
 }
 
 .rogue-warden-blank-eye {
-  width: min(44%, 7rem);
+  width: min(39%, 6.6rem);
   aspect-ratio: 1;
   position: relative;
-  filter: drop-shadow(0 0 18px rgb(99 102 241 / 50%));
+  filter: drop-shadow(0 0 22px rgb(99 102 241 / 55%));
+  flex-shrink: 0;
+  animation: rogue-warden-blank-drift 16s ease-in-out infinite;
 }
 
 .rogue-warden-blank-body,
@@ -2019,12 +2185,17 @@ button.rogue-path-tree-node.is-playable:focus-visible {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  pointer-events: none;
+  -webkit-user-drag: none;
 }
 
 .rogue-warden-tear-wrap {
-  width: 2.6rem;
-  height: 3.6rem;
-  position: relative;
+  position: absolute;
+  left: 50%;
+  bottom: -2.2rem;
+  transform: translateX(-50%);
+  width: 1.5rem;
+  height: 2.2rem;
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -2033,51 +2204,54 @@ button.rogue-path-tree-node.is-playable:focus-visible {
 .rogue-warden-tear-sprite {
   width: 100%;
   height: auto;
-  max-height: 3rem;
+  max-height: 2.8rem;
   object-fit: contain;
   transition: transform 130ms linear, opacity 160ms ease;
   filter: drop-shadow(0 0 6px rgb(56 189 248 / 50%));
 }
 
-.rogue-warden-tear-damage {
+/* Aim line — extends from ball origin toward drag point, dashed like standard board */
+.rogue-warden-aim-line {
   position: absolute;
-  right: -0.25rem;
-  bottom: 0;
-  width: 1.1rem;
-  height: auto;
-  object-fit: contain;
-  opacity: 0.84;
+  height: 2px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgb(125 211 252 / 90%) 0,
+    rgb(125 211 252 / 90%) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+  transform-origin: 0 50%;
+  pointer-events: none;
 }
 
-.rogue-warden-boss-hud {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 0.45rem;
-  width: 100%;
-  padding: 0 0.25rem;
+/* Ball — at LAUNCHER_Y = 678/720 from top, horizontally centered */
+.rogue-warden-well-ball {
+  position: absolute;
+  left: 50%;
+  top: calc(678 / 720 * 100%);
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 30% 30%, rgb(187 247 208 / 95%), rgb(34 197 94 / 92%) 55%, rgb(21 128 61 / 94%) 100%);
+  box-shadow: 0 0 14px rgb(74 222 128 / 52%);
+  transition: width 150ms ease, height 150ms ease, box-shadow 130ms ease;
+  pointer-events: none;
 }
 
-.rogue-warden-blank-state,
-.rogue-warden-tear-timer {
-  font-size: 0.62rem;
-  color: rgb(226 232 240 / 94%);
-  white-space: nowrap;
-  flex-shrink: 0;
+.rogue-warden-well-ball.is-aiming {
+  box-shadow: 0 0 20px rgb(34 197 94 / 85%);
 }
 
-.rogue-warden-boss-hud .rogue-progress-track-compact {
-  flex: 1;
-}
-
-/* Blue shield bar — full width divider */
-.rogue-warden-shield-bar {
-  flex: 0 0 12px;
-  position: relative;
-  background: rgb(2 6 23 / 72%);
-  border-top: 1px solid rgb(56 189 248 / 40%);
-  border-bottom: 1px solid rgb(56 189 248 / 40%);
+/* Blue shield — exactly at LAUNCHER_Y, replaces the standard pass line */
+.rogue-warden-pass-line {
+  position: absolute;
+  top: calc(678 / 720 * 100%);
+  left: 0;
+  right: 0;
+  height: 3px;
   overflow: hidden;
+  pointer-events: none;
 }
 
 .rogue-warden-shield-fill {
@@ -2104,112 +2278,115 @@ button.rogue-path-tree-node.is-playable:focus-visible {
   z-index: 1;
 }
 
-/* Bottom shooting zone */
-.rogue-warden-bottom-zone {
-  flex: 1;
+/* Well strip — same footprint as the board below LAUNCHER_Y, holds sliders */
+.rogue-warden-well {
+  position: absolute;
+  top: calc(678 / 720 * 100%);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
   display: flex;
+  align-items: center;
+  pointer-events: none; /* children opt-in */
+}
+
+/* Shot slider — left half */
+.rogue-warden-shot-slider {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: calc(50% - 1.4rem);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.35rem;
   pointer-events: auto;
-  min-height: 0;
-}
-
-/* Shooting well: left/center drag-to-aim area */
-.rogue-warden-shoot-well {
-  flex: 1;
-  position: relative;
-  cursor: crosshair;
-  touch-action: none;
-  overflow: hidden;
-}
-
-.rogue-warden-aim-line {
-  position: absolute;
-  height: 2px;
-  background: linear-gradient(90deg, rgb(125 211 252 / 95%), rgb(14 116 144 / 20%));
-  transform-origin: 0 50%;
-  pointer-events: none;
-}
-
-.rogue-warden-well-ball {
-  position: absolute;
-  left: 50%;
-  bottom: 1rem;
-  transform: translateX(-50%);
-  border-radius: 999px;
-  background:
-    radial-gradient(circle at 30% 30%, rgb(187 247 208 / 95%), rgb(34 197 94 / 92%) 55%, rgb(21 128 61 / 94%) 100%);
-  box-shadow: 0 0 14px rgb(74 222 128 / 52%);
-  transition: width 150ms ease, height 150ms ease, box-shadow 130ms ease;
-}
-
-.rogue-warden-well-ball.is-aiming {
-  box-shadow: 0 0 20px rgb(34 197 94 / 85%);
-}
-
-/* Sliders column — right side */
-.rogue-warden-sliders-col {
-  flex: 0 0 3.4rem;
-  display: flex;
-  flex-direction: column;
-  border-left: 1px solid rgb(148 163 184 / 22%);
-  background: rgb(2 6 23 / 65%);
-}
-
-.rogue-warden-slider-wrap {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.4rem 0.15rem;
-  gap: 0.18rem;
   cursor: pointer;
+  background: rgb(124 45 18 / 35%);
+  border-right: 1px solid rgb(251 146 60 / 30%);
 }
 
-.rogue-warden-slider-orange {
-  border-bottom: 1px solid rgb(148 163 184 / 18%);
-  background: rgb(124 45 18 / 22%);
+.rogue-warden-shot-slider.is-right {
+  left: auto;
+  right: 0;
+  border-right: 0;
+  border-left: 1px solid rgb(251 146 60 / 30%);
 }
 
-.rogue-warden-slider-green {
-  background: rgb(20 83 45 / 20%);
-}
-
-.rogue-warden-slider-label {
+/* Power slider — right half */
+.rogue-warden-power-slider {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: calc(50% - 1.4rem);
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 0.04rem;
+  gap: 0.25rem;
+  padding: 0 0.35rem;
+  pointer-events: auto;
+  cursor: pointer;
+  background: rgb(20 83 45 / 35%);
+  border-left: 1px solid rgb(74 222 128 / 30%);
 }
 
-.rogue-warden-slider-label strong {
-  font-size: 0.9rem;
-  line-height: 1;
+.rogue-warden-shot-slider strong,
+.rogue-warden-power-slider strong {
+  font-size: 0.72rem;
+  font-weight: 600;
   color: #f8fafc;
+  flex-shrink: 0;
+  min-width: 1.2rem;
+  text-align: center;
 }
 
-.rogue-warden-slider-label span {
-  font-size: 0.55rem;
-  color: rgb(226 232 240 / 80%);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.rogue-warden-shot-slider span,
+.rogue-warden-power-slider span {
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: rgb(248 250 252 / 90%);
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
 }
 
 .rogue-warden-slider-input {
-  writing-mode: vertical-lr;
-  direction: rtl;
-  width: 2rem;
   flex: 1;
+  min-width: 0;
   cursor: pointer;
-  min-height: 0;
 }
 
-.rogue-warden-power-ball {
+.rogue-warden-energy-strip {
+  position: absolute;
+  left: 0.32rem;
+  right: 0.32rem;
+  top: 0.16rem;
+  height: 4px;
   border-radius: 999px;
-  background:
-    radial-gradient(circle at 30% 30%, rgb(187 247 208 / 95%), rgb(34 197 94 / 92%) 55%, rgb(21 128 61 / 94%) 100%);
-  box-shadow: 0 0 10px rgb(74 222 128 / 42%);
-  transition: width 150ms ease, height 150ms ease;
-  flex-shrink: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.rogue-warden-energy-strip-fill {
+  display: block;
+  height: 100%;
+}
+
+.rogue-warden-energy-strip.is-orange {
+  background: rgb(251 146 60 / 22%);
+}
+
+.rogue-warden-energy-strip.is-orange .rogue-warden-energy-strip-fill {
+  background: linear-gradient(90deg, rgb(251 146 60 / 95%), rgb(234 88 12 / 98%));
+}
+
+.rogue-warden-energy-strip.is-green {
+  background: rgb(74 222 128 / 22%);
+}
+
+.rogue-warden-energy-strip.is-green .rogue-warden-energy-strip-fill {
+  background: linear-gradient(90deg, rgb(74 222 128 / 95%), rgb(22 163 74 / 98%));
 }
 
 
@@ -2542,6 +2719,10 @@ button.rogue-path-tree-node.is-playable:focus-visible {
     overflow-y: auto;
   }
 
+  .rogue-board-overlay.has-scrollable-path-map {
+    overflow: hidden;
+  }
+
   .rogue-board-overlay-content {
     width: 100%;
     max-height: none;
@@ -2551,6 +2732,10 @@ button.rogue-path-tree-node.is-playable:focus-visible {
 
   .rogue-path-tree-graph {
     height: 30.8rem;
+  }
+
+  .rogue-path-tree-graph-scroll {
+    max-height: 30.8rem;
   }
 
   .rogue-path-tree-node {
@@ -2598,6 +2783,10 @@ button.rogue-path-tree-node.is-playable:focus-visible {
 
   .rogue-brick-layout-shell.is-focus-mode .rogue-board-overlay-content {
     padding-bottom: calc(14rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .rogue-brick-layout-shell.is-focus-mode .rogue-board-overlay-content.has-scrollable-path-map {
+    padding-bottom: 0;
   }
 
   .rogue-brick-layout-shell.is-focus-mode .rogue-essence-sidebar {
