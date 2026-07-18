@@ -1646,15 +1646,16 @@ function buildPathPreview(run: RogueRunState, shouldGateBoardChoices: boolean): 
   const endLevel = run.maxLevels;
   const nodesById = new Map<string, PathPreviewNode>();
   const edges: PathPreviewEdge[] = [];
+  const playableNodeIds = new Set<string>(
+    run.stage === 'hub' && !shouldGateBoardChoices && run.level <= run.maxLevels
+      ? derivePathChildren(run, anchorNode).map((node) => node.id)
+      : []
+  );
 
   const addNode = (node: PathNodeState, relation: PathPreviewNode['relation']) => {
     const selectedNodeAtLevel = run.pathNodesByLevel[node.level];
     const isSelected = selectedNodeAtLevel?.id === node.id;
-    const isPlayable =
-      run.stage === 'hub' &&
-      !shouldGateBoardChoices &&
-      node.level === run.level &&
-      node.parentId === anchorNode.id;
+    const isPlayable = playableNodeIds.has(node.id);
     const existing = nodesById.get(node.id);
     if (existing) {
       existing.isPlayable = existing.isPlayable || isPlayable;
