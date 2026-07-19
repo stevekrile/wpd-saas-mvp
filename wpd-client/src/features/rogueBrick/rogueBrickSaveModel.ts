@@ -89,6 +89,7 @@ export interface RogueRunState extends RoguePathRunState {
   nextSpoilsBoard: number;
   mana: number;
   essenceByColor: Record<CoreVariant, number>;
+  orbSlotBonusByColor: Record<CoreVariant, number>;
   ballCount: number;
   damage: number;
   critChance: number;
@@ -266,6 +267,16 @@ export function normalizeRogueBrickProfile(
         0,
         orbSkillGaugeMaxByColor.green
       ),
+    };
+
+    const existingOrbSlotBonusByColor: Partial<Record<CoreVariant, number>> =
+      normalized.run.orbSlotBonusByColor && typeof normalized.run.orbSlotBonusByColor === 'object'
+        ? normalized.run.orbSlotBonusByColor
+        : {};
+    normalized.run.orbSlotBonusByColor = {
+      yellow: Math.max(0, Math.floor(typeof existingOrbSlotBonusByColor.yellow === 'number' ? existingOrbSlotBonusByColor.yellow : 0)),
+      blue: Math.max(0, Math.floor(typeof existingOrbSlotBonusByColor.blue === 'number' ? existingOrbSlotBonusByColor.blue : 0)),
+      green: Math.max(0, Math.floor(typeof existingOrbSlotBonusByColor.green === 'number' ? existingOrbSlotBonusByColor.green : 0)),
     };
 
     if (typeof normalized.run.ballRadiusMultiplier !== 'number' || Number.isNaN(normalized.run.ballRadiusMultiplier)) {

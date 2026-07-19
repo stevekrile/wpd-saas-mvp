@@ -1,5 +1,27 @@
 import { CORE_VARIANTS, type CoreVariant } from './rogueBrickPathing';
 
+export type BoardObjectiveDifficulty = 'easy' | 'medium' | 'hard';
+
+export interface BoardObjectiveHpSnapshot {
+  level: number;
+  maxLevels: number;
+  objectiveHpMultiplier: number;
+  difficulty: BoardObjectiveDifficulty;
+  variant: CoreVariant;
+}
+
+const OBJECTIVE_HP_BY_VARIANT: Record<CoreVariant, number> = {
+  yellow: 1,
+  blue: 0.94,
+  green: 1.08,
+};
+
+const OBJECTIVE_HP_BY_DIFFICULTY: Record<BoardObjectiveDifficulty, number> = {
+  easy: 0.96,
+  medium: 1.02,
+  hard: 1.1,
+};
+
 export interface BoardObjectiveVariantRunSnapshot {
   seed: number;
   boardsCleared: number;
@@ -71,6 +93,17 @@ export function getBoardObjectiveVariants(
   const trailingIndex = hashStringToUint32(`${run.seed}|${level}|${run.boardsCleared}|minor-orb`) % CORE_VARIANTS.length;
   const trailingVariant = CORE_VARIANTS[trailingIndex] ?? nodePrimaryCoreVariant;
   return [nodePrimaryCoreVariant, nodePrimaryCoreVariant, trailingVariant];
+}
+
+export function getBoardObjectiveHp(snapshot: BoardObjectiveHpSnapshot): number {
+  const progress = Math.max(0, Math.min(1, (Math.max(1, snapshot.level) - 1) / Math.max(1, snapshot.maxLevels - 1)));
+  const levelBaseHp = 31 + Math.max(1, snapshot.level) * 0.55 + Math.pow(progress, 1.1) * 10;
+  const difficultyMultiplier = OBJECTIVE_HP_BY_DIFFICULTY[snapshot.difficulty] ?? OBJECTIVE_HP_BY_DIFFICULTY.medium;
+  const variantMultiplier = OBJECTIVE_HP_BY_VARIANT[snapshot.variant] ?? OBJECTIVE_HP_BY_VARIANT.yellow;
+  return Math.max(
+    18,
+    Math.round(levelBaseHp * snapshot.objectiveHpMultiplier * difficultyMultiplier * variantMultiplier)
+  );
 }
 
 export function selectCuratedBoardIndex(

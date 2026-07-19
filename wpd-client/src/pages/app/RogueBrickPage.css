@@ -358,6 +358,12 @@ body.rogue-brick-focus-mode {
   position: relative;
 }
 
+.rogue-essence-gauge-wrap.is-slot-upgrade-flash .rogue-essence-gauge {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 6%),
+    0 0 12px rgb(186 230 253 / 35%);
+}
+
 .rogue-essence-gauge-button {
   border: 0;
   background: transparent;
@@ -373,12 +379,19 @@ body.rogue-brick-focus-mode {
 }
 
 .rogue-essence-gauge {
+  --rogue-essence-slot-height: 0.24rem;
+  --rogue-essence-slot-gap: 0.14rem;
+  --rogue-essence-slot-rows: 20;
   position: relative;
   width: 1.82rem;
-  min-height: 4.25rem;
+  height: calc(
+    var(--rogue-essence-slot-height) * var(--rogue-essence-slot-rows) +
+    var(--rogue-essence-slot-gap) * (var(--rogue-essence-slot-rows) - 1) +
+    0.56rem
+  );
   display: flex;
   flex-direction: column-reverse;
-  gap: 0.14rem;
+  gap: var(--rogue-essence-slot-gap);
   padding: 0.28rem 0.3rem;
   border-radius: 0.38rem;
   background: rgb(12 18 28 / 72%);
@@ -388,16 +401,64 @@ body.rogue-brick-focus-mode {
 
 .rogue-essence-gauge-segment {
   width: 100%;
-  height: 0.24rem;
+  height: var(--rogue-essence-slot-height);
   border-radius: 999px;
   background: rgb(51 65 85 / 76%);
   box-shadow: inset 0 0 0 1px rgb(148 163 184 / 14%);
+}
+
+.rogue-essence-gauge-segment.is-locked {
+  visibility: hidden;
 }
 
 .rogue-essence-gauge-segment.is-lit {
   box-shadow:
     inset 0 0 0 1px rgb(255 255 255 / 12%),
     0 0 6px rgb(255 255 255 / 18%);
+}
+
+.rogue-essence-gauge-segment.is-new-slot {
+  animation: rogue-slot-upgrade-blink 250ms ease-in-out 0s 4;
+}
+
+.rogue-essence-slot-upgrade-burst {
+  position: absolute;
+  inset: -0.45rem;
+  pointer-events: none;
+}
+
+.rogue-essence-slot-upgrade-spark {
+  position: absolute;
+  width: 0.24rem;
+  height: 0.24rem;
+  border-radius: 999px;
+  background: rgb(186 230 253 / 92%);
+  box-shadow: 0 0 8px rgb(125 211 252 / 62%);
+  animation: rogue-slot-upgrade-spark 540ms ease-out forwards;
+}
+
+.rogue-essence-slot-upgrade-spark.spark-1 { left: 50%; top: 16%; }
+.rogue-essence-slot-upgrade-spark.spark-2 { left: 72%; top: 28%; }
+.rogue-essence-slot-upgrade-spark.spark-3 { left: 72%; top: 66%; }
+.rogue-essence-slot-upgrade-spark.spark-4 { left: 50%; top: 82%; }
+.rogue-essence-slot-upgrade-spark.spark-5 { left: 28%; top: 66%; }
+.rogue-essence-slot-upgrade-spark.spark-6 { left: 28%; top: 28%; }
+
+@keyframes rogue-slot-upgrade-blink {
+  0%,
+  100% { filter: brightness(1); }
+  50% { filter: brightness(1.9); }
+}
+
+@keyframes rogue-slot-upgrade-spark {
+  0% {
+    opacity: 0.95;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.35);
+  }
 }
 
 .rogue-essence-popover {
@@ -2614,6 +2675,10 @@ button.rogue-path-tree-node.is-playable:focus-visible {
 
 .rogue-spoils-offer-segment-middle {
   min-height: 0;
+  justify-content: flex-start;
+  gap: 0.4rem;
+  padding-top: 0.58rem;
+  padding-bottom: 0.58rem;
 }
 
 .rogue-spoils-offer-segment-bottom {
@@ -2678,8 +2743,15 @@ button.rogue-path-tree-node.is-playable:focus-visible {
 }
 
 .rogue-spoils-offer-levels {
+  font-size: 0.7rem;
+  color: rgb(226 232 240 / 84%);
+}
+
+.rogue-spoils-offer-impact {
   font-size: 0.72rem;
-  color: rgb(51 65 85 / 85%);
+  color: rgb(186 230 253 / 94%);
+  font-weight: 700;
+  line-height: 1.25;
 }
 
 .rogue-spoils-offer-cost-text {
@@ -2688,6 +2760,7 @@ button.rogue-path-tree-node.is-playable:focus-visible {
   justify-content: center;
   gap: 0.34rem;
   font-weight: 700;
+  color: rgb(248 250 252 / 96%);
 }
 
 .rogue-spoils-offer-currency-icon {
