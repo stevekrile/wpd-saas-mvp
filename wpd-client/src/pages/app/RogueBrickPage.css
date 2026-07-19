@@ -253,8 +253,8 @@ body.rogue-brick-focus-mode {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  gap: 0.7rem;
-  padding: 0.44rem 0.34rem 0.44rem 0.32rem;
+  gap: 1.25rem;
+  padding: 0.7rem 0.42rem 0.7rem 0.38rem;
   border-radius: 0.52rem 0 0 0.52rem;
   isolation: isolate;
 }
@@ -354,11 +354,11 @@ body.rogue-brick-focus-mode {
   box-shadow: 0 0 10px rgb(34 197 94 / 20%);
 }
 
-.rogue-essence-bottle-wrap {
+.rogue-essence-gauge-wrap {
   position: relative;
 }
 
-.rogue-essence-bottle-button {
+.rogue-essence-gauge-button {
   border: 0;
   background: transparent;
   padding: 0;
@@ -366,103 +366,38 @@ body.rogue-brick-focus-mode {
   display: flex;
 }
 
-.rogue-essence-bottle-button:focus-visible {
+.rogue-essence-gauge-button:focus-visible {
   outline: 2px solid rgb(186 230 253 / 88%);
   outline-offset: 2px;
   border-radius: 0.5rem;
 }
 
-.rogue-essence-bottle {
+.rogue-essence-gauge {
   position: relative;
-  width: 1.5rem;
-  height: 3.95rem;
-  display: block;
+  width: 1.82rem;
+  min-height: 4.25rem;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.14rem;
+  padding: 0.28rem 0.3rem;
+  border-radius: 0.38rem;
+  background: rgb(12 18 28 / 72%);
+  border: 1px solid rgb(148 163 184 / 24%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 6%);
 }
 
-.rogue-essence-bottle-fill-track {
-  position: absolute;
-  left: 17%;
-  right: 17%;
-  top: 18.5%;
-  bottom: 5.5%;
-  border-radius: 0.36rem 0.36rem 0.52rem 0.52rem;
-  overflow: hidden;
-  background: transparent;
-  box-shadow: none;
-}
-
-.rogue-essence-bottle-shell {
-  position: absolute;
-  inset: 0;
+.rogue-essence-gauge-segment {
   width: 100%;
-  height: 100%;
-  object-fit: contain;
-  opacity: 0.42;
-  filter: saturate(0.55) brightness(0.74) contrast(0.84);
-  mix-blend-mode: multiply;
-  pointer-events: none;
+  height: 0.24rem;
+  border-radius: 999px;
+  background: rgb(51 65 85 / 76%);
+  box-shadow: inset 0 0 0 1px rgb(148 163 184 / 14%);
 }
 
-.rogue-essence-bottle-fill {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  transition: height 280ms ease;
-  opacity: 0.95;
-  filter: saturate(1.24) brightness(1.05);
+.rogue-essence-gauge-segment.is-lit {
   box-shadow:
-    inset 0 0.12rem 0.24rem rgb(255 255 255 / 14%),
-    0 0 7px rgb(255 255 255 / 10%);
-  animation: rogue-essence-pulse 2.6s ease-in-out infinite;
-}
-
-.rogue-essence-bottle-button.is-yellow .rogue-essence-bottle-fill {
-  --rogue-essence-glow-color: rgb(251 191 36 / 44%);
-  box-shadow:
-    inset 0 0.12rem 0.26rem rgb(255 255 255 / 12%),
-    0 0 10px rgb(251 191 36 / 34%);
-}
-
-.rogue-essence-bottle-button.is-blue .rogue-essence-bottle-fill {
-  --rogue-essence-glow-color: rgb(56 189 248 / 44%);
-  box-shadow:
-    inset 0 0.12rem 0.26rem rgb(255 255 255 / 12%),
-    0 0 10px rgb(56 189 248 / 34%);
-}
-
-.rogue-essence-bottle-button.is-green .rogue-essence-bottle-fill {
-  --rogue-essence-glow-color: rgb(34 197 94 / 42%);
-  box-shadow:
-    inset 0 0.12rem 0.26rem rgb(255 255 255 / 12%),
-    0 0 10px rgb(34 197 94 / 32%);
-}
-
-@keyframes rogue-essence-pulse {
-  0%,
-  100% {
-    box-shadow:
-      inset 0 0.12rem 0.24rem rgb(255 255 255 / 11%),
-      0 0 8px rgb(255 255 255 / 8%),
-      0 0 9px var(--rogue-essence-glow-color, rgb(255 255 255 / 18%));
-  }
-
-  50% {
-    box-shadow:
-      inset 0 0.14rem 0.3rem rgb(255 255 255 / 19%),
-      0 0 10px rgb(255 255 255 / 14%),
-      0 0 15px var(--rogue-essence-glow-color, rgb(255 255 255 / 24%));
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .rogue-essence-bottle-fill {
-    animation: none;
-  }
-
-  .rogue-essence-vapor-particle {
-    transition: none;
-  }
+    inset 0 0 0 1px rgb(255 255 255 / 12%),
+    0 0 6px rgb(255 255 255 / 18%);
 }
 
 .rogue-essence-popover {
@@ -1005,6 +940,34 @@ body.rogue-brick-focus-mode {
   gap: 0.6rem;
 }
 
+.rogue-path-tree-confirm-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.rogue-path-tree-confirm-button {
+  border: 1px solid rgb(186 230 253 / 58%);
+  background: rgb(14 116 144 / 68%);
+  color: #f8fafc;
+  border-radius: 0.56rem;
+  padding: 0.42rem 0.8rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: transform 130ms ease, filter 130ms ease, background-color 130ms ease;
+}
+
+.rogue-path-tree-confirm-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.rogue-path-tree-confirm-button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
 .rogue-path-tree-heading {
   display: flex;
   flex-direction: column;
@@ -1186,8 +1149,18 @@ body.rogue-brick-focus-mode {
 }
 
 .rogue-path-tree-line {
-  stroke: rgb(125 211 252 / 16%);
-  stroke-width: 0.12;
+  stroke: #fff;
+  stroke-width: 0.16;
+  transition: opacity 140ms ease;
+}
+
+.rogue-path-tree-line.is-past {
+  opacity: 0.1;
+  filter: saturate(0);
+}
+
+.rogue-path-tree-line.is-dimmed {
+  opacity: 0.16;
 }
 
 .rogue-path-tree-node {
@@ -1208,6 +1181,12 @@ body.rogue-brick-focus-mode {
     0 0 0 1px rgb(2 6 23 / 54%),
     0 0 10px var(--node-core-shadow);
   z-index: 3;
+  transition: opacity 140ms ease, filter 140ms ease, transform 170ms ease, box-shadow 170ms ease, border-color 170ms ease, background-color 170ms ease;
+}
+
+.rogue-path-tree-node.is-dimmed {
+  opacity: 0.2;
+  filter: saturate(0.45);
 }
 
 .rogue-path-tree-node.is-core-yellow {
@@ -1359,7 +1338,8 @@ body.rogue-brick-focus-mode {
 }
 
 .rogue-path-tree-node.is-past {
-  opacity: 0.7;
+  opacity: 0.18;
+  filter: saturate(0);
 }
 
 .rogue-path-tree-node.is-future {
@@ -1371,6 +1351,13 @@ body.rogue-brick-focus-mode {
   box-shadow:
     0 0 0 1px rgb(186 230 253 / 56%),
     0 0 16px var(--node-core-shadow);
+}
+
+.rogue-path-tree-node.is-path-target {
+  border-color: rgb(255 255 255 / 100%);
+  box-shadow:
+    0 0 0 1px rgb(224 242 254 / 66%),
+    0 0 20px var(--node-core-shadow);
 }
 
 .rogue-path-tree-node.is-playable {
@@ -1410,7 +1397,6 @@ body.rogue-brick-focus-mode {
 
 button.rogue-path-tree-node {
   cursor: pointer;
-  transition: transform 170ms ease, box-shadow 170ms ease, border-color 170ms ease, background-color 170ms ease;
 }
 
 button.rogue-path-tree-node.is-playable:hover {
@@ -2280,7 +2266,6 @@ button.rogue-path-tree-node.is-playable:focus-visible {
 
 /* Well strip — same footprint as the board below LAUNCHER_Y, holds sliders */
 .rogue-warden-well {
-  --warden-center-gap: 48px;
   position: absolute;
   top: calc(678 / 720 * 100%);
   left: 0;
@@ -2289,7 +2274,19 @@ button.rogue-path-tree-node.is-playable:focus-visible {
   z-index: 5;
   display: flex;
   align-items: center;
+  justify-content: flex-start;
+  padding: 0 0.75rem;
   pointer-events: none; /* children opt-in */
+}
+
+.rogue-warden-auto-stats {
+  display: inline-flex;
+  gap: 0.8rem;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: rgb(226 232 240 / 92%);
+  pointer-events: none;
 }
 
 /* Shot slider — left half */
@@ -2883,7 +2880,7 @@ button.rogue-path-tree-node.is-playable:focus-visible {
     bottom: auto;
     transform: translateY(-50%);
     z-index: 1210;
-    gap: 0.5rem;
+    gap: 1.05rem;
   }
 
   .rogue-brick-layout-shell.is-focus-mode .rogue-essence-popover {
