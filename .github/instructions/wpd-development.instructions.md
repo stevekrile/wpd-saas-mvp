@@ -34,6 +34,15 @@ Frontend typically runs on **`https://localhost:5173`** (or next available port 
 - **Frontend:** React + TypeScript (wpd-client)
 - **Database:** SQL Server (Entity Framework Core)
 
+## Game Logic Separation
+
+When working on portable game features such as Rogue Brick:
+
+- Put game rules, board generation, combat math, scoring, rewards, and progression in pure TypeScript modules under `wpd-client\src\features\`.
+- Keep page files such as `wpd-client\src\pages\app\RogueBrickPage.tsx` focused on web wiring: React state, browser input, canvas drawing, layout, and accessibility behavior.
+- Do not couple portable game logic to React, DOM APIs, canvas APIs, timers owned by components, or browser-only globals unless that code is part of the web adapter layer.
+- Prefer small platform-agnostic helpers with explicit inputs/outputs so the same logic can be reused by future iOS, Android, and Steam clients.
+
 ## Key Files for Common Tasks
 
 ### Diagnostic Persistence

@@ -486,6 +486,8 @@ body.rogue-brick-focus-mode {
   max-height: none;
   overflow: visible;
   padding-right: 0;
+  height: 100%;
+  min-height: 0;
 }
 
 .rogue-board-overlay-content.is-between-level {
@@ -936,13 +938,17 @@ body.rogue-brick-focus-mode {
 
 .rogue-path-tree-panel {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 0.6rem;
+  min-height: 0;
 }
 
 .rogue-path-tree-confirm-row {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
+  padding-bottom: max(0.2rem, env(safe-area-inset-bottom, 0px));
+  z-index: 1;
 }
 
 .rogue-path-tree-confirm-button {
@@ -951,6 +957,7 @@ body.rogue-brick-focus-mode {
   color: #f8fafc;
   border-radius: 0.56rem;
   padding: 0.42rem 0.8rem;
+  min-width: clamp(6.5rem, 34vw, 8.5rem);
   font-size: 0.76rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -1041,7 +1048,9 @@ body.rogue-brick-focus-mode {
 }
 
 .rogue-path-tree-graph-scroll {
+  flex: 1 1 auto;
   max-height: 37.8rem;
+  min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
