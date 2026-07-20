@@ -1057,6 +1057,11 @@ function getBrickSizeScale(brick: Brick): number {
   return STANDARD_BRICK_MIN_SCALE + hpPct * (STANDARD_BRICK_MAX_SCALE - STANDARD_BRICK_MIN_SCALE);
 }
 
+function isBreakableBrick(brick: Brick): boolean {
+  const kind = brick.kind ?? 'standard';
+  return kind !== 'objective' && kind !== 'unbreakable';
+}
+
 function getObjectiveDimensions(brick: Brick, brickWidth: number): { width: number; height: number } {
   if (brick.kind !== 'objective') {
     const scale = getBrickSizeScale(brick);
@@ -4850,7 +4855,7 @@ export default function RogueBrickPage() {
           flashVariant = currentObjective?.coreVariant ?? flashVariant;
         }
 
-        if (runState.board.bricks.length === 0) {
+        if (!runState.board.bricks.some(isBreakableBrick)) {
           const clearedBoardLevel = runState.level;
           const clearedPathNode = runState.pathNodesByLevel[clearedBoardLevel] ?? getCurrentPathNode(runState);
           const manaRaw = runState.boardManaEarned ?? 0;
@@ -5230,7 +5235,15 @@ export default function RogueBrickPage() {
             (count, entry) => count + (entry.hp > 0 ? 1 : 0),
             0
           );
-          const isFinalBrickExplosion = bricksRemainingAfterHit === 0;
+          const remainingBreakableNonOrbBricks = bricksRef.current.reduce((count, entry) => {
+            if (entry.id === brick.id || entry.hp <= 0) {
+              return count;
+            }
+            return isBreakableBrick(entry) ? count + 1 : count;
+          }, 0);
+          const isFinalBrickExplosion =
+            bricksRemainingAfterHit === 0 ||
+            (!isObjective && !isUnbreakable && remainingBreakableNonOrbBricks === 0);
           const remainingObjectiveCount = bricksRef.current.reduce(
             (count, entry) => count + ((entry.kind ?? 'standard') === 'objective' && entry.hp > 0 ? 1 : 0),
             0
@@ -5248,13 +5261,6 @@ export default function RogueBrickPage() {
           );
           const eventTextX = brickBounds.x + brickBounds.width * 0.5;
           const eventTextY = brickBounds.y + brickBounds.height * 0.5;
-          const remainingBreakableNonOrbBricks = bricksRef.current.reduce((count, entry) => {
-            if (entry.id === brick.id || entry.hp <= 0) {
-              return count;
-            }
-            const kind = entry.kind ?? 'standard';
-            return kind === 'objective' || kind === 'unbreakable' ? count : count + 1;
-          }, 0);
           if (
             !pendingCleanPlateAwardedRef.current &&
             !isObjective &&
