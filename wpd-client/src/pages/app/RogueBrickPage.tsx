@@ -1178,6 +1178,12 @@ function getObjectiveBrickIds(board: BoardState): string[] {
   return board.objectiveBrickId ? [board.objectiveBrickId] : [];
 }
 
+const DEFAULT_OBJECTIVE_CORE_VARIANT: CoreVariant = 'yellow';
+
+function getGridDistance(from: { row: number; col: number }, to: { row: number; col: number }): number {
+  return Math.abs(from.row - to.row) + Math.abs(from.col - to.col);
+}
+
 function prioritizeObjectiveBrickIds(
   objectiveIds: string[],
   bricks: Brick[],
@@ -1190,14 +1196,14 @@ function prioritizeObjectiveBrickIds(
   return [...objectiveIds].sort((leftId, rightId) => {
     const leftBrick = brickById.get(leftId);
     const rightBrick = brickById.get(rightId);
-    const leftPriority = (leftBrick?.coreVariant ?? 'yellow') === primaryCoreVariant ? 0 : 1;
-    const rightPriority = (rightBrick?.coreVariant ?? 'yellow') === primaryCoreVariant ? 0 : 1;
+    const leftPriority = (leftBrick?.coreVariant ?? DEFAULT_OBJECTIVE_CORE_VARIANT) === primaryCoreVariant ? 0 : 1;
+    const rightPriority = (rightBrick?.coreVariant ?? DEFAULT_OBJECTIVE_CORE_VARIANT) === primaryCoreVariant ? 0 : 1;
     if (leftPriority !== rightPriority) {
       return leftPriority - rightPriority;
     }
     if (preferredSlot && leftBrick && rightBrick) {
-      const leftDistance = Math.abs(leftBrick.row - preferredSlot.row) + Math.abs(leftBrick.col - preferredSlot.col);
-      const rightDistance = Math.abs(rightBrick.row - preferredSlot.row) + Math.abs(rightBrick.col - preferredSlot.col);
+      const leftDistance = getGridDistance(leftBrick, preferredSlot);
+      const rightDistance = getGridDistance(rightBrick, preferredSlot);
       if (leftDistance !== rightDistance) {
         return leftDistance - rightDistance;
       }
