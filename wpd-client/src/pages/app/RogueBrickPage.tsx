@@ -1923,14 +1923,12 @@ function generateBoard(run: RogueRunState): BoardState {
     }
   }
 
-  objectiveBrickIds.splice(
-    0,
-    objectiveBrickIds.length,
-    ...prioritizeObjectiveBrickIds(objectiveBrickIds, bricks, objectiveCoreVariant, {
-      row: preferredObjectiveRow,
-      col: objectiveCol,
-    })
-  );
+  const prioritizedObjectiveBrickIds = prioritizeObjectiveBrickIds(objectiveBrickIds, bricks, objectiveCoreVariant, {
+    row: preferredObjectiveRow,
+    col: objectiveCol,
+  });
+  objectiveBrickIds.length = 0;
+  objectiveBrickIds.push(...prioritizedObjectiveBrickIds);
 
   applyEarlyBoardPreDamage(bricks, run);
 
