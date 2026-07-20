@@ -2084,7 +2084,7 @@ function computeSkillBonuses(opts: {
       id: 'clean-plate',
       label: 'Clean Plate',
       detail: 'Cleared all breakable bricks before the final Orb',
-      mana: 200,
+      mana: 12,
     });
   }
 
@@ -2103,7 +2103,7 @@ function computeSkillBonuses(opts: {
       id: 'slow-and-steady',
       label: 'Slow and Steady',
       detail: `${opts.slowAndSteadyShots} shot${opts.slowAndSteadyShots === 1 ? '' : 's'} over 10s`,
-      mana: opts.slowAndSteadyShots * 100,
+      mana: opts.slowAndSteadyShots * 5,
     });
   }
 
@@ -2112,7 +2112,7 @@ function computeSkillBonuses(opts: {
       id: 'giggidy',
       label: 'Giggidy',
       detail: `${opts.giggidyBalls} ball${opts.giggidyBalls === 1 ? '' : 's'} over 50 rebounds`,
-      mana: opts.giggidyBalls * 500,
+      mana: opts.giggidyBalls * 8,
     });
   }
 
