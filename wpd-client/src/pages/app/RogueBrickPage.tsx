@@ -1933,14 +1933,12 @@ function generateBoard(run: RogueRunState): BoardState {
     row: preferredObjectiveRow,
     col: objectiveCol,
   });
-  objectiveBrickIds.length = 0;
-  objectiveBrickIds.push(...prioritizedObjectiveBrickIds);
 
   applyEarlyBoardPreDamage(bricks, run);
 
   // Post-placement: ensure every orb has at least one brick below it in its column
   // to prevent a direct vertical shot from the launcher.
-  for (const objId of objectiveBrickIds) {
+  for (const objId of prioritizedObjectiveBrickIds) {
     const orb = bricks.find((b) => b.id === objId);
     if (!orb) {
       continue;
@@ -1963,8 +1961,8 @@ function generateBoard(run: RogueRunState): BoardState {
 
   return {
     turn: 1,
-    objectiveBrickId: objectiveBrickIds[0] ?? null,
-    objectiveBrickIds,
+    objectiveBrickId: prioritizedObjectiveBrickIds[0] ?? null,
+    objectiveBrickIds: prioritizedObjectiveBrickIds,
     bricks,
   };
 }
