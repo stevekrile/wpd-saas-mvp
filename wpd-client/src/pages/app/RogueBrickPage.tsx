@@ -1178,6 +1178,34 @@ function getObjectiveBrickIds(board: BoardState): string[] {
   return board.objectiveBrickId ? [board.objectiveBrickId] : [];
 }
 
+function prioritizeObjectiveBrickIds(
+  objectiveIds: string[],
+  bricks: Brick[],
+  primaryCoreVariant: CoreVariant,
+  preferredSlot?: { row: number; col: number }
+): string[] {
+  const brickById = new Map(bricks.map((brick) => [brick.id, brick] as const));
+  const originalOrderById = new Map(objectiveIds.map((id, index) => [id, index] as const));
+
+  return [...objectiveIds].sort((leftId, rightId) => {
+    const leftBrick = brickById.get(leftId);
+    const rightBrick = brickById.get(rightId);
+    const leftPriority = (leftBrick?.coreVariant ?? 'yellow') === primaryCoreVariant ? 0 : 1;
+    const rightPriority = (rightBrick?.coreVariant ?? 'yellow') === primaryCoreVariant ? 0 : 1;
+    if (leftPriority !== rightPriority) {
+      return leftPriority - rightPriority;
+    }
+    if (preferredSlot && leftBrick && rightBrick) {
+      const leftDistance = Math.abs(leftBrick.row - preferredSlot.row) + Math.abs(leftBrick.col - preferredSlot.col);
+      const rightDistance = Math.abs(rightBrick.row - preferredSlot.row) + Math.abs(rightBrick.col - preferredSlot.col);
+      if (leftDistance !== rightDistance) {
+        return leftDistance - rightDistance;
+      }
+    }
+    return (originalOrderById.get(leftId) ?? 0) - (originalOrderById.get(rightId) ?? 0);
+  });
+}
+
 function getBrickBounds(
   brick: Brick,
   brickX: number,
@@ -1894,6 +1922,15 @@ function generateBoard(run: RogueRunState): BoardState {
       }
     }
   }
+
+  objectiveBrickIds.splice(
+    0,
+    objectiveBrickIds.length,
+    ...prioritizeObjectiveBrickIds(objectiveBrickIds, bricks, objectiveCoreVariant, {
+      row: preferredObjectiveRow,
+      col: objectiveCol,
+    })
+  );
 
   applyEarlyBoardPreDamage(bricks, run);
 
@@ -4828,8 +4865,11 @@ export default function RogueBrickPage() {
           runState.levelGoalBricks ?? calculateLevelGoal(Math.max(1, runState.board.bricks.length))
         );
         const objectiveIds = getObjectiveBrickIds(runState.board);
-        const remainingObjectiveIds = objectiveIds.filter((id) =>
-          runState.board.bricks.some((brick) => brick.id === id)
+        const activePathNode = runState.pathNodesByLevel[runState.level] ?? getCurrentPathNode(runState);
+        const remainingObjectiveIds = prioritizeObjectiveBrickIds(
+          objectiveIds.filter((id) => runState.board.bricks.some((brick) => brick.id === id)),
+          runState.board.bricks,
+          activePathNode.primaryCoreVariant
         );
         const objectiveRemoved = objectiveIds.length > 0 && remainingObjectiveIds.length < objectiveIds.length;
         if (objectiveRemoved && !handledCoreBreachThisTurn) {
