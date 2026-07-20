@@ -1178,6 +1178,40 @@ function getObjectiveBrickIds(board: BoardState): string[] {
   return board.objectiveBrickId ? [board.objectiveBrickId] : [];
 }
 
+const DEFAULT_OBJECTIVE_CORE_VARIANT: CoreVariant = 'yellow';
+
+function getGridDistance(from: { row: number; col: number }, to: { row: number; col: number }): number {
+  return Math.abs(from.row - to.row) + Math.abs(from.col - to.col);
+}
+
+function prioritizeObjectiveBrickIds(
+  objectiveIds: string[],
+  bricks: Brick[],
+  primaryCoreVariant: CoreVariant,
+  preferredSlot?: { row: number; col: number }
+): string[] {
+  const brickById = new Map(bricks.map((brick) => [brick.id, brick] as const));
+  const originalOrderById = new Map(objectiveIds.map((id, index) => [id, index] as const));
+
+  return [...objectiveIds].sort((leftId, rightId) => {
+    const leftBrick = brickById.get(leftId);
+    const rightBrick = brickById.get(rightId);
+    const leftPriority = (leftBrick?.coreVariant ?? DEFAULT_OBJECTIVE_CORE_VARIANT) === primaryCoreVariant ? 0 : 1;
+    const rightPriority = (rightBrick?.coreVariant ?? DEFAULT_OBJECTIVE_CORE_VARIANT) === primaryCoreVariant ? 0 : 1;
+    if (leftPriority !== rightPriority) {
+      return leftPriority - rightPriority;
+    }
+    if (preferredSlot && leftBrick && rightBrick) {
+      const leftDistance = getGridDistance(leftBrick, preferredSlot);
+      const rightDistance = getGridDistance(rightBrick, preferredSlot);
+      if (leftDistance !== rightDistance) {
+        return leftDistance - rightDistance;
+      }
+    }
+    return (originalOrderById.get(leftId) ?? 0) - (originalOrderById.get(rightId) ?? 0);
+  });
+}
+
 function getBrickBounds(
   brick: Brick,
   brickX: number,
@@ -1895,11 +1929,16 @@ function generateBoard(run: RogueRunState): BoardState {
     }
   }
 
+  const prioritizedObjectiveBrickIds = prioritizeObjectiveBrickIds(objectiveBrickIds, bricks, objectiveCoreVariant, {
+    row: preferredObjectiveRow,
+    col: objectiveCol,
+  });
+
   applyEarlyBoardPreDamage(bricks, run);
 
   // Post-placement: ensure every orb has at least one brick below it in its column
   // to prevent a direct vertical shot from the launcher.
-  for (const objId of objectiveBrickIds) {
+  for (const objId of prioritizedObjectiveBrickIds) {
     const orb = bricks.find((b) => b.id === objId);
     if (!orb) {
       continue;
@@ -1922,8 +1961,8 @@ function generateBoard(run: RogueRunState): BoardState {
 
   return {
     turn: 1,
-    objectiveBrickId: objectiveBrickIds[0] ?? null,
-    objectiveBrickIds,
+    objectiveBrickId: prioritizedObjectiveBrickIds[0] ?? null,
+    objectiveBrickIds: prioritizedObjectiveBrickIds,
     bricks,
   };
 }
@@ -4828,8 +4867,11 @@ export default function RogueBrickPage() {
           runState.levelGoalBricks ?? calculateLevelGoal(Math.max(1, runState.board.bricks.length))
         );
         const objectiveIds = getObjectiveBrickIds(runState.board);
-        const remainingObjectiveIds = objectiveIds.filter((id) =>
-          runState.board.bricks.some((brick) => brick.id === id)
+        const activePathNode = runState.pathNodesByLevel[runState.level] ?? getCurrentPathNode(runState);
+        const remainingObjectiveIds = prioritizeObjectiveBrickIds(
+          objectiveIds.filter((id) => runState.board.bricks.some((brick) => brick.id === id)),
+          runState.board.bricks,
+          activePathNode.primaryCoreVariant
         );
         const objectiveRemoved = objectiveIds.length > 0 && remainingObjectiveIds.length < objectiveIds.length;
         if (objectiveRemoved && !handledCoreBreachThisTurn) {
