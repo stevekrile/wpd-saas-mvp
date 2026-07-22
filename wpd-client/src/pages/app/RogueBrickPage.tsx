@@ -4542,15 +4542,16 @@ export default function RogueBrickPage() {
                   wardenEyeHpRef.current = nextEyeHp;
                   return nextEyeHp;
                 });
-                // Regen 1 shield pip on hit (up to max)
+                // One-time full shield restore: only during the grace window when shields are at 0
                 const shieldMax = wardenShieldMaxRef.current;
                 const prevShield = wardenShieldHpRef.current;
-                if (prevShield < shieldMax && !wardenShieldRegenUsedSinceLastTearRef.current) {
-                  const nextShield = Math.min(shieldMax, prevShield + 1);
-                  wardenShieldHpRef.current = nextShield;
+                const graceActive =
+                  wardenShieldGraceUntilMsRef.current !== null && now < wardenShieldGraceUntilMsRef.current;
+                if (prevShield === 0 && graceActive && !wardenShieldRegenUsedSinceLastTearRef.current) {
+                  wardenShieldHpRef.current = shieldMax;
                   wardenShieldGraceUntilMsRef.current = null;
                   wardenShieldRegenUsedSinceLastTearRef.current = true;
-                  setWardenShieldHp(nextShield);
+                  setWardenShieldHp(shieldMax);
                 }
                 setWardenBossHitFlashUntilMs(now + 320);
               }
@@ -6481,7 +6482,6 @@ export default function RogueBrickPage() {
       now,
       WARDEN_SHIELD_GRACE_MS
     );
-    wardenShieldRegenUsedSinceLastTearRef.current = false;
     wardenShieldHpRef.current = resolution.nextShieldHp;
     wardenShieldGraceUntilMsRef.current = resolution.nextGraceUntilMs;
     setWardenShieldHp(resolution.nextShieldHp);
