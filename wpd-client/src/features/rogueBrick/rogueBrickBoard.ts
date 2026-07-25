@@ -1,4 +1,4 @@
-import { CORE_VARIANTS, type CoreVariant } from './rogueBrickPathing';
+import { type CoreVariant } from './rogueBrickPathing';
 
 export type BoardObjectiveDifficulty = 'easy' | 'medium' | 'hard';
 
@@ -54,15 +54,6 @@ export interface SpoilsTemplateLike {
   description: string;
 }
 
-function hashStringToUint32(value: string): number {
-  let hash = 2166136261 >>> 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 16777619) >>> 0;
-  }
-  return hash >>> 0;
-}
-
 function clampNumber(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -84,15 +75,7 @@ export function getBoardObjectiveVariants(
   nodePrimaryCoreVariant: CoreVariant
 ): CoreVariant[] {
   const orbCount = getBoardOrbCountForLevel(level, run.maxLevels);
-  if (orbCount <= 1) {
-    return [nodePrimaryCoreVariant];
-  }
-  if (orbCount === 2) {
-    return [nodePrimaryCoreVariant, nodePrimaryCoreVariant];
-  }
-  const trailingIndex = hashStringToUint32(`${run.seed}|${level}|${run.boardsCleared}|minor-orb`) % CORE_VARIANTS.length;
-  const trailingVariant = CORE_VARIANTS[trailingIndex] ?? nodePrimaryCoreVariant;
-  return [nodePrimaryCoreVariant, nodePrimaryCoreVariant, trailingVariant];
+  return Array.from({ length: Math.max(1, orbCount) }, () => nodePrimaryCoreVariant);
 }
 
 export function getBoardObjectiveHp(snapshot: BoardObjectiveHpSnapshot): number {
