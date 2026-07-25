@@ -4779,6 +4779,7 @@ export default function RogueBrickPage() {
     pendingShotLaunchesThisTurnRef.current = 0;
     lastBottomCrossingXRef.current = null;
     shotStartedAtMsRef.current = null;
+    nextBoardShotAvailableAtMsRef.current = 0;
 
     let shouldFlashCoreBreach = false;
     let flashVariant: CoreVariant = coreBreachFlashVariant;
