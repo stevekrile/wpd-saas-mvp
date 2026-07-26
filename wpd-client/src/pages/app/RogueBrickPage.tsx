@@ -2160,6 +2160,8 @@ export default function RogueBrickPage() {
   const boardAdvanceAnimationRef = useRef<BoardAdvanceAnimationState | null>(null);
   const coreBreachFlashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const orbSlotUpgradeFlashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const critPercentHitTargetIdsRef = useRef<Set<string>>(new Set());
+  const critPercentHitBoardLevelRef = useRef<number | null>(null);
   const coreBreachLaunchFrameRef = useRef<number | null>(null);
   const coreBreachHandledThisTurnRef = useRef(false);
   const launchShotRef = useRef<(
@@ -4164,8 +4166,17 @@ export default function RogueBrickPage() {
   useEffect(() => {
     profileRef.current = profile;
     if (profile?.run?.stage === 'board' && !shotInProgress) {
+      const boardLevel = profile.run.level;
+      if (critPercentHitBoardLevelRef.current !== boardLevel) {
+        critPercentHitBoardLevelRef.current = boardLevel;
+        critPercentHitTargetIdsRef.current.clear();
+      }
       bricksRef.current = profile.run.board.bricks.map((brick) => ({ ...brick }));
       return;
+    }
+    if (profile?.run?.stage !== 'board') {
+      critPercentHitBoardLevelRef.current = null;
+      critPercentHitTargetIdsRef.current.clear();
     }
     draw();
   }, [profile, draw, shotInProgress]);
@@ -5556,13 +5567,9 @@ export default function RogueBrickPage() {
                 Math.abs(nearestY - collisionY) < 0.001 || Math.abs(nearestY - (collisionY + collisionHeight)) < 0.001;
               const cornerHit = hitVerticalEdge && hitHorizontalEdge;
 
-              const isCrit = ball.isCritShot;
               const pendingGreenOrbBonus = Math.max(0, Math.floor(rewards.essenceByColor.green ?? 0));
-              const committedGreenOrbBonus = Math.max(0, Math.floor(activeRun.greenOrbDamageBonus ?? 0));
               const nonCritDamageBase = Math.max(1, activeRun.damage + pendingGreenOrbBonus);
-              const critDamageBase = Math.max(1, nonCritDamageBase - (committedGreenOrbBonus + pendingGreenOrbBonus));
-              const baseDamage = isCrit ? critDamageBase * 10 : nonCritDamageBase;
-              const chargedDamage = Math.max(1, Math.round(baseDamage * (1 + objectiveCharge * 1.4)));
+              const chargedDamage = Math.max(1, Math.round(nonCritDamageBase * (1 + objectiveCharge * 1.4)));
               const variant = brick.kind ?? 'standard';
               const coreVariant = brick.coreVariant ?? 'yellow';
               if (variant !== 'objective') {
@@ -5577,7 +5584,7 @@ export default function RogueBrickPage() {
                       ? clampNumber(ball.mass * 0.22 + 0.8, 0.78, 1.32)
                       : clampNumber(ball.mass * 0.25 + 0.82, 0.8, 1.34)
                   : 1;
-              const damage =
+              const defaultDamage =
                 variant === 'reinforced'
                   ? Math.max(1, Math.round(chargedDamage * 0.75 * coreWeight * profileCoreBonus))
                   : variant === 'splinter'
@@ -5633,10 +5640,24 @@ export default function RogueBrickPage() {
                 (variant !== 'oneway' || !brick.weakSide || brick.weakSide === impactSide);
 
               if (canDamage) {
+                let damageToApply = defaultDamage;
+                let countedAsCrit = false;
+                if (ball.isCritShot) {
+                  if (!critPercentHitTargetIdsRef.current.has(brick.id)) {
+                    const targetMaxHp = Math.max(1, Math.round(brick.maxHp));
+                    damageToApply =
+                      targetMaxHp <= 10
+                        ? Math.max(1, Math.ceil(brick.hp))
+                        : Math.max(1, Math.ceil(targetMaxHp * 0.9));
+                    critPercentHitTargetIdsRef.current.add(brick.id);
+                    countedAsCrit = true;
+                  }
+                  ball.isCritShot = false;
+                }
                 if (homingBarrageActive || (variant === 'unbreakable' && objectiveCharge >= 1)) {
                   brick.hp = 0;
                 } else {
-                  brick.hp -= damage;
+                  brick.hp -= damageToApply;
                 }
                 touchedBrickThisFrame = true;
                 brickVisualRef.current.set(brick.id, { hitUntil: timestamp + 120 });
@@ -5645,8 +5666,8 @@ export default function RogueBrickPage() {
                   ball.coreCharged = false;
                 }
                 const baseManaReward = isObjective
-                  ? (isCrit ? BALANCE.objectiveManaRewardCrit : BALANCE.objectiveManaRewardNormal)
-                  : isCrit
+                  ? (countedAsCrit ? BALANCE.objectiveManaRewardCrit : BALANCE.objectiveManaRewardNormal)
+                  : countedAsCrit
                   ? BALANCE.brickManaRewardCrit
                   : BALANCE.brickManaRewardNormal;
                 rewards.mana +=
