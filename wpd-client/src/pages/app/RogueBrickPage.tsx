@@ -140,6 +140,7 @@ const WARDEN_TEAR_DEFAULT_DETACH_SEC = 3;
 const WARDEN_TEAR_FIRST_STARTUP_SEC = 1;
 const WARDEN_TEAR_REPEAT_STARTUP_SEC = 5;
 const WARDEN_TEAR_REPEAT_STARTUP_MIN_SEC = 3;
+const SLOT_UPGRADE_FLASH_DURATION_MS = 2000;
 const TPose_THRESHOLD_BRICKS_BEFORE_ORB = 20;
 
 const BALANCE_TARGETS = {
@@ -1852,33 +1853,19 @@ function generateBoard(run: RogueRunState): BoardState {
     }
   }
 
-  // Defensive pass: keep the selected map-node color as the majority whenever 2+ objectives spawn.
-  if (objectiveBrickIds.length > 1) {
-    const requiredPrimaryCount = Math.floor(objectiveBrickIds.length / 2) + 1;
-    const primaryObjectiveIds = objectiveBrickIds.filter((objectiveId) => {
-      const objectiveBrick = bricks.find((brick) => brick.id === objectiveId);
-      return objectiveBrick?.kind === 'objective' && (objectiveBrick.coreVariant ?? 'yellow') === objectiveCoreVariant;
-    });
-    let primaryCount = primaryObjectiveIds.length;
-    if (primaryCount < requiredPrimaryCount) {
-      for (const objectiveId of objectiveBrickIds) {
-        if (primaryCount >= requiredPrimaryCount) {
-          break;
-        }
-        const objectiveBrick = bricks.find((brick) => brick.id === objectiveId);
-        if (!objectiveBrick || objectiveBrick.kind !== 'objective') {
-          continue;
-        }
-        if ((objectiveBrick.coreVariant ?? 'yellow') === objectiveCoreVariant) {
-          continue;
-        }
-        const primaryObjectiveHp = buildObjectiveHp(objectiveCoreVariant);
-        objectiveBrick.coreVariant = objectiveCoreVariant;
-        objectiveBrick.maxHp = primaryObjectiveHp;
-        objectiveBrick.hp = primaryObjectiveHp;
-        primaryCount += 1;
-      }
+  // Enforce exact map-node to board-orb color parity for every spawned objective.
+  for (const objectiveId of objectiveBrickIds) {
+    const objectiveBrick = bricks.find((brick) => brick.id === objectiveId);
+    if (!objectiveBrick || objectiveBrick.kind !== 'objective') {
+      continue;
     }
+    if ((objectiveBrick.coreVariant ?? 'yellow') === objectiveCoreVariant) {
+      continue;
+    }
+    const matchedObjectiveHp = buildObjectiveHp(objectiveCoreVariant);
+    objectiveBrick.coreVariant = objectiveCoreVariant;
+    objectiveBrick.maxHp = matchedObjectiveHp;
+    objectiveBrick.hp = matchedObjectiveHp;
   }
 
   const prioritizedObjectiveBrickIds = prioritizeObjectiveBrickIds(objectiveBrickIds, bricks, objectiveCoreVariant, {
@@ -5968,6 +5955,21 @@ export default function RogueBrickPage() {
     };
   }, []);
 
+  const triggerOrbSlotUpgradeFlash = useCallback((variant: CoreVariant, slotIndex: number) => {
+    if (orbSlotUpgradeFlashTimeoutRef.current !== null) {
+      window.clearTimeout(orbSlotUpgradeFlashTimeoutRef.current);
+    }
+    setOrbSlotUpgradeFlash({
+      variant,
+      slotIndex: Math.max(0, Math.floor(slotIndex)),
+      token: Date.now(),
+    });
+    orbSlotUpgradeFlashTimeoutRef.current = window.setTimeout(() => {
+      orbSlotUpgradeFlashTimeoutRef.current = null;
+      setOrbSlotUpgradeFlash(null);
+    }, SLOT_UPGRADE_FLASH_DURATION_MS);
+  }, []);
+
   const startRun = useCallback((startingPowerId: string) => {
     setAutoHomingLaunchPending(false);
     setIsCoreBreachFlashing(false);
@@ -5975,6 +5977,8 @@ export default function RogueBrickPage() {
     nextWardenShotAvailableAtMsRef.current = 0;
     wardenVolleysFiredThisEncounterRef.current = 0;
     pendingShotLaunchesThisTurnRef.current = 0;
+    let awardedSlotVariant: CoreVariant | null = null;
+    let awardedSlotIndex = -1;
     commitProfile((draft) => {
       const startingTemplate = SPOILS_POOL.find((template) => template.id === startingPowerId);
       if (!startingTemplate) {
@@ -6045,9 +6049,17 @@ export default function RogueBrickPage() {
       runState.pathNodesByLevel[0] = rootPathNode;
       runState.pathCurrentNodeId = rootPathNode.id;
       startingTemplate.apply(runState);
+      if (startingTemplate.slotVariant) {
+        const gaugeMaxByColor = getRunOrbSkillGaugeMaxByColor(runState, draft.permanentUpgrades);
+        awardedSlotVariant = startingTemplate.slotVariant;
+        awardedSlotIndex = Math.max(0, gaugeMaxByColor[startingTemplate.slotVariant] - 1);
+      }
       draft.run = runState;
       draft.lastRunSummary = null;
     }, true);
+    if (awardedSlotVariant !== null && awardedSlotIndex >= 0) {
+      triggerOrbSlotUpgradeFlash(awardedSlotVariant, awardedSlotIndex);
+    }
     setLiveHud({
       destroyedBricks: 0,
       manaEarned: 0,
@@ -6056,7 +6068,7 @@ export default function RogueBrickPage() {
     });
     setPreviewStartingPowerId(null);
     setStartingRunPowerChoices([]);
-  }, [commitProfile]);
+  }, [commitProfile, triggerOrbSlotUpgradeFlash]);
 
   const requestStartingRunConfirmation = useCallback(
     (startingPowerId: string) => {
@@ -6325,21 +6337,10 @@ export default function RogueBrickPage() {
         runState.hubMessage = `Claimed ${offer.name}. ${template.describeLevelImpact(getRunPowerLevel(runState, template.id), runState, draft)}`;
       }, true);
       if (awardedSlotVariant !== null && awardedSlotIndex >= 0) {
-        if (orbSlotUpgradeFlashTimeoutRef.current !== null) {
-          window.clearTimeout(orbSlotUpgradeFlashTimeoutRef.current);
-        }
-        setOrbSlotUpgradeFlash({
-          variant: awardedSlotVariant,
-          slotIndex: awardedSlotIndex,
-          token: Date.now(),
-        });
-        orbSlotUpgradeFlashTimeoutRef.current = window.setTimeout(() => {
-          orbSlotUpgradeFlashTimeoutRef.current = null;
-          setOrbSlotUpgradeFlash(null);
-        }, 950);
+        triggerOrbSlotUpgradeFlash(awardedSlotVariant, awardedSlotIndex);
       }
     },
-    [commitProfile]
+    [commitProfile, triggerOrbSlotUpgradeFlash]
   );
 
   const firePrototypeWardenVolley = useCallback(() => {
@@ -7307,6 +7308,9 @@ export default function RogueBrickPage() {
                     key={`essence-${variant}`}
                     className={`rogue-essence-gauge-wrap${hasSlotUpgradeFlash ? ' is-slot-upgrade-flash' : ''}`}
                   >
+                    {hasSlotUpgradeFlash && (
+                      <span className={`rogue-essence-slot-upgrade-new-cell is-${variant}`} aria-hidden="true" />
+                    )}
                     <button
                       type="button"
                       className={`rogue-essence-gauge-button is-${variant}`}
@@ -7563,11 +7567,6 @@ export default function RogueBrickPage() {
                                   left: `${position.x}%`,
                                   top: `${position.y}%`,
                                 };
-                                const nodeShapeCue =
-                                  !forecastEncounterWarden &&
-                                  (node.primaryCoreVariant === 'blue' || node.primaryCoreVariant === 'green')
-                                    ? <span className={`rogue-path-tree-node-shape is-${node.primaryCoreVariant}`} aria-hidden="true" />
-                                    : null;
                                 const canDevLaunchBlank = import.meta.env.DEV && Boolean(forecastEncounterWarden);
 
                                 if (node.isPlayable) {
@@ -7585,7 +7584,6 @@ export default function RogueBrickPage() {
                                       aria-label={`Choose level ${node.level} node (${challenge.label}, ${domain.name}, ${orbCapabilityLabel}${forecastEncounterWarden ? ', Warden encounter' : ''})`}
                                       title={orbCapabilityLabel}
                                     >
-                                      {nodeShapeCue}
                                       {forecastEncounterWarden && (
                                         <img className="rogue-path-tree-node-warden-eye" src={blankBodyIdle01Url} alt="" aria-hidden="true" />
                                       )}
@@ -7606,7 +7604,6 @@ export default function RogueBrickPage() {
                                     role={canDevLaunchBlank ? 'button' : undefined}
                                     tabIndex={canDevLaunchBlank ? 0 : undefined}
                                   >
-                                    {nodeShapeCue}
                                     {forecastEncounterWarden && (
                                       <img className="rogue-path-tree-node-warden-eye" src={blankBodyIdle01Url} alt="" aria-hidden="true" />
                                     )}

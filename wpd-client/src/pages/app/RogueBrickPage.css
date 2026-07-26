@@ -401,6 +401,43 @@ body.rogue-brick-focus-mode {
     0 0 12px rgb(186 230 253 / 35%);
 }
 
+.rogue-essence-slot-upgrade-new-cell {
+  position: absolute;
+  left: 50%;
+  top: -0.28rem;
+  width: 1.24rem;
+  height: var(--rogue-essence-slot-height, 0.24rem);
+  border-radius: 999px;
+  border: 1px solid rgb(148 163 184 / 74%);
+  background: rgb(15 23 42 / 76%);
+  box-shadow: 0 0 0 1px rgb(2 6 23 / 48%);
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  z-index: 3;
+  animation: rogue-slot-upgrade-new-cell-pulse 2s ease-in-out 1;
+}
+
+.rogue-essence-slot-upgrade-new-cell.is-yellow {
+  border-color: rgb(251 191 36 / 88%);
+  box-shadow:
+    0 0 0 1px rgb(2 6 23 / 48%),
+    0 0 9px rgb(251 191 36 / 36%);
+}
+
+.rogue-essence-slot-upgrade-new-cell.is-blue {
+  border-color: rgb(56 189 248 / 88%);
+  box-shadow:
+    0 0 0 1px rgb(2 6 23 / 48%),
+    0 0 9px rgb(56 189 248 / 36%);
+}
+
+.rogue-essence-slot-upgrade-new-cell.is-green {
+  border-color: rgb(74 222 128 / 88%);
+  box-shadow:
+    0 0 0 1px rgb(2 6 23 / 48%),
+    0 0 9px rgb(74 222 128 / 36%);
+}
+
 .rogue-essence-gauge-button {
   border: 0;
   background: transparent;
@@ -455,7 +492,7 @@ body.rogue-brick-focus-mode {
 }
 
 .rogue-essence-gauge-segment.is-new-slot {
-  animation: rogue-slot-upgrade-blink 250ms ease-in-out 0s 4;
+  animation: rogue-slot-upgrade-blink 500ms ease-in-out 0s 4;
 }
 
 .rogue-essence-slot-upgrade-burst {
@@ -485,6 +522,18 @@ body.rogue-brick-focus-mode {
   0%,
   100% { filter: brightness(1); }
   50% { filter: brightness(1.9); }
+}
+
+@keyframes rogue-slot-upgrade-new-cell-pulse {
+  0%,
+  100% {
+    opacity: 0.82;
+    transform: translate(-50%, -100%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -100%) scale(1.28);
+  }
 }
 
 @keyframes rogue-slot-upgrade-spark {
@@ -1273,9 +1322,12 @@ body.rogue-brick-focus-mode {
 .rogue-path-tree-node {
   position: absolute;
   transform: translate(-50%, -50%);
-  width: 1.08rem;
-  height: 1.08rem;
-  border-radius: 999px;
+  --node-width: 1.08rem;
+  --node-height: 1.08rem;
+  --node-corner-radius: 999px;
+  width: var(--node-width);
+  height: var(--node-height);
+  border-radius: var(--node-corner-radius);
   --node-core-color: rgb(148 163 184 / 0.9);
   --node-core-shadow: rgb(148 163 184 / 0.42);
   --node-pattern-overlay: none;
@@ -1299,12 +1351,14 @@ body.rogue-brick-focus-mode {
 .rogue-path-tree-node.is-core-yellow {
   --node-core-color: rgb(251 191 36 / 0.98);
   --node-core-shadow: rgb(245 158 11 / 0.54);
+  --node-corner-radius: 0.24rem;
   border-color: rgb(251 191 36 / 96%);
 }
 
 .rogue-path-tree-node.is-core-blue {
   --node-core-color: rgb(56 189 248 / 0.98);
   --node-core-shadow: rgb(14 165 233 / 0.58);
+  --node-corner-radius: 999px;
   --node-pattern-overlay:
     repeating-linear-gradient(
       135deg,
@@ -1317,6 +1371,9 @@ body.rogue-brick-focus-mode {
 .rogue-path-tree-node.is-core-green {
   --node-core-color: rgb(74 222 128 / 0.98);
   --node-core-shadow: rgb(34 197 94 / 0.62);
+  --node-width: 1.28rem;
+  --node-height: 0.92rem;
+  --node-corner-radius: 999px;
   --node-pattern-overlay:
     repeating-radial-gradient(
       circle at 50% 50%,
@@ -1324,46 +1381,6 @@ body.rogue-brick-focus-mode {
       rgb(255 255 255 / 0%) 1.25px 3.9px
     );
   border-color: rgb(74 222 128 / 98%);
-}
-
-.rogue-path-tree-node-shape {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  pointer-events: none;
-  z-index: 4;
-}
-
-.rogue-path-tree-node-shape.is-blue {
-  width: 0.42rem;
-  height: 0.42rem;
-  transform: translate(-50%, -50%);
-  border-radius: 999px;
-  border: 1px solid rgb(224 242 254 / 92%);
-  box-shadow:
-    0 0 0 1px rgb(12 74 110 / 54%),
-    0 0 4px rgb(125 211 252 / 55%);
-}
-
-.rogue-path-tree-node-shape.is-green {
-  width: 0.38rem;
-  height: 0.38rem;
-  transform: translate(-50%, -50%) rotate(45deg);
-  border-radius: 0.06rem;
-  border: 1px solid rgb(220 252 231 / 92%);
-  box-shadow:
-    0 0 0 1px rgb(20 83 45 / 56%),
-    0 0 4px rgb(74 222 128 / 54%);
-}
-
-.rogue-path-tree-node.is-playable .rogue-path-tree-node-shape.is-blue {
-  width: 0.56rem;
-  height: 0.56rem;
-}
-
-.rogue-path-tree-node.is-playable .rogue-path-tree-node-shape.is-green {
-  width: 0.52rem;
-  height: 0.52rem;
 }
 
 .rogue-path-tree-node.is-warden-encounter {
@@ -1468,8 +1485,8 @@ body.rogue-brick-focus-mode {
 }
 
 .rogue-path-tree-node.is-playable {
-  width: 2.1rem;
-  height: 2.1rem;
+  width: calc(var(--node-width) * 1.56);
+  height: calc(var(--node-height) * 1.56);
   border-width: 2px;
   z-index: 6;
   box-shadow:
@@ -2942,13 +2959,18 @@ button.rogue-path-tree-node.is-playable:focus-visible {
   }
 
   .rogue-path-tree-node {
-    width: 0.96rem;
-    height: 0.96rem;
+    --node-width: 0.96rem;
+    --node-height: 0.96rem;
+  }
+
+  .rogue-path-tree-node.is-core-green {
+    --node-width: 1.16rem;
+    --node-height: 0.84rem;
   }
 
   .rogue-path-tree-node.is-playable {
-    width: 1.68rem;
-    height: 1.68rem;
+    width: calc(var(--node-width) * 1.5);
+    height: calc(var(--node-height) * 1.5);
   }
 
   .rogue-path-tree-warden-legend-item {
