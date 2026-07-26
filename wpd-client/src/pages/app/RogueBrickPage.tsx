@@ -140,6 +140,7 @@ const WARDEN_TEAR_DEFAULT_DETACH_SEC = 3;
 const WARDEN_TEAR_FIRST_STARTUP_SEC = 1;
 const WARDEN_TEAR_REPEAT_STARTUP_SEC = 5;
 const WARDEN_TEAR_REPEAT_STARTUP_MIN_SEC = 3;
+const WARDEN_TEAR_CADENCE_SCALE = 0.5;
 const SLOT_UPGRADE_FLASH_DURATION_MS = 2000;
 const TPose_THRESHOLD_BRICKS_BEFORE_ORB = 20;
 
@@ -660,7 +661,7 @@ function getShotCooldownMsForLevel(level: number): number {
 function getWardenTearCountdownSec(detachAtSec: number, startupSec: number): number {
   const detachSec = Math.max(1, Math.floor(detachAtSec));
   const startup = Math.max(0, Math.floor(startupSec));
-  return detachSec + startup;
+  return Math.max(1, Math.round((detachSec + startup) * WARDEN_TEAR_CADENCE_SCALE));
 }
 
 function buildAimedVolleySpawns(options: {
@@ -1551,7 +1552,7 @@ function getImpactSideFromVelocity(ball: BallRuntime, normal?: { x: number; y: n
 
 function generateBoard(run: RogueRunState): BoardState {
   ensureRunPathState(run);
-  const activePathNode = run.pathNodesByLevel[run.level] ?? getCurrentPathNode(run);
+  const activePathNode = getCurrentPathNode(run);
   const challengeDefinition = getPathChallengeDefinition(activePathNode.challenge);
   const selectedIndex = selectCuratedBoardIndex(
     run.level,
@@ -4830,7 +4831,7 @@ export default function RogueBrickPage() {
           runState.levelGoalBricks ?? calculateLevelGoal(Math.max(1, runState.board.bricks.length))
         );
         const objectiveIds = getObjectiveBrickIds(runState.board);
-        const activePathNode = runState.pathNodesByLevel[runState.level] ?? getCurrentPathNode(runState);
+        const activePathNode = getCurrentPathNode(runState);
         const remainingObjectiveIds = prioritizeObjectiveBrickIds(
           objectiveIds.filter((id) => runState.board.bricks.some((brick) => brick.id === id)),
           runState.board.bricks,
@@ -4857,7 +4858,7 @@ export default function RogueBrickPage() {
 
         if (!runState.board.bricks.some(isBreakableBrick)) {
           const clearedBoardLevel = runState.level;
-          const clearedPathNode = runState.pathNodesByLevel[clearedBoardLevel] ?? getCurrentPathNode(runState);
+          const clearedPathNode = getCurrentPathNode(runState);
           const manaRaw = runState.boardManaEarned ?? 0;
           const { bonuses, manaBonus } = computeSkillBonuses({
             shotsTaken: runState.boardShotsTaken,
@@ -6186,7 +6187,7 @@ export default function RogueBrickPage() {
         return;
       }
 
-      runState.pathNodesByLevel[runState.level] = selectedNode;
+      runState.pathNodesByLevel[selectedNode.level] = selectedNode;
       runState.pathCurrentNodeId = selectedNode.id;
 
       const wardenForecast = getPathNodeWardenForecast(runState, selectedNode);
@@ -6996,9 +6997,7 @@ export default function RogueBrickPage() {
         Math.round((displayDestroyedBricks / Math.max(1, run.levelGoalBricks ?? 1)) * 100)
       )
     : 0;
-  const activePathChallenge = run
-    ? getPathChallengeDefinition((run.pathNodesByLevel[run.level] ?? getCurrentPathNode(run)).challenge)
-    : null;
+  const activePathChallenge = run ? getPathChallengeDefinition(getCurrentPathNode(run).challenge) : null;
   const activeDomain = activePathChallenge ? getDeepwoodDomainDefinition(activePathChallenge.domain) : null;
   const activeDomainWarden = activeDomain?.wardens?.[0] ?? null;
   const showBoardOverlay = !hasActiveRun || (run?.stage !== 'board' && run?.stage !== 'warden');
