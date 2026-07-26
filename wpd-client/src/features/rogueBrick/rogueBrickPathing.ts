@@ -78,6 +78,8 @@ export interface RoguePathRunState {
   pathNodesByLevel: Record<number, PathNodeState>;
   activeWardenId: string | null;
   wardensDefeated: string[];
+  ballCount?: number;
+  damage?: number;
 }
 
 export interface BlankEncounterProfile {
@@ -479,10 +481,15 @@ function getBlankEncounterNumber(run: RoguePathRunState | null | undefined): 1 |
 
 export function getBlankEncounterProfile(run: RoguePathRunState | null | undefined): BlankEncounterProfile {
   const encounterNumber = getBlankEncounterNumber(run);
+  const ballCount = Math.max(0, Math.floor(run?.ballCount ?? 0));
+  const damage = Math.max(0, Math.floor(run?.damage ?? 0));
+  const ballHpBonus = Math.max(0, ballCount - 5) * 28;
+  const damageHpBonus = Math.max(0, damage - 1) * 46;
+  const hpMomentumBonus = Math.min(520, ballHpBonus + damageHpBonus);
   if (encounterNumber === 1) {
     return {
       encounterNumber,
-      hpPerEye: 200,
+      hpPerEye: 320 + hpMomentumBonus,
       pathSpeedAtFullHp: 1,
       pathSpeedAtLowHp: 1.35,
       tearRespawnMinAtFullHp: 4,
@@ -499,7 +506,7 @@ export function getBlankEncounterProfile(run: RoguePathRunState | null | undefin
   if (encounterNumber === 2) {
     return {
       encounterNumber,
-      hpPerEye: 400,
+      hpPerEye: 640 + hpMomentumBonus,
       pathSpeedAtFullHp: 1.8,
       pathSpeedAtLowHp: 3.8,
       tearRespawnMinAtFullHp: 4,
@@ -516,7 +523,7 @@ export function getBlankEncounterProfile(run: RoguePathRunState | null | undefin
   if (encounterNumber === 3) {
     return {
       encounterNumber,
-      hpPerEye: 550,
+      hpPerEye: 980 + hpMomentumBonus,
       pathSpeedAtFullHp: 1.05,
       pathSpeedAtLowHp: 2.1,
       tearRespawnMinAtFullHp: 4,
@@ -532,7 +539,7 @@ export function getBlankEncounterProfile(run: RoguePathRunState | null | undefin
   }
   return {
     encounterNumber,
-    hpPerEye: 750,
+    hpPerEye: 1320 + hpMomentumBonus,
     pathSpeedAtFullHp: 2.1,
     pathSpeedAtLowHp: 4.3,
     tearRespawnMinAtFullHp: 4,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  getBoardBrickBaseHp,
   calculateOverallProgress,
   getBoardObjectiveVariants,
   getBoardOrbCountForLevel,
@@ -50,6 +51,93 @@ describe('getBoardOrbCountForLevel', () => {
     expect(getBoardOrbCountForLevel(1, 21)).toBe(1);
     expect(getBoardOrbCountForLevel(8, 21)).toBe(2);
     expect(getBoardOrbCountForLevel(15, 21)).toBe(3);
+  });
+});
+
+describe('getBoardBrickBaseHp', () => {
+  it('ramps standard brick hp quickly enough in early levels', () => {
+    const levelOneHp = getBoardBrickBaseHp({
+      level: 1,
+      maxLevels: 21,
+      boardsCleared: 0,
+      ballCount: 5,
+      hpMultiplier: 1,
+    });
+    const levelThreeHp = getBoardBrickBaseHp({
+      level: 3,
+      maxLevels: 21,
+      boardsCleared: 2,
+      ballCount: 5,
+      hpMultiplier: 1,
+    });
+
+    expect(levelOneHp).toBe(1);
+    expect(levelThreeHp).toBeGreaterThanOrEqual(2);
+  });
+
+  it('continues increasing hp through mid and late run progression', () => {
+    const earlyHp = getBoardBrickBaseHp({
+      level: 3,
+      maxLevels: 21,
+      boardsCleared: 2,
+      ballCount: 5,
+      hpMultiplier: 1,
+    });
+    const midHp = getBoardBrickBaseHp({
+      level: 10,
+      maxLevels: 21,
+      boardsCleared: 9,
+      ballCount: 7,
+      hpMultiplier: 1,
+    });
+    const lateHp = getBoardBrickBaseHp({
+      level: 21,
+      maxLevels: 21,
+      boardsCleared: 20,
+      ballCount: 10,
+      hpMultiplier: 1,
+    });
+
+    expect(midHp).toBeGreaterThan(earlyHp);
+    expect(lateHp).toBeGreaterThan(midHp);
+  });
+
+  it('thickens hp when more balls are in flight', () => {
+    const baselineHp = getBoardBrickBaseHp({
+      level: 8,
+      maxLevels: 21,
+      boardsCleared: 7,
+      ballCount: 5,
+      hpMultiplier: 1,
+    });
+    const highVolleyHp = getBoardBrickBaseHp({
+      level: 8,
+      maxLevels: 21,
+      boardsCleared: 7,
+      ballCount: 10,
+      hpMultiplier: 1,
+    });
+
+    expect(highVolleyHp).toBeGreaterThan(baselineHp);
+  });
+
+  it('applies challenge hp multipliers on top of base progression', () => {
+    const baseHp = getBoardBrickBaseHp({
+      level: 8,
+      maxLevels: 21,
+      boardsCleared: 7,
+      ballCount: 7,
+      hpMultiplier: 1,
+    });
+    const harderPathHp = getBoardBrickBaseHp({
+      level: 8,
+      maxLevels: 21,
+      boardsCleared: 7,
+      ballCount: 7,
+      hpMultiplier: 1.22,
+    });
+
+    expect(harderPathHp).toBeGreaterThan(baseHp);
   });
 });
 

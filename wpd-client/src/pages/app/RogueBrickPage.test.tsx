@@ -68,7 +68,7 @@ describe('RogueBrickPage run lifecycle UI', () => {
     });
   });
 
-  it('renders defeat summary from last run and dismisses it', async () => {
+  it('renders game over modal from last run defeat and dismisses it', async () => {
     const profile = createDefaultRogueBrickProfile();
     profile.metaCurrency = 64;
     profile.totalRuns = 3;
@@ -91,13 +91,46 @@ describe('RogueBrickPage run lifecycle UI', () => {
     const user = userEvent.setup();
     render(<RogueBrickPage />);
 
-    await screen.findByRole('dialog', { name: /run ended in defeat/i });
+    await screen.findByRole('dialog', { name: /game over/i });
     expect(screen.getByText(/The line collapsed\./i)).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: /^continue$/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /game over/i })).toBeNull();
+    });
+  });
+
+  it('renders triumph modal from last run victory and dismisses it', async () => {
+    const profile = createDefaultRogueBrickProfile();
+    profile.metaCurrency = 212;
+    profile.totalRuns = 9;
+    profile.bestLevel = 21;
+    profile.lastRunSummary = {
+      victory: true,
+      boardsCleared: 21,
+      levelReached: 22,
+      metaEarned: 128,
+      completedAt: 999123,
+      wardensDefeated: 4,
+      manaBanked: 88,
+    };
+    mockLoad.mockResolvedValue({
+      progressJson: JSON.stringify(profile),
+      updatedAtEpochMs: Date.now(),
+    });
+
+    const user = userEvent.setup();
+    render(<RogueBrickPage />);
+
+    await screen.findByRole('dialog', { name: /triumph/i });
+    expect(screen.getByText(/You escaped Deepwood after defeating all four Blanks\./i)).toBeTruthy();
+    expect(screen.getByText(/Caverns boards are currently in development\./i)).toBeTruthy();
 
     await user.click(screen.getByRole('button', { name: /^ok$/i }));
 
     await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: /run ended in defeat/i })).toBeNull();
+      expect(screen.queryByRole('dialog', { name: /triumph/i })).toBeNull();
     });
   });
 });

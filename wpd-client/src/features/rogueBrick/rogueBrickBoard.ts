@@ -28,6 +28,14 @@ export interface BoardObjectiveVariantRunSnapshot {
   maxLevels: number;
 }
 
+export interface BoardBrickHpSnapshot {
+  level: number;
+  maxLevels: number;
+  boardsCleared: number;
+  ballCount: number;
+  hpMultiplier: number;
+}
+
 export interface BoardProgressRunSnapshot {
   level: number;
   maxLevels: number;
@@ -87,6 +95,18 @@ export function getBoardObjectiveHp(snapshot: BoardObjectiveHpSnapshot): number 
     18,
     Math.round(levelBaseHp * snapshot.objectiveHpMultiplier * difficultyMultiplier * variantMultiplier)
   );
+}
+
+export function getBoardBrickBaseHp(snapshot: BoardBrickHpSnapshot): number {
+  const level = Math.max(1, snapshot.level);
+  const ballCount = Math.max(1, snapshot.ballCount);
+  const progress = Math.max(0, Math.min(1, (level - 1) / Math.max(1, snapshot.maxLevels - 1)));
+  const levelPressure = (level - 1) * 0.32;
+  const progressionPressure = Math.pow(progress, 1.15) * 3;
+  const boardPressure = Math.min(1.4, Math.floor(Math.max(0, snapshot.boardsCleared) / 3) * 0.2);
+  const extraBallPressure = Math.min(2.2, Math.max(0, ballCount - 5) * 0.3);
+  const rawBaseHp = 1 + levelPressure + progressionPressure + boardPressure + extraBallPressure;
+  return Math.max(1, Math.round(rawBaseHp * snapshot.hpMultiplier));
 }
 
 export function selectCuratedBoardIndex(
