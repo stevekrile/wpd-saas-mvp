@@ -123,9 +123,9 @@ describe('RogueBrickPage run lifecycle UI', () => {
     const user = userEvent.setup();
     render(<RogueBrickPage />);
 
-    await screen.findByRole('dialog', { name: /triumph/i });
-    expect(screen.getByText(/You escaped Deepwood after defeating all four Blanks\./i)).toBeTruthy();
-    expect(screen.getByText(/Caverns boards are currently in development\./i)).toBeTruthy();
+    const triumphDialog = await screen.findByRole('dialog', { name: /triumph/i });
+    expect(within(triumphDialog).getByText(/You completed the current expedition through Deepwood and the Caverns\./i)).toBeTruthy();
+    expect(within(triumphDialog).getByText(/Wardens defeated:\s*4/i)).toBeTruthy();
 
     await user.click(screen.getByRole('button', { name: /^ok$/i }));
 

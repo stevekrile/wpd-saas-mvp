@@ -2,6 +2,7 @@ export const CORE_VARIANTS = ['yellow', 'blue', 'green'] as const;
 export const PATH_MAX_LANE_ABS = 1;
 export const PATH_WARDEN_INTERVAL_LEVELS = 7;
 export const PATH_WARDEN_TOTAL = 4;
+const PATH_CAVERNS_PLACEHOLDER_WARDEN_TOTAL = 4;
 
 export type RunStage = 'board' | 'hub' | 'powerup' | 'warden';
 export type PathChallengeKey = 'balanced' | 'swarm' | 'fortified' | 'gauntlet';
@@ -106,11 +107,26 @@ export interface PathWardenTrigger {
 
 const PRIMARY_WARDEN_DOMAIN: DeepwoodDomainKey = 'thorn-keep';
 
-export const WARDEN_TRIGGERS: PathWardenTrigger[] = Array.from({ length: PATH_WARDEN_TOTAL }, (_, index) => ({
+const DEEPWOOD_WARDEN_TRIGGERS: PathWardenTrigger[] = Array.from({ length: PATH_WARDEN_TOTAL }, (_, index) => ({
   level: (index + 1) * PATH_WARDEN_INTERVAL_LEVELS,
   domain: PRIMARY_WARDEN_DOMAIN,
   wardenIndex: 0,
 }));
+
+const deepwoodMaxLevel = PATH_WARDEN_INTERVAL_LEVELS * PATH_WARDEN_TOTAL;
+const CAVERNS_PLACEHOLDER_WARDEN_TRIGGERS: PathWardenTrigger[] = Array.from(
+  { length: PATH_CAVERNS_PLACEHOLDER_WARDEN_TOTAL },
+  (_, index) => ({
+    level: deepwoodMaxLevel + (index + 1) * PATH_WARDEN_INTERVAL_LEVELS,
+    domain: PRIMARY_WARDEN_DOMAIN,
+    wardenIndex: 0,
+  })
+);
+
+export const WARDEN_TRIGGERS: PathWardenTrigger[] = [
+  ...DEEPWOOD_WARDEN_TRIGGERS,
+  ...CAVERNS_PLACEHOLDER_WARDEN_TRIGGERS,
+];
 
 const DEEPWOOD_DOMAINS: Record<DeepwoodDomainKey, DeepwoodDomainDefinition> = {
   'black-bog': {

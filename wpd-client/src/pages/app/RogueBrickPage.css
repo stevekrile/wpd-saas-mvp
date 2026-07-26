@@ -45,7 +45,7 @@ body.rogue-brick-focus-mode {
   position: relative;
   display: flex;
   flex-direction: column;
-  background: url('/src/assets/spooky-forest-wallpaper.png') center / cover no-repeat;
+  background: var(--rogue-brick-shell-background, url('/src/assets/spooky-forest-wallpaper.png')) center / cover no-repeat;
   background-attachment: fixed;
 }
 
@@ -58,7 +58,7 @@ body.rogue-brick-focus-mode {
     max(0.75rem, env(safe-area-inset-right))
     max(0.75rem, env(safe-area-inset-bottom))
     max(0.75rem, env(safe-area-inset-left));
-  background: url('/src/assets/spooky-forest-wallpaper.png') center / cover no-repeat fixed;
+  background: var(--rogue-brick-shell-background, url('/src/assets/spooky-forest-wallpaper.png')) center / cover no-repeat fixed;
   overflow: visible;
   display: flex;
   flex-direction: column;

@@ -1,4 +1,5 @@
 import type { CoreVariant, DeepwoodDomainKey, RoguePathRunState } from './rogueBrickPathing';
+import type { BoardWallMode } from './rogueBrickBoardWalls';
 
 export type BrickKind =
   | 'standard'
@@ -124,6 +125,7 @@ export interface RogueRunState extends RoguePathRunState {
   lastBoardSummary: BoardSummary | null;
   boardSummaryAcknowledged: boolean;
   launchOriginX: number;
+  boardWallMode: BoardWallMode;
   activeWardenDomain: DeepwoodDomainKey | null;
 }
 
@@ -504,6 +506,9 @@ export function normalizeRogueBrickProfile(
     }
 
     normalized.run.activeWardenDomain = options.toDeepwoodDomainKey(normalized.run.activeWardenDomain);
+    if (normalized.run.boardWallMode !== 'orthogonal' && normalized.run.boardWallMode !== 'cavern') {
+      normalized.run.boardWallMode = 'orthogonal';
+    }
     if (typeof normalized.run.activeWardenId !== 'string') {
       normalized.run.activeWardenId = null;
     }
