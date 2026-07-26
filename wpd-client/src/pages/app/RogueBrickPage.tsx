@@ -1094,6 +1094,38 @@ function reflectBallVelocityByNormal(ball: BallRuntime, normalX: number, normalY
   }
 }
 
+function applyBoardWallCollision(ball: BallRuntime, wallProfile: BoardWallProfile): number {
+  let bounceCount = 0;
+  const wallBounds = getBoardWallBoundsAtY(wallProfile, ball.y);
+  if (ball.x <= wallBounds.leftX + ball.radius) {
+    ball.x = wallBounds.leftX + ball.radius;
+    const leftSlope = getBoardWallSlopeAtY(wallProfile, ball.y, 'left');
+    reflectBallVelocityByNormal(ball, 1, -leftSlope);
+    ball.vx = Math.max(35, Math.abs(ball.vx));
+    ball.coreCharged = true;
+    bounceCount += 1;
+  } else if (ball.x >= wallBounds.rightX - ball.radius) {
+    ball.x = wallBounds.rightX - ball.radius;
+    const rightSlope = getBoardWallSlopeAtY(wallProfile, ball.y, 'right');
+    reflectBallVelocityByNormal(ball, -1, rightSlope);
+    ball.vx = -Math.max(35, Math.abs(ball.vx));
+    ball.coreCharged = true;
+    bounceCount += 1;
+  }
+
+  const ceilingY = getBoardWallCeilingYAtX(wallProfile, ball.x);
+  if (ball.y <= ceilingY + ball.radius) {
+    ball.y = ceilingY + ball.radius;
+    const ceilingSlope = getBoardWallCeilingSlopeAtX(wallProfile, ball.x);
+    reflectBallVelocityByNormal(ball, -ceilingSlope, 1);
+    ball.vy = Math.max(35, Math.abs(ball.vy));
+    ball.coreCharged = true;
+    bounceCount += 1;
+  }
+
+  return bounceCount;
+}
+
 function getRunBallRadius(run: RogueRunState): number {
   return clampNumber(BALL_RADIUS * run.ballRadiusMultiplier, BALL_RADIUS_MIN, BALL_RADIUS_MAX);
 }
@@ -4755,26 +4787,7 @@ export default function RogueBrickPage() {
           ball.y += ball.vy * dtSeconds;
 
           if (wardenWallProfile) {
-            const wallBounds = getBoardWallBoundsAtY(wardenWallProfile, ball.y);
-            if (ball.x <= wallBounds.leftX + ball.radius) {
-              ball.x = wallBounds.leftX + ball.radius;
-              const leftSlope = getBoardWallSlopeAtY(wardenWallProfile, ball.y, 'left');
-              reflectBallVelocityByNormal(ball, -1, leftSlope);
-              ball.coreCharged = true;
-            } else if (ball.x >= wallBounds.rightX - ball.radius) {
-              ball.x = wallBounds.rightX - ball.radius;
-              const rightSlope = getBoardWallSlopeAtY(wardenWallProfile, ball.y, 'right');
-              reflectBallVelocityByNormal(ball, 1, -rightSlope);
-              ball.coreCharged = true;
-            }
-
-            const ceilingY = getBoardWallCeilingYAtX(wardenWallProfile, ball.x);
-            if (ball.y <= ceilingY + ball.radius) {
-              ball.y = ceilingY + ball.radius;
-              const ceilingSlope = getBoardWallCeilingSlopeAtX(wardenWallProfile, ball.x);
-              reflectBallVelocityByNormal(ball, -ceilingSlope, 1);
-              ball.coreCharged = true;
-            }
+            applyBoardWallCollision(ball, wardenWallProfile);
           } else {
             const leftWallX = BOARD_SIDE_CHANNEL_WIDTH;
             const rightWallX = CANVAS_WIDTH - BOARD_SIDE_CHANNEL_WIDTH;
@@ -5939,32 +5952,7 @@ export default function RogueBrickPage() {
             ball.x += stepX;
             ball.y += stepY;
 
-            const wallBounds = getBoardWallBoundsAtY(boardWallProfile, ball.y);
-            if (ball.x <= wallBounds.leftX + ball.radius) {
-              ball.x = wallBounds.leftX + ball.radius;
-              const leftSlope = getBoardWallSlopeAtY(boardWallProfile, ball.y, 'left');
-              reflectBallVelocityByNormal(ball, 1, -leftSlope);
-              ball.vx = Math.max(35, Math.abs(ball.vx));
-              ball.coreCharged = true;
-              pendingBounceCountRef.current += 1;
-            } else if (ball.x >= wallBounds.rightX - ball.radius) {
-              ball.x = wallBounds.rightX - ball.radius;
-              const rightSlope = getBoardWallSlopeAtY(boardWallProfile, ball.y, 'right');
-              reflectBallVelocityByNormal(ball, -1, rightSlope);
-              ball.vx = -Math.max(35, Math.abs(ball.vx));
-              ball.coreCharged = true;
-              pendingBounceCountRef.current += 1;
-            }
-
-            const ceilingY = getBoardWallCeilingYAtX(boardWallProfile, ball.x);
-            if (ball.y <= ceilingY + ball.radius) {
-              ball.y = ceilingY + ball.radius;
-              const ceilingSlope = getBoardWallCeilingSlopeAtX(boardWallProfile, ball.x);
-              reflectBallVelocityByNormal(ball, -ceilingSlope, 1);
-              ball.vy = Math.max(35, Math.abs(ball.vy));
-              ball.coreCharged = true;
-              pendingBounceCountRef.current += 1;
-            }
+            pendingBounceCountRef.current += applyBoardWallCollision(ball, boardWallProfile);
             if (homingBarrageActive && ball.y >= CANVAS_HEIGHT - ball.radius) {
               ball.y = CANVAS_HEIGHT - ball.radius;
               ball.vy = -Math.abs(ball.vy);
