@@ -96,6 +96,43 @@ body.rogue-brick-focus-mode {
   display: block;
 }
 
+.rogue-brick-abandon-run {
+  width: 2em;
+  height: 2em;
+  border: 0;
+  background: transparent;
+  color: rgb(248 113 113 / 86%);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.rogue-brick-abandon-run:hover:not(:disabled) {
+  color: rgb(252 165 165 / 100%);
+}
+
+.rogue-brick-abandon-run:focus-visible {
+  outline: 1px solid rgb(248 113 113 / 48%);
+  outline-offset: 2px;
+  border-radius: 0.28rem;
+}
+
+.rogue-brick-abandon-run:disabled {
+  color: rgb(148 163 184 / 48%);
+  cursor: not-allowed;
+}
+
+.rogue-brick-abandon-run-icon {
+  width: 2em;
+  height: 2em;
+  display: block;
+}
+
 .rogue-brick-top-hud {
   display: flex;
   flex-direction: column;

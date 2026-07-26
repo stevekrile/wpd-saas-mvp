@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
-import { createPortal } from 'react-dom';
 import {
   WARDEN_BLANK_HP_MAX,
   getBlankCombinedHp,
@@ -16,8 +15,6 @@ import {
 import {
   getBoardObjectiveHp,
   calculateLevelGoal,
-  calculateOverallProgress,
-  calculateOverallScore,
   getBoardObjectiveVariants,
   getManaYieldScale,
   makeSpoilsOffers,
@@ -108,7 +105,6 @@ const WARDEN_LAUNCHER_Y = LAUNCHER_Y - 12;
 const WARDEN_TURRET_SLIDE_MS = 200;
 const LOCAL_SAVE_DEBOUNCE_MS = 900;
 const HOMING_BULLET_TIME_SCALE = 0.34;
-const POWER_POPOVER_WIDTH_PX = 272;
 const CORE_MIN_SCALE = 0.42;
 const BLUE_CORE_MIN_SCALE = 0.92;
 const BLUE_CORE_FORCE_FIELD_SIZE_MULTIPLIER = 1.5;
@@ -892,58 +888,6 @@ const SPOILS_POOL: SpoilsTemplate[] = [
     },
   },
 ];
-
-type PowerAspectBucket = 'shooting' | 'munitions' | 'powers';
-type PowerRewardSource = 'mana' | 'warden' | 'permanent';
-
-const POWER_DRAWER_BUCKET_ORDER: PowerAspectBucket[] = ['shooting', 'munitions', 'powers'];
-const POWER_DRAWER_BUCKET_LABELS: Record<PowerAspectBucket, string> = {
-  shooting: 'Shooting',
-  munitions: 'Munitions',
-  powers: 'Powers',
-};
-const POWER_REWARD_SOURCE_ORDER: PowerRewardSource[] = ['mana', 'warden', 'permanent'];
-const POWER_REWARD_SOURCE_LABELS: Record<PowerRewardSource, string> = {
-  mana: 'Mana rewards',
-  warden: 'Warden rewards',
-  permanent: 'Permanent upgrades',
-};
-
-interface ActivePowerIndicator {
-  id: string;
-  name: string;
-  description: string;
-  category: 'permanent' | 'run';
-  rewardSource: PowerRewardSource;
-  aspect: PowerAspectBucket;
-  sourceOrder: number;
-  currentLevel: number;
-  barSlots: number;
-  baseColor: string;
-  backdropIcon: string;
-  statusLabel: string;
-  levelLabel: string;
-  maxLevelLabel: string;
-}
-
-function getPowerAspectBucket(powerId: string): PowerAspectBucket {
-  switch (powerId) {
-    case 'startingBalls':
-    case 'arcane-volley':
-    case 'shop-ball':
-      return 'munitions';
-    case 'startingDamage':
-    case 'rune-edge':
-    case 'fortune-ricochet':
-    case 'shop-damage':
-      return 'shooting';
-    case 'shop-shield-slot':
-    case 'shop-cooldown':
-      return 'powers';
-    default:
-      return 'powers';
-  }
-}
 
 const ROGUE_BRICK_PROFILE_NORMALIZATION_OPTIONS = {
   orbSkillGaugeBaseSegments: ORB_SKILL_GAUGE_BASE_SEGMENTS,
@@ -2235,7 +2179,6 @@ export default function RogueBrickPage() {
   const frameNowRef = useRef(0);
   const shotInFlightRef = useRef(false);
   const idleAnimationRef = useRef<number | null>(null);
-  const powersStripRef = useRef<HTMLElement | null>(null);
   const [profile, setProfile] = useState<RogueBrickProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -2246,10 +2189,8 @@ export default function RogueBrickPage() {
   const hoverPointRef = useRef<{ x: number; y: number } | null>(null);
   const [shotInProgress, setShotInProgress] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
-  const [isPowerDrawerExpanded, setIsPowerDrawerExpanded] = useState(false);
-  const [previewStartingPowerId, setPreviewStartingPowerId] = useState<string | null>(null);
+  const [, setPreviewStartingPowerId] = useState<string | null>(null);
   const [pendingStartingRunPowerId, setPendingStartingRunPowerId] = useState<string | null>(null);
-  const [selectedPowerId, setSelectedPowerId] = useState<string | null>(null);
   const [selectedResourceHelp, setSelectedResourceHelp] = useState<ResourceHelpKey | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [dismissedDefeatSummaryCompletedAt, setDismissedDefeatSummaryCompletedAt] = useState<number | null>(null);
@@ -2262,7 +2203,6 @@ export default function RogueBrickPage() {
   const [normalModeEssenceTopPx, setNormalModeEssenceTopPx] = useState<number | null>(null);
   const [normalModeEssenceLeftPx, setNormalModeEssenceLeftPx] = useState<number | null>(null);
   const [startingRunPowerChoices, setStartingRunPowerChoices] = useState<string[]>([]);
-  const [powerPopoverLayout, setPowerPopoverLayout] = useState({ left: 8, top: 0, arrow: 136 });
   const [isPathSliding, setIsPathSliding] = useState(false);
   const [pendingPathNodeId, setPendingPathNodeId] = useState<string | null>(null);
   const [hoveredPathNodeId, setHoveredPathNodeId] = useState<string | null>(null);
@@ -2900,7 +2840,7 @@ export default function RogueBrickPage() {
     return () => {
       window.removeEventListener('resize', measureEssenceTop);
     };
-  }, [isFocusMode, isPowerDrawerExpanded, profile?.run?.stage]);
+  }, [isFocusMode, profile?.run?.stage]);
 
   useEffect(() => {
     if (run) {
@@ -5872,7 +5812,7 @@ export default function RogueBrickPage() {
     finalizeTurn();
   }, [finalizeTurn]);
 
-  const confirmResetGame = useCallback(() => {
+  const confirmAbandonRun = useCallback(() => {
     setShowResetConfirm(false);
     setOrbSlotUpgradeFlash(null);
     if (idleAnimationRef.current !== null) {
@@ -5966,7 +5906,6 @@ export default function RogueBrickPage() {
     isWardenSecondLidClosedRef.current = false;
     wardenSecondLidProgressRef.current = 0;
     wardenNextTearEyeIndexRef.current = 0;
-    setSelectedPowerId(null);
     setSelectedResourceHelp(null);
     setPreviewStartingPowerId(null);
     setPendingStartingRunPowerId(null);
@@ -5981,18 +5920,18 @@ export default function RogueBrickPage() {
       remainingBricks: 0,
       essenceByColor: { yellow: 0, blue: 0, green: 0 },
     });
+    commitProfile((draft) => {
+      if (!draft.run) {
+        return;
+      }
+      draft.run = null;
+    }, true);
+  }, [commitProfile]);
 
-    const resetProfile = defaultProfile();
-    profileRef.current = resetProfile;
-    setProfile(resetProfile);
-    setSaveStatus('saving');
-    void browserRogueBrickPersistence.clear().catch(() => {
-      setSaveStatus('error');
-    });
-  }, []);
-
-  const resetGame = useCallback(() => {
-    setIsPowerDrawerExpanded(false);
+  const requestAbandonRun = useCallback(() => {
+    if (!profileRef.current?.run) {
+      return;
+    }
     setShowResetConfirm(true);
   }, []);
 
@@ -6813,26 +6752,6 @@ export default function RogueBrickPage() {
     clearAim();
   }, [clearAim]);
 
-  const handlePowerChipClick = useCallback((powerId: string, chipElement: HTMLButtonElement) => {
-    if (selectedPowerId === powerId) {
-      setSelectedPowerId(null);
-      return;
-    }
-
-    const stripRect = powersStripRef.current?.getBoundingClientRect();
-    const chipRect = chipElement.getBoundingClientRect();
-    if (stripRect) {
-      const chipCenter = chipRect.left - stripRect.left + chipRect.width / 2;
-      const chipTop = chipRect.top - stripRect.top;
-      const maxLeft = Math.max(8, stripRect.width - POWER_POPOVER_WIDTH_PX - 8);
-      const left = Math.min(maxLeft, Math.max(8, chipCenter - POWER_POPOVER_WIDTH_PX / 2));
-      const arrow = Math.min(POWER_POPOVER_WIDTH_PX - 18, Math.max(18, chipCenter - left));
-      const top = Math.max(26, chipTop - 12);
-      setPowerPopoverLayout({ left, top, arrow });
-    }
-    setSelectedPowerId(powerId);
-  }, [selectedPowerId]);
-
   useEffect(() => {
     if (!run || run.stage === 'board') {
       const timer = window.setTimeout(() => {
@@ -6845,7 +6764,6 @@ export default function RogueBrickPage() {
 
   useEffect(() => {
     if (
-      !selectedPowerId &&
       !selectedResourceHelp &&
       !pendingStartingRunPowerId
     ) {
@@ -6860,7 +6778,6 @@ export default function RogueBrickPage() {
       if (target.closest('[data-popover-surface="true"]')) {
         return;
       }
-      setSelectedPowerId(null);
       setSelectedResourceHelp(null);
       setPendingStartingRunPowerId(null);
     };
@@ -6869,7 +6786,7 @@ export default function RogueBrickPage() {
     return () => {
       document.removeEventListener('pointerdown', handleGlobalPointerDown);
     };
-  }, [selectedPowerId, selectedResourceHelp, pendingStartingRunPowerId]);
+  }, [selectedResourceHelp, pendingStartingRunPowerId]);
 
   const saveLabel = useMemo(() => {
     if (isLoading) {
@@ -6961,10 +6878,6 @@ export default function RogueBrickPage() {
   const pendingStartingRunPowerTemplate = pendingStartingRunPowerId
     ? SPOILS_POOL.find((template) => template.id === pendingStartingRunPowerId) ?? null
     : null;
-  const previewStartingRunPowerTemplate = previewStartingPowerId
-    ? SPOILS_POOL.find((template) => template.id === previewStartingPowerId) ?? null
-    : null;
-  const highlightedPowerChipId = previewStartingPowerId ? `run-${previewStartingPowerId}` : null;
   const runProgressPct = run
     ? Math.round((Math.max(0, run.level - 1) / Math.max(1, run.maxLevels)) * 100)
     : 0;
@@ -7042,99 +6955,8 @@ export default function RogueBrickPage() {
     : null;
   const activeDomain = activePathChallenge ? getDeepwoodDomainDefinition(activePathChallenge.domain) : null;
   const activeDomainWarden = activeDomain?.wardens?.[0] ?? null;
-  const overallScore = calculateOverallScore(run, liveHud);
-  const overallProgressPct = calculateOverallProgress(run, liveHud);
   const showBoardOverlay = !hasActiveRun || (run?.stage !== 'board' && run?.stage !== 'warden');
   const isBetweenLevelHub = run?.stage === 'hub';
-  const permanentPowerIndicators: ActivePowerIndicator[] = PERMANENT_UPGRADES.map((upgrade, index) => {
-    const state = profile.permanentUpgrades[upgrade.key];
-    return {
-      id: `perm-${upgrade.key}`,
-      name: upgrade.name,
-      description: upgrade.description,
-      category: 'permanent',
-      rewardSource: 'permanent',
-      aspect: getPowerAspectBucket(upgrade.key),
-      sourceOrder: index,
-      currentLevel: state.rank,
-      barSlots: upgrade.maxRank,
-      baseColor: POWER_BASE_COLORS[upgrade.key] ?? '#22d3ee',
-      backdropIcon: POWER_BACKDROP_ICONS[upgrade.key] ?? '◌',
-      levelLabel: `L${state.rank}`,
-      statusLabel: state.rank > 0 ? (state.enabled ? 'Enabled' : 'Owned') : 'Not owned',
-      maxLevelLabel: `L${upgrade.maxRank}`,
-    };
-  });
-  const runPowerTemplates = [...POWER_POOL, ...SPOILS_POOL];
-  const runPowerSourceOrder = new Map<string, number>();
-  POWER_POOL.forEach((template, index) => {
-    runPowerSourceOrder.set(template.id, index);
-  });
-  SPOILS_POOL.forEach((template, index) => {
-    runPowerSourceOrder.set(template.id, POWER_POOL.length + index);
-  });
-  const wardenRewardIds = new Set(SPOILS_POOL.map((template) => template.id));
-  const runPowerIndicators: ActivePowerIndicator[] = runPowerTemplates
-    .map((template) => {
-      const rank = getRunPowerLevel(run, template.id);
-      const cappedRank = Math.min(rank, template.maxLevel);
-      const templateOrder = runPowerSourceOrder.get(template.id) ?? Number.MAX_SAFE_INTEGER;
-      const isAtMax = cappedRank >= template.maxLevel;
-      return {
-        id: `run-${template.id}`,
-        name: template.name,
-        description: template.description,
-        category: 'run' as const,
-        rewardSource: wardenRewardIds.has(template.id) ? 'warden' : 'mana',
-        aspect: getPowerAspectBucket(template.id),
-        sourceOrder: templateOrder,
-        currentLevel: cappedRank,
-        barSlots: template.maxLevel,
-        baseColor: POWER_BASE_COLORS[template.id] ?? '#60a5fa',
-        backdropIcon: POWER_BACKDROP_ICONS[template.id] ?? '◌',
-        levelLabel: `L${cappedRank}`,
-        statusLabel: cappedRank > 0 ? (isAtMax ? 'Maxed' : 'Owned') : 'Not purchased',
-        maxLevelLabel: `L${template.maxLevel}`,
-      };
-    });
-  const activePowerIndicators = [...permanentPowerIndicators, ...runPowerIndicators];
-  const orderedPowerBuckets = POWER_DRAWER_BUCKET_ORDER.map((aspect) => {
-    const powersForAspect = activePowerIndicators.filter((power) => power.aspect === aspect);
-    const sourceGroups = POWER_REWARD_SOURCE_ORDER.map((source) => {
-      const powers = powersForAspect
-        .filter((power) => power.rewardSource === source)
-        .sort((left, right) => {
-          const ownedCompare = Number(right.currentLevel > 0) - Number(left.currentLevel > 0);
-          if (ownedCompare !== 0) {
-            return ownedCompare;
-          }
-          if (left.currentLevel !== right.currentLevel) {
-            return right.currentLevel - left.currentLevel;
-          }
-          if (left.sourceOrder !== right.sourceOrder) {
-            return left.sourceOrder - right.sourceOrder;
-          }
-          return left.name.localeCompare(right.name);
-        });
-      return {
-        source,
-        label: POWER_REWARD_SOURCE_LABELS[source],
-        powers,
-      };
-    }).filter((group) => group.powers.length > 0);
-    return {
-      aspect,
-      label: POWER_DRAWER_BUCKET_LABELS[aspect],
-      sourceGroups,
-    };
-  }).filter((bucket) => bucket.sourceGroups.length > 0);
-  const selectedPower =
-    activePowerIndicators.find((power) => power.id === selectedPowerId) ?? null;
-  const powerPopoverStyle = {
-    '--power-popover-left': `${powerPopoverLayout.left}px`,
-    '--power-popover-top': `${powerPopoverLayout.top}px`,
-    '--power-popover-arrow': `${powerPopoverLayout.arrow}px`,
-  } as CSSProperties;
   const boardSummary = run?.lastBoardSummary ?? null;
   const shouldGateBoardChoices =
     run?.stage !== 'board' &&
@@ -7265,109 +7087,6 @@ export default function RogueBrickPage() {
     );
   };
 
-  const powerStripElement = (
-    <section
-      ref={powersStripRef}
-      className={`rogue-active-powers-strip${isPowerDrawerExpanded ? ' is-expanded' : ' is-collapsed'}${isFocusMode ? ' is-focus-drawer' : ''}`}
-      aria-label="Owned and active powers"
-    >
-      <button
-        type="button"
-        className="rogue-active-powers-tab"
-        onClick={() => setIsPowerDrawerExpanded((expanded) => !expanded)}
-        aria-label={isPowerDrawerExpanded ? 'Collapse powers drawer' : 'Expand powers drawer'}
-      >
-        <span className="rogue-active-powers-tab-handle" aria-hidden="true" />
-      </button>
-      {!hasActiveRun && previewStartingRunPowerTemplate && (
-        <div className="rogue-active-powers-header">
-          <span className="rogue-active-powers-preview" aria-live="polite">
-            <span className="rogue-active-powers-preview-icon" aria-hidden="true">
-              {POWER_BACKDROP_ICONS[previewStartingRunPowerTemplate.id] ?? '◌'}
-            </span>
-            <span>{previewStartingRunPowerTemplate.name}</span>
-          </span>
-        </div>
-      )}
-      <div className="rogue-active-powers-row">
-        {orderedPowerBuckets.length > 0 ? (
-          <div className="rogue-active-powers-buckets">
-            {orderedPowerBuckets.map((bucket) => (
-              <section key={bucket.aspect} className="rogue-active-powers-bucket">
-                <h3 className="rogue-active-powers-bucket-title">{bucket.label}</h3>
-                <div className="rogue-active-powers-source-groups">
-                  {bucket.sourceGroups.map((group) => (
-                    <div
-                      key={`${bucket.aspect}-${group.source}`}
-                      className={`rogue-active-powers-source-group is-${group.source}`}
-                    >
-                      <h4 className={`rogue-active-powers-source-title is-${group.source}`}>{group.label}</h4>
-                      <div className="rogue-active-powers-grid" role="list">
-                        {group.powers.map((power) => (
-                          <button
-                            type="button"
-                            key={power.id}
-                            className={`rogue-active-power-chip is-${power.category} is-${power.rewardSource}${selectedPowerId === power.id ? ' is-selected' : ''}${highlightedPowerChipId === power.id ? ' is-linked-highlight' : ''}`}
-                            title={power.name}
-                            aria-label={`${power.name}: ${power.statusLabel}`}
-                            onClick={(event) => handlePowerChipClick(power.id, event.currentTarget)}
-                            style={{ '--power-base-color': power.baseColor } as CSSProperties}
-                            data-popover-surface="true"
-                          >
-                            <span className="rogue-active-power-backdrop" aria-hidden="true">
-                              {power.backdropIcon}
-                            </span>
-                            <span className="rogue-active-power-stack" aria-hidden="true">
-                              {Array.from({ length: power.barSlots }, (_, index) => {
-                                const activeThreshold = Math.min(power.currentLevel, power.barSlots);
-                                const isActive = index < activeThreshold;
-                                return (
-                                  <span
-                                    key={`${power.id}-${index}`}
-                                    className={`rogue-active-power-segment${isActive ? ' is-active' : ''}`}
-                                  />
-                                );
-                              })}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-        ) : (
-          <p className="rogue-active-powers-empty">No upgrades or powers owned yet.</p>
-        )}
-      </div>
-      {isFocusMode && isPowerDrawerExpanded && (
-        <button type="button" className="btn-secondary rogue-active-powers-reset" onClick={resetGame}>
-          Reset Game (Abandon Run)
-        </button>
-      )}
-      {selectedPower && (
-        <section
-          className="rogue-active-power-hover-card"
-          style={powerPopoverStyle}
-          role="dialog"
-          aria-label={`${selectedPower.name} details`}
-          data-popover-surface="true"
-        >
-          <div className="rogue-active-power-detail-head">
-            <strong>{selectedPower.name}</strong>
-          </div>
-          <p>{selectedPower.description}</p>
-          <div className="rogue-active-power-detail-stats">
-            <span>Status: {selectedPower.statusLabel}</span>
-            <span>Current: {selectedPower.levelLabel}</span>
-            <span>Max: {selectedPower.maxLevelLabel}</span>
-          </div>
-        </section>
-      )}
-    </section>
-  );
   const boardSummaryModalElement = (() => {
     if (!shouldGateBoardChoices || !boardSummary) {
       return null;
@@ -7480,12 +7199,28 @@ export default function RogueBrickPage() {
       >
         <div 
           className={`rogue-brick-top-hud${shouldGateBoardChoices && boardSummary ? ' is-hidden' : ''}`} 
-          aria-label="Current score and progress"
+          aria-label="Run controls"
         >
           <div className="rogue-brick-top-hud-row">
-            <div className="rogue-brick-top-hud-score-group">
-              <strong className="rogue-brick-top-hud-score">{overallScore.toLocaleString()}</strong>
-            </div>
+            <button
+              type="button"
+              className="rogue-brick-abandon-run"
+              onClick={requestAbandonRun}
+              aria-label="Abandon current run"
+              title="Abandon current run"
+              disabled={!hasActiveRun}
+            >
+              <svg className="rogue-brick-abandon-run-icon" viewBox="0 0 24 24" role="img" aria-hidden="true">
+                <path d="M5 3.5v17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                <path
+                  d="M5.9 5.2c2.3-1.2 4.4-.4 6.2.3 1.7.7 3.1 1.2 4.6.5v7.5c-1.5.7-2.9.2-4.6-.5-1.8-.7-3.9-1.5-6.2-.3z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
             {isFocusMode && (
               <button
                 type="button"
@@ -7513,16 +7248,6 @@ export default function RogueBrickPage() {
                 </svg>
               </button>
             )}
-          </div>
-          <div
-            className="rogue-progress-track rogue-progress-track-compact"
-            role="progressbar"
-            aria-label="Overall run progress"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={overallProgressPct}
-          >
-            <div className="rogue-progress-fill" style={{ width: `${overallProgressPct}%` }} />
           </div>
         </div>
 
@@ -7608,7 +7333,7 @@ export default function RogueBrickPage() {
           )}
         <div
           ref={canvasWrapRef}
-          className={`rogue-brick-canvas-wrap${isPowerDrawerExpanded ? ' is-power-drawer-expanded' : ''}`}
+          className="rogue-brick-canvas-wrap"
         >
             <div
               ref={boardFrameRef}
@@ -7965,9 +7690,9 @@ export default function RogueBrickPage() {
                     data-popover-surface="true"
                   >
                     <h3>Confirm Abandon Run</h3>
-                    <p>Reset all Rogue Brick progress and abandon the current run? This cannot be undone.</p>
+                    <p>Abandon the current run? You will lose this run&apos;s progress.</p>
                     <div className="rogue-gamble-modal-actions">
-                      <button type="button" className="btn-primary" onClick={confirmResetGame}>
+                      <button type="button" className="btn-primary" onClick={confirmAbandonRun}>
                         Abandon Run
                       </button>
                       <button type="button" className="btn-secondary" onClick={() => setShowResetConfirm(false)}>
@@ -8018,11 +7743,6 @@ export default function RogueBrickPage() {
                 </button>
               )}
             </div>
-            {run?.stage !== 'warden' && (
-              isFocusMode && typeof document !== 'undefined'
-                ? createPortal(powerStripElement, document.body)
-                : powerStripElement
-            )}
         </div>
 
         <aside className="rogue-brick-sidebar">
@@ -8071,8 +7791,8 @@ export default function RogueBrickPage() {
             <p>Meta Currency: <strong>{profile.metaCurrency}</strong></p>
             <p>Best Level: <strong>{profile.bestLevel}</strong></p>
             <p>Total Runs: <strong>{profile.totalRuns}</strong></p>
-            <button type="button" className="btn-secondary" onClick={resetGame}>
-              Reset Game (Abandon Run)
+            <button type="button" className="btn-secondary" onClick={requestAbandonRun} disabled={!hasActiveRun}>
+              Abandon Run
             </button>
           </section>
 
