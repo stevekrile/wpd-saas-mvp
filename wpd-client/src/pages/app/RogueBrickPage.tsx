@@ -1568,7 +1568,10 @@ function generateBoard(run: RogueRunState): BoardState {
   const boardRows = baseRows;
 
   const bricks: Brick[] = [];
-  const hpBase = Math.max(1, Math.round((1 + run.level * 0.14) * challengeDefinition.hpMultiplier));
+  const hpBase = Math.max(
+    1,
+    Math.round((1 + (Math.max(1, run.level) - 1) * 0.2) * challengeDefinition.hpMultiplier)
+  );
   let objectiveRow = Math.floor(boardRows.length / 2);
   let objectiveCol = Math.floor(BRICK_COLUMNS / 2);
   const objectiveVariants = getBoardObjectiveVariants(run, run.level, activePathNode.primaryCoreVariant);
@@ -2429,12 +2432,12 @@ export default function RogueBrickPage() {
     setShotInProgress(false);
     setWardenActiveTear(null);
     wardenActiveTearRef.current = null;
-    wardenShieldStartBlueRef.current = Math.max(0, Math.floor(currentRun.essenceByColor.blue));
+    wardenShieldStartBlueRef.current = Math.max(0, Math.floor(currentRun.availableShield ?? 0));
     wardenStartOrangeRef.current = Math.max(1, Math.floor(currentRun.essenceByColor.yellow));
     wardenStartGreenRef.current = Math.max(1, Math.floor(currentRun.essenceByColor.green));
     wardenPathTimeRef.current = 0;
     wardenPathLastFrameMsRef.current = null;
-    const initialShieldMax = WARDEN_SHIELD_BASE_PIPS + Math.max(0, Math.floor(currentRun.essenceByColor.blue));
+    const initialShieldMax = WARDEN_SHIELD_BASE_PIPS + Math.max(0, Math.floor(currentRun.availableShield ?? 0));
     wardenShieldMaxRef.current = initialShieldMax;
     wardenShieldHpRef.current = initialShieldMax;
     wardenShieldGraceUntilMsRef.current = null;
@@ -4777,14 +4780,29 @@ export default function RogueBrickPage() {
 
         const runState = draft.run;
         runState.mana += Math.round(rewards.mana);
+        const yellowOrbBonus = Math.max(0, Math.floor(rewards.essenceByColor.yellow ?? 0));
+        const blueOrbBonus = Math.max(0, Math.floor(rewards.essenceByColor.blue ?? 0));
+        const greenOrbBonus = Math.max(0, Math.floor(rewards.essenceByColor.green ?? 0));
         const orbSkillGaugeMaxByColor = getRunOrbSkillGaugeMaxByColor(runState, draft.permanentUpgrades);
-        for (const variant of CORE_VARIANTS) {
-          runState.essenceByColor[variant] = clampNumber(
-            (runState.essenceByColor[variant] ?? 0) + (rewards.essenceByColor[variant] ?? 0),
-            0,
-            orbSkillGaugeMaxByColor[variant]
-          );
-        }
+        runState.essenceByColor.yellow = clampNumber(
+          (runState.essenceByColor.yellow ?? 0) + yellowOrbBonus,
+          0,
+          orbSkillGaugeMaxByColor.yellow
+        );
+        runState.essenceByColor.blue = clampNumber(
+          (runState.essenceByColor.blue ?? 0) + blueOrbBonus,
+          0,
+          orbSkillGaugeMaxByColor.blue
+        );
+        runState.essenceByColor.green = clampNumber(
+          (runState.essenceByColor.green ?? 0) + greenOrbBonus,
+          0,
+          orbSkillGaugeMaxByColor.green
+        );
+        runState.ballCount = Math.max(1, Math.floor(runState.ballCount + yellowOrbBonus));
+        runState.damage = Math.max(1, Math.floor(runState.damage + greenOrbBonus));
+        runState.greenOrbDamageBonus = Math.max(0, Math.floor((runState.greenOrbDamageBonus ?? 0) + greenOrbBonus));
+        runState.availableShield = Math.max(0, Math.floor((runState.availableShield ?? 0) + blueOrbBonus));
         runState.board.bricks = brickSnapshot;
         runState.coreCharge = postTurnCoreCharge;
         if (usedHomingBarrage) {
@@ -5552,7 +5570,11 @@ export default function RogueBrickPage() {
               const cornerHit = hitVerticalEdge && hitHorizontalEdge;
 
               const isCrit = ball.isCritShot;
-              const baseDamage = activeRun.damage * (isCrit ? 10 : 1);
+              const pendingGreenOrbBonus = Math.max(0, Math.floor(rewards.essenceByColor.green ?? 0));
+              const committedGreenOrbBonus = Math.max(0, Math.floor(activeRun.greenOrbDamageBonus ?? 0));
+              const nonCritDamageBase = Math.max(1, activeRun.damage + pendingGreenOrbBonus);
+              const critDamageBase = Math.max(1, nonCritDamageBase - (committedGreenOrbBonus + pendingGreenOrbBonus));
+              const baseDamage = isCrit ? critDamageBase * 10 : nonCritDamageBase;
               const chargedDamage = Math.max(1, Math.round(baseDamage * (1 + objectiveCharge * 1.4)));
               const variant = brick.kind ?? 'standard';
               const coreVariant = brick.coreVariant ?? 'yellow';
@@ -5981,6 +6003,8 @@ export default function RogueBrickPage() {
         orbSlotBonusByColor: { yellow: 0, blue: 0, green: 0 },
         ballCount: startingBalls,
         damage: startingDamage,
+        greenOrbDamageBonus: 0,
+        availableShield: 0,
         critChance: 0.01,
         manaMultiplier: 1,
         ballRadiusMultiplier: 1,
