@@ -4634,13 +4634,15 @@ export default function RogueBrickPage() {
           if (previousProgress < contactProgress && nextProgress >= contactProgress) {
             const impactY = tear.yStartCanvas + contactProgress * (LAUNCHER_Y - tear.yStartCanvas);
             triggerWardenTearShieldImpact(tear.id, tear.xCanvas, impactY);
-          }
-          if (nextProgress >= 1) {
+          } else if (nextProgress >= 1) {
             triggerWardenTearShieldImpact(tear.id, tear.xCanvas, LAUNCHER_Y);
           }
           didUpdateTear = true;
+          // Read phase from ref after triggerWardenTearShieldImpact may have updated it to 'hit',
+          // so setActiveTears does not overwrite the phase change with a stale 'falling' value.
+          const updatedTear = wardenActiveTearRef.current.find((t) => t.id === tear.id) ?? tear;
           return {
-            ...tear,
+            ...updatedTear,
             fallProgress: nextProgress,
           };
         });
